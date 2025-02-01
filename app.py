@@ -1,15 +1,14 @@
 import os
 import random
-from flask import Flask, request, jsonify, render_template_string, redirect, url_for, session, send_from_directory
+from flask import Flask, request, jsonify, render_template_string, send_from_directory
 
 app = Flask(__name__)
-app.secret_key = "supersecretkey"  # Needed for sessions
 
 #################################
 #       GLOBAL GAME STATE       #
 #################################
 
-# In this version, we support only 45's Heads Up.
+# This version supports only 45's Heads Up.
 current_game = None
 
 #################################
@@ -27,6 +26,7 @@ class Deck:
     def __init__(self):
         self.cards = []
         suits = ["Hearts", "Diamonds", "Clubs", "Spades"]
+        # For 45's we use a nonstandard deck; here we include these ranks.
         ranks = ["2", "3", "4", "6", "7", "8", "9", "10", "J", "Q", "K", "A"]
         for s in suits:
             for r in ranks:
@@ -41,14 +41,16 @@ class Deck:
         dealt = self.cards[:num_cards]
         self.cards = self.cards[num_cards:]
         return dealt
+    def draw(self, num_cards):
+        return self.deal(num_cards)
 
 class Player:
     def __init__(self, name):
         self.name = name
-        self.hand = []  # List of Card objects
+        self.hand = []         # List of Card objects
         self.score = 0
         self.tricks_won = 0
-        self.trick_pile = []  # Collected cards from won tricks
+        self.trick_pile = []   # Collected cards from won tricks
     def set_hand(self, cards):
         self.hand = cards
     def add_to_hand(self, cards):
@@ -57,6 +59,7 @@ class Player:
         return [str(card) for card in self.hand]
     def discard_auto(self, trump):
         before = len(self.hand)
+        # For computer bidder, discard non‑trump cards.
         self.hand = [card for card in self.hand if card.suit == trump]
         return before - len(self.hand)
 
@@ -65,16 +68,15 @@ class Game:
         # Heads Up: two players ("You" and "Computer")
         self.players = [Player("You"), Player("Computer")]
         self.deck = Deck()
-        self.kitty = []         # 3 cards set aside (for trump/kitty selection)
-        self.trump_suit = None  # To be chosen later
+        self.kitty = []         # 3 cards set aside
+        self.trump_suit = None  # Chosen during trump selection
         self.bid_winner = None  # 0 = human (dealer), 1 = computer
         self.bid = 0            # Winning bid amount
         self.leading_player = None  # Which player leads the trick: 0 or 1
         self.trick_count = 0
         self.trick_log_text = ""
-        self.current_lead_suit = None
-        self.starting_scores = {p.name: p.score for p in self.players}
         self.trick_history = []  # List of dicts, one per trick
+        self.starting_scores = {p.name: p.score for p in self.players}
     def deal_hands(self):
         self.deck.shuffle()
         self.kitty = self.deck.deal(3)
@@ -86,42 +88,49 @@ class Game:
             p.add_to_hand(self.deck.deal(5))
         self.trick_count = 0
         self.trick_log_text = ""
-        self.starting_scores = {p.name: p.score for p in self.players}
         self.trick_history = []
-        self.trump_suit = None  # Clear trump for new hand
+        self.starting_scores = {p.name: p.score for p in self.players}
+        self.trump_suit = None
     def get_player_hand(self):
         return self.players[0].get_hand_strings()
     def get_dealer(self):
-        # For this simple game, the human ("You") is always the dealer.
+        # In this demo, the human ("You") is always the dealer.
         return self.players[0].name
     def confirm_trump(self, suit):
         self.trump_suit = suit
         return [str(card) for card in self.kitty]
     def discard_phase(self, bidder_index, discards):
+        # Remove selected discard cards (list of strings) from bidder's hand.
         bidder = self.players[bidder_index]
         initial = len(bidder.hand)
         bidder.hand = [card for card in bidder.hand if str(card) not in discards]
         discarded = initial - len(bidder.hand)
-        return {"player_hand": self.get_player_hand(), "discard_count": discarded}
+        # Auto-draw to bring hand back to 5 cards.
+        missing = 5 - len(bidder.hand)
+        if missing > 0:
+            bidder.add_to_hand(self.deck.draw(missing))
+        return {"player_hand": self.players[0].get_hand_strings(), "discard_count": discarded}
     def attach_kitty(self, player_index, keep_list):
+        # Add selected kitty cards (by their string) to the bidder's hand.
         bidder = self.players[player_index]
         for card_str in keep_list:
             for c in self.kitty:
                 if str(c) == card_str:
                     bidder.add_to_hand([c])
         self.kitty = [c for c in self.kitty if str(c) not in keep_list]
-        return {"player_hand": self.get_player_hand()}
+        # Ensure hand is exactly 5 cards.
+        if len(bidder.hand) > 5:
+            bidder.hand = bidder.hand[:5]
+        return {"player_hand": self.players[0].get_hand_strings()}
     def play_trick(self, played_card=None):
-        # Basic trick play for demonstration purposes.
+        # Very basic trick play logic for demonstration.
         played = {}
         if self.leading_player == 1:  # Computer leads.
             if played_card is None:
                 comp_hand = self.players[1].hand
-                # For simplicity, computer plays its first card.
                 comp_card = comp_hand.pop(0)
-                self.current_lead_suit = comp_card.suit
-                played[1] = comp_card
                 self.trick_log_text = f"Computer leads with {comp_card}."
+                played[1] = comp_card
             else:
                 if played_card not in self.get_player_hand():
                     return {"trick_result": "Invalid card played.", "current_trick_cards": {}}, None
@@ -130,23 +139,9 @@ class Game:
                 played[0] = human_card
                 self.trick_log_text = f"You played {human_card}."
             current_trick = {
-                self.players[1].name: str(played.get(1)) if played.get(1) else "",
-                self.players[0].name: str(played.get(0)) if played.get(0) else ""
+                "Computer": str(played.get(1)) if played.get(1) else "",
+                "You": str(played.get(0)) if played.get(0) else ""
             }
-            comp_card = played.get(1)
-            human_card = played.get(0)
-            # For demonstration, if human card is trump and computer's is not, human wins; otherwise, compare lexicographically.
-            if human_card and human_card.suit == self.trump_suit and (not comp_card or comp_card.suit != self.trump_suit):
-                winner = "You"
-            else:
-                winner = "You" if str(human_card) > str(comp_card) else "Computer"
-            self.players[0 if winner=="You" else 1].score += 5
-            self.players[0 if winner=="You" else 1].tricks_won += 1
-            trick_info = {"trick_number": self.trick_count + 1,
-                          "cards": current_trick,
-                          "winner": winner}
-            self.trick_history.append(trick_info)
-            self.leading_player = 0 if winner=="You" else 1
         else:  # Human leads.
             if played_card is None:
                 return {"trick_result": "Your turn to lead.", "current_trick_cards": {}}, None
@@ -154,7 +149,6 @@ class Game:
                 return {"trick_result": "Invalid card played.", "current_trick_cards": {}}, None
             human_card = next(card for card in self.players[0].hand if str(card) == played_card)
             self.players[0].hand.remove(human_card)
-            self.current_lead_suit = human_card.suit
             played[0] = human_card
             self.trick_log_text = f"You lead with {human_card}."
             comp_hand = self.players[1].hand
@@ -166,21 +160,28 @@ class Game:
                 comp_card = None
                 self.trick_log_text += " Computer did not play."
             current_trick = {
-                self.players[0].name: str(played.get(0)) if played.get(0) else "",
-                self.players[1].name: str(played.get(1)) if played.get(1) else ""
+                "You": str(played.get(0)) if played.get(0) else "",
+                "Computer": str(played.get(1)) if played.get(1) else ""
             }
-            if human_card.suit == self.trump_suit and (not comp_card or comp_card.suit != self.trump_suit):
-                winner = "You"
-            else:
-                winner = "You" if str(human_card) > str(comp_card) else "Computer"
-            self.players[0 if winner=="You" else 1].score += 5
-            self.players[0 if winner=="You" else 1].tricks_won += 1
-            trick_info = {"trick_number": self.trick_count + 1,
-                          "cards": current_trick,
-                          "winner": winner}
-            self.trick_history.append(trick_info)
-            self.leading_player = 0 if winner=="You" else 1
+        # Determine winner (for demonstration, we simply compare the card strings)
+        if played.get(0) is None or played.get(1) is None:
+            winner = "You" if played.get(0) else "Computer"
+        else:
+            winner = "You" if str(played.get(0)) > str(played.get(1)) else "Computer"
+        if winner == "You":
+            self.players[0].score += 5
+            self.players[0].tricks_won += 1
+        else:
+            self.players[1].score += 5
+            self.players[1].tricks_won += 1
+        trick_info = {"trick_number": self.trick_count + 1,
+                      "cards": current_trick,
+                      "winner": winner}
+        self.trick_history.append(trick_info)
+        # Alternate lead based on trick winner.
+        self.leading_player = 0 if winner == "You" else 1
         self.trick_count += 1
+        # If 5 tricks have been played (or hand is empty), hand is complete.
         if self.trick_count >= 5 or len(self.players[0].hand) == 0:
             hand_scores = {p.name: p.score - self.starting_scores[p.name] for p in self.players}
             result_text = self.trick_log_text + " Hand complete. Last trick won by " + self.trick_history[-1]["winner"] + "."
@@ -192,81 +193,14 @@ class Game:
 #           ROUTES              #
 #################################
 
-# --- Login ---
-@app.route("/login", methods=["GET", "POST"])
-def login():
-    if request.method == "POST":
-        username = request.form.get("username")
-        if username:
-            session["username"] = username
-            return redirect(url_for("rules"))
-        else:
-            error = "Please enter a username."
-            return render_template_string("""
-                <html><body>
-                <h1>Login</h1>
-                <p style="color:red;">{{ error }}</p>
-                <form method="POST">
-                  Username: <input type="text" name="username"><br>
-                  <button type="submit">Login</button>
-                </form>
-                </body></html>
-            """, error=error)
-    return render_template_string("""
-        <html><body>
-        <h1>Login</h1>
-        <form method="POST">
-          Username: <input type="text" name="username"><br>
-          <button type="submit">Login</button>
-        </form>
-        </body></html>
-    """)
-
-# --- Rules ---
-@app.route("/rules", methods=["GET"])
-def rules():
-    if "username" not in session:
-        return redirect(url_for("login"))
-    rules_text = """
-    <h1>45's Heads Up Rules</h1>
-    <p>Welcome, {{ username }}!</p>
-    <p>Game Flow:</p>
-    <ul>
-      <li><strong>Auto‑Deal:</strong> When you enter the game, 5 cards are dealt to you and the computer.</li>
-      <li><strong>Bidding:</strong> The computer issues a bid (15, 20, 25, or 30). As the dealer, you must either pass (bid 0) or bid exactly computer bid + 5.</li>
-      <li><strong>Trump & Kitty Selection:</strong> If you win the bid, you select a trump suit. Then, 3 kitty cards are revealed; you may choose which ones to add to your hand.</li>
-      <li><strong>Discard Phase:</strong> You may discard 0–4 cards from your hand (a live counter shows the number selected). The computer also discards automatically.</li>
-      <li><strong>Trick Play:</strong> The player who wins the bid (or the non‑bidder) leads the first trick. Cards are played, shown as images, and after a short delay the trick is awarded and scores update.</li>
-      <li><strong>Score Keeping:</strong> Each trick is worth 5 points; bonus points may be awarded based on the highest card played.</li>
-    </ul>
-    <p><a href="{{ url_for('game_ui') }}">Start Game</a></p>
-    """
-    return render_template_string("""
-        <html>
-          <head>
-            <title>45's Heads Up - Rules</title>
-            <style>
-              body { font-family: Arial, sans-serif; background-color: #35654d; color: #fff; text-align: center; }
-              a { color: #f1c40f; font-size: 18px; }
-            </style>
-          </head>
-          <body>
-            """ + rules_text + """
-          </body>
-        </html>
-    """, username=session["username"])
-
-# --- Main Game UI ---
-@app.route("/game", methods=["GET"])
-def game_ui():
-    if "username" not in session:
-        return redirect(url_for("login"))
+# The landing page starts the game immediately.
+@app.route("/", methods=["GET"])
+def landing():
     global current_game
-    # Create and auto-deal a new hand each time.
     current_game = Game()
     current_game.deal_hands()
     dealer = current_game.get_dealer()
-    # The full game flow UI (bidding, trump/kitty, discard, trick play) is reintroduced.
+    # Render the game UI.
     game_html = """
     <!DOCTYPE html>
     <html lang="en">
@@ -282,25 +216,15 @@ def game_ui():
         .card-image { width: 100px; }
         .selected-card { border: 2px solid #f1c40f; }
         .section { margin: 20px 0; display: none; }
-        #scoreBoard { font-weight: bold; margin-bottom: 10px; font-size: 20px; }
-        #trumpDisplay span { font-size: 48px; }
-        .pile { width: 45%; background-color: #3b7d63; padding: 10px; border-radius: 5px; }
-        #discardCount { font-size: 18px; margin-top: 5px; }
-        #bidError { color: #ffcccc; }
       </style>
     </head>
     <body>
       <div id="gameContainer">
         <h1>45's Heads Up</h1>
-        <div id="scoreBoard">Player: 0 | Computer: 0</div>
-        <div id="trumpDisplay"></div>
-        <div>
-          <h2>Dealer: <span id="dealer">""" + dealer + """</span></h2>
-        </div>
-        <div id="playerHandSection">
-          <h2>Your Hand</h2>
-          <div id="hand" class="card-row"></div>
-        </div>
+        <p>Dealer: <span id="dealer">""" + dealer + """</span></p>
+        <h2>Your Hand:</h2>
+        <div id="hand" class="card-row"></div>
+        <!-- Bidding Section -->
         <div id="biddingSection" class="section">
           <h2>Bidding</h2>
           <p id="computerBid"></p>
@@ -313,9 +237,53 @@ def game_ui():
           </div>
           <p id="bidError"></p>
         </div>
-        <!-- (Additional sections for trump/kitty selection, discard, trick play would go here.) -->
+        <!-- Trump Selection Section -->
+        <div id="trumpSelectionSection" class="section">
+          <h2>Select Trump Suit</h2>
+          <div style="display: flex; justify-content: center; gap: 20px;">
+            <button class="btn trumpButton" data-suit="Hearts" style="background-color:#e74c3c;">♥</button>
+            <button class="btn trumpButton" data-suit="Diamonds" style="background-color:#f1c40f;">♦</button>
+            <button class="btn trumpButton" data-suit="Clubs" style="background-color:#27ae60;">♣</button>
+            <button class="btn trumpButton" data-suit="Spades" style="background-color:#2980b9;">♠</button>
+          </div>
+        </div>
+        <!-- Kitty Selection Section -->
+        <div id="kittySection" class="section">
+          <h2>Kitty Cards</h2>
+          <p id="kittyPrompt">Click "Reveal Kitty" to see the kitty.</p>
+          <div id="kittyCards" class="card-row"></div>
+          <button class="btn" id="revealKittyButton">Reveal Kitty</button>
+          <button class="btn" id="submitKittyButton" style="display:none;">Submit Kitty Selection</button>
+        </div>
+        <!-- Discard Phase -->
+        <div id="discardSection" class="section">
+          <h2>Discard Phase</h2>
+          <p id="discardMessage">Select cards to discard (0-4):</p>
+          <div id="discardHand" class="card-row"></div>
+          <p id="discardCount">Discarding 0 card(s)</p>
+          <button class="btn" id="skipDiscardButton">Submit Discards</button>
+          <p id="computerDiscardInfo"></p>
+        </div>
+        <!-- Trick Play Section -->
+        <div id="trickSection" class="section">
+          <h2>Trick Phase</h2>
+          <div id="currentTrick" class="card-row"></div>
+          <p id="playPrompt"></p>
+          <button class="btn" id="playTrickButton">Play Selected Card</button>
+        </div>
+        <!-- Trick Piles / Score -->
+        <div id="trickPiles" class="section" style="display: none;">
+          <div id="dealerTrickPile">
+            <h3>Dealer's Tricks</h3>
+          </div>
+          <div id="playerTrickPile">
+            <h3>Your Tricks</h3>
+          </div>
+        </div>
       </div>
+      <footer style="text-align: center; margin-top: 20px;">&copy; O'Donohue Software</footer>
       <script>
+        // --- Utility Functions ---
         async function sendRequest(url, data = {}) {
           try {
             const res = await fetch(url, {
@@ -335,13 +303,16 @@ def game_ui():
         }
         function getCardImageUrl(card) {
           const parts = card.split(" of ");
-          if (parts.length !== 2) return "";
+          if(parts.length !== 2) return "";
           let [rank, suit] = parts;
           let rank_code = rank === "10" ? "0" : (["J","Q","K","A"].includes(rank) ? rank : rank);
           let suit_code = suit[0].toUpperCase();
-          return "https://deckofcardsapi.com/static/img/" + rank_code + suit_code + ".png";
+          return `https://deckofcardsapi.com/static/img/${rank_code}${suit_code}.png`;
         }
-        function renderHand(containerId, hand) {
+        function getCardBackUrl() {
+          return "https://deckofcardsapi.com/static/img/back.png";
+        }
+        function renderHand(containerId, hand, selectable=false) {
           const container = document.getElementById(containerId);
           container.innerHTML = "";
           hand.forEach(card => {
@@ -349,16 +320,67 @@ def game_ui():
             img.src = getCardImageUrl(card);
             img.alt = card;
             img.className = "card-image";
+            if(selectable) {
+              img.addEventListener("click", () => {
+                if(containerId === "discardHand") {
+                  img.classList.toggle("selected-card");
+                  updateDiscardCount();
+                } else {
+                  [...container.querySelectorAll(".selected-card")].forEach(i => {
+                    if(i !== img) i.classList.remove("selected-card");
+                  });
+                  img.classList.toggle("selected-card");
+                }
+              });
+            }
             container.appendChild(img);
           });
         }
+        function renderKittyCards(containerId, kitty_list) {
+          const container = document.getElementById(containerId);
+          container.innerHTML = "";
+          kitty_list.forEach(card => {
+            const img = document.createElement("img");
+            img.src = getCardBackUrl();
+            img.alt = card;
+            img.className = "card-image";
+            img.addEventListener("click", () => {
+              img.classList.toggle("selected-card");
+            });
+            container.appendChild(img);
+          });
+        }
+        function showSection(id) {
+          document.getElementById(id).style.display = "block";
+        }
+        function hideSection(id) {
+          document.getElementById(id).style.display = "none";
+        }
+        function updateTrumpDisplay(suit) {
+          const suitSymbols = { "Hearts": "♥", "Diamonds": "♦", "Clubs": "♣", "Spades": "♠" };
+          document.getElementById("trumpDisplay").innerHTML = `<span>Trump: <span style="font-size:48px;">${suitSymbols[suit]}</span></span>`;
+        }
+        function updateDiscardCount() {
+          const count = document.querySelectorAll("#discardHand .selected-card").length;
+          document.getElementById("discardCount").innerText = "Discarding " + count + " card(s)";
+        }
+        // --- End Utility Functions ---
+
+        // --- Game Initialization ---
         async function initGame() {
-          // Render player's hand.
-          renderHand("hand", {{ player_hand|safe }});
-          // Fetch computer's bid.
+          // First, call /deal_cards to auto-deal a new hand.
+          const dealData = await sendRequest("/deal_cards");
+          if(dealData.error){
+            alert(dealData.error);
+            return;
+          }
+          document.getElementById("dealer").innerText = dealData.dealer;
+          renderHand("hand", dealData.player_hand);
+          // After dealing, request computer's bid.
           const compBidResp = await sendRequest("/computer_first_bid");
           if(compBidResp && !compBidResp.error){
             document.getElementById("computerBid").innerText = "Computer's bid: " + compBidResp.computer_bid;
+            // Enable only valid bid options.
             document.querySelectorAll(".bidButton").forEach(btn => {
               const bidVal = parseInt(btn.getAttribute("data-bid"));
               if(compBidResp.computer_bid == 15){
@@ -369,9 +391,12 @@ def game_ui():
                 btn.disabled = (bidVal !== 0 && bidVal !== 30);
               }
             });
-            document.getElementById("biddingSection").style.display = "block";
+            showSection("biddingSection");
           }
         }
+        // --- End Game Initialization ---
+
+        // --- Bidding Handler ---
         document.querySelectorAll(".bidButton").forEach(btn => {
           btn.addEventListener("click", async () => {
             btn.classList.add("selected-card");
@@ -383,37 +408,128 @@ def game_ui():
               document.getElementById("bidError").innerText = result.error;
               return;
             }
-            alert("Bid submitted. Outcome: " + result.bid_winner);
-            // (Here you would proceed to trump/kitty selection, discard, and trick play.)
+            alert("Bid outcome: " + result.bid_winner);
+            hideSection("biddingSection");
+            // After bidding, show trump selection.
+            showSection("trumpSelectionSection");
           });
         });
+        // --- End Bidding Handler ---
+
+        // --- Trump Selection Handler ---
+        document.querySelectorAll(".trumpButton").forEach(btn => {
+          btn.addEventListener("click", async () => {
+            const suit = btn.getAttribute("data-suit");
+            const resp = await sendRequest("/select_trump", { trump_suit: suit });
+            if(resp.error){
+              alert(resp.error);
+              return;
+            }
+            updateTrumpDisplay(suit);
+            hideSection("trumpSelectionSection");
+            // Show kitty selection.
+            renderKittyCards("kittyCards", resp.kitty_cards);
+            showSection("kittySection");
+          });
+        });
+        // --- End Trump Selection Handler ---
+
+        // --- Kitty Selection Handler ---
+        document.getElementById("revealKittyButton").addEventListener("click", () => {
+            // Flip kitty cards to reveal faces.
+            const kittyImgs = document.getElementById("kittyCards").querySelectorAll("img");
+            kittyImgs.forEach(img => {
+              img.src = getCardImageUrl(img.alt);
+            });
+            document.getElementById("kittyPrompt").innerText = "Select the kitty cards you want to add, then click 'Submit Kitty Selection'.";
+            document.getElementById("revealKittyButton").style.display = "none";
+            document.getElementById("submitKittyButton").style.display = "inline-block";
+        });
+        document.getElementById("submitKittyButton").addEventListener("click", async () => {
+            const selected = [...document.querySelectorAll("#kittyCards .selected-card")].map(img => img.alt);
+            const resp = await sendRequest("/attach_kitty", { keep_cards: selected });
+            if(resp.error){
+              alert(resp.error);
+              return;
+            }
+            renderHand("hand", resp.player_hand);
+            hideSection("kittySection");
+            // Show discard phase.
+            renderHand("discardHand", resp.player_hand, true);
+            showSection("discardSection");
+        });
+        // --- End Kitty Selection Handler ---
+
+        // --- Discard Phase Handler ---
+        document.getElementById("skipDiscardButton").addEventListener("click", async () => {
+            const selected = [...document.querySelectorAll("#discardHand .selected-card")].map(img => img.alt);
+            const resp = await sendRequest("/discard_and_draw", { discarded_cards: selected });
+            if(resp.error){
+              alert(resp.error);
+              return;
+            }
+            renderHand("hand", resp.player_hand);
+            hideSection("discardSection");
+            // After discard, show trick play section.
+            showSection("trickSection");
+            alert("Trick play phase begins. (For demonstration, trick play logic is basic.)");
+        });
+        // --- End Discard Phase Handler ---
+
+        // --- Trick Play Handler ---
+        document.getElementById("playTrickButton").addEventListener("click", async () => {
+            const selected = document.querySelector("#hand .selected-card");
+            const cardStr = selected ? selected.alt : null;
+            const resp = await sendRequest("/play_trick", { played_card: cardStr });
+            if(resp.error){
+              alert(resp.error);
+              return;
+            }
+            alert("Trick result: " + resp.trick_result + "\nCurrent Scores: " + JSON.stringify(resp.hand_scores));
+            renderHand("hand", resp.player_hand);
+        });
+        // --- End Trick Play Handler ---
+
+        // Initialize game on page load.
         window.addEventListener("load", initGame);
       </script>
     </body>
     </html>
     """
-    # Pass the player's hand to the template safely (as JSON).
-    return render_template_string(game_html, player_hand=current_game.get_player_hand())
+    return render_template_string(game_html)
 
-# --- API Endpoints ---
+#################################
+#           API ROUTES          #
+#################################
+
+@app.route("/deal_cards", methods=["POST"])
+def api_deal_cards():
+    global current_game
+    if current_game is None:
+        return jsonify({"error": "Game not initialized."}), 400
+    current_game.deal_hands()
+    dealer = current_game.get_dealer()
+    return jsonify({
+        "player_hand": current_game.get_player_hand(),
+        "dealer": dealer
+    })
 
 @app.route("/computer_first_bid", methods=["POST"])
-def computer_first_bid():
-    # Randomly choose a bid for the computer.
+def api_computer_first_bid():
+    # Randomly choose a bid from 15, 20, 25, or 30.
     comp_bid = random.choice([15, 20, 25, 30])
     return jsonify({"computer_bid": comp_bid})
 
 @app.route("/submit_bid", methods=["POST"])
-def submit_bid():
+def api_submit_bid():
     data = request.get_json()
     player_bid = data.get("player_bid")
     comp_bid = data.get("computer_bid")
     if comp_bid == 30:
-        # Computer wins the bid.
         return jsonify({"computer_bid": comp_bid, "bid_winner": "Computer"})
     if comp_bid == 0:
         if player_bid != 15:
-            return jsonify({"error": "Invalid bid. When opponent passes, you must bid 15."}), 400
+            return jsonify({"error": "When opponent passes, you must bid 15."}), 400
         else:
             return jsonify({"computer_bid": comp_bid, "bid_winner": "Player"})
     let_bid = comp_bid + 5
@@ -424,9 +540,41 @@ def submit_bid():
     else:
         return jsonify({"computer_bid": comp_bid, "bid_winner": "Player"})
 
-# (Additional endpoints for trump/kitty selection, discard, and trick play would be added here.)
+@app.route("/select_trump", methods=["POST"])
+def api_select_trump():
+    data = request.get_json()
+    suit = data.get("trump_suit", "Hearts")
+    kitty = current_game.confirm_trump(suit)
+    return jsonify({"kitty_cards": kitty, "trump_suit": suit})
 
-# Serve static files if needed.
+@app.route("/discard_and_draw", methods=["POST"])
+def api_discard_and_draw():
+    data = request.get_json()
+    discards = data.get("discarded_cards", [])
+    result = current_game.discard_phase(0, discards)  # Assume human (index 0) is bidder.
+    return jsonify(result)
+
+@app.route("/attach_kitty", methods=["POST"])
+def api_attach_kitty():
+    data = request.get_json()
+    keep_cards = data.get("keep_cards", [])
+    result = current_game.attach_kitty(0, keep_cards)  # Assume human (index 0) is bidder.
+    return jsonify(result)
+
+@app.route("/play_trick", methods=["POST"])
+def api_play_trick():
+    data = request.get_json()
+    played_card = data.get("played_card")
+    result_obj, hand_scores = current_game.play_trick(played_card)
+    resp = {
+        "trick_result": result_obj.get("trick_result", ""),
+        "current_trick_cards": result_obj.get("current_trick_cards", {}),
+        "trick_winner": result_obj.get("trick_winner", ""),
+        "player_hand": current_game.get_player_hand(),
+        "hand_scores": hand_scores
+    }
+    return jsonify(resp)
+
 @app.route("/<path:filename>")
 def serve_static(filename):
     return send_from_directory('.', filename)
