@@ -27,7 +27,7 @@ class Deck:
     def __init__(self):
         self.cards = []
         suits = ["Hearts", "Diamonds", "Clubs", "Spades"]
-        # For 45's we include these ranks.
+        # For 45's we use a nonstandard deck. Here we include these ranks.
         ranks = ["2", "3", "4", "6", "7", "8", "9", "10", "J", "Q", "K", "A"]
         for s in suits:
             for r in ranks:
@@ -70,7 +70,7 @@ class Game:
         self.players = [Player("You"), Player("Computer")]
         self.deck = Deck()
         self.kitty = []         # 3 cards set aside
-        self.trump_suit = None  # Chosen during trump selection
+        self.trump_suit = None  # To be chosen during trump selection
         self.bid_winner = None  # 0 = human (dealer), 1 = computer
         self.bid = 0            # Winning bid amount
         self.leading_player = None  # Which player leads the trick: 0 or 1
@@ -95,7 +95,7 @@ class Game:
     def get_player_hand(self):
         return self.players[0].get_hand_strings()
     def get_dealer(self):
-        # In this simple version, the human ("You") is always the dealer.
+        # In this demo, the human ("You") is always the dealer.
         return self.players[0].name
     def confirm_trump(self, suit):
         self.trump_suit = suit
@@ -124,7 +124,7 @@ class Game:
             bidder.hand = bidder.hand[:5]
         return {"player_hand": self.players[0].get_hand_strings()}
     def play_trick(self, played_card=None):
-        # Basic trick play logic for demonstration.
+        # Basic trick play logic (for demonstration only).
         played = {}
         if self.leading_player == 1:  # Computer leads.
             if played_card is None:
@@ -164,7 +164,7 @@ class Game:
                 "You": str(played.get(0)) if played.get(0) else "",
                 "Computer": str(played.get(1)) if played.get(1) else ""
             }
-        # Determine winner (for demonstration, compare card strings)
+        # Determine winner (for demo, we simply compare the card strings)
         if played.get(0) is None or played.get(1) is None:
             winner = "You" if played.get(0) else "Computer"
         else:
@@ -179,6 +179,7 @@ class Game:
                       "cards": current_trick,
                       "winner": winner}
         self.trick_history.append(trick_info)
+        # Alternate lead based on trick winner.
         self.leading_player = 0 if winner == "You" else 1
         self.trick_count += 1
         if self.trick_count >= 5 or len(self.players[0].hand) == 0:
@@ -192,304 +193,303 @@ class Game:
 #           ROUTES              #
 #################################
 
-# Landing page – starts the game immediately.
+# Landing page – game starts immediately.
 @app.route("/", methods=["GET"])
 def landing():
     global current_game
     current_game = Game()
     current_game.deal_hands()
     dealer = current_game.get_dealer()
-    game_html = """
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="UTF-8">
-      <title>45's Heads Up</title>
-      <link rel="icon" href="https://deckofcardsapi.com/static/img/5_of_clubs.png" type="image/png">
-      <style>
-        body { font-family: Arial, sans-serif; background-color: #35654d; color: #fff; text-align: center; }
-        #gameContainer { max-width: 1000px; margin: 50px auto; padding: 20px; background-color: #2e4e41; border-radius: 10px; }
-        .btn { padding: 10px 20px; font-size: 16px; margin: 10px; border: none; border-radius: 5px; cursor: pointer; }
-        .card-row { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; }
-        .card-image { width: 100px; }
-        .selected-card { border: 2px solid #f1c40f; }
-        .section { margin: 20px 0; display: none; }
-      </style>
-    </head>
-    <body>
-      <div id="gameContainer">
-        <h1>45's Heads Up</h1>
-        <p>Dealer: <span id="dealer">""" + dealer + """</span></p>
-        <h2>Your Hand:</h2>
-        <div id="hand" class="card-row"></div>
-        <!-- Bidding Section -->
-        <div id="biddingSection" class="section">
-          <h2>Bidding</h2>
-          <p id="computerBid"></p>
-          <div id="bidButtons">
-            <button class="btn bidButton" data-bid="0">Pass</button>
-            <button class="btn bidButton" data-bid="15">15</button>
-            <button class="btn bidButton" data-bid="20">20</button>
-            <button class="btn bidButton" data-bid="25">25</button>
-            <button class="btn bidButton" data-bid="30">30</button>
-          </div>
-          <p id="bidError"></p>
-        </div>
-        <!-- Trump Selection Section -->
-        <div id="trumpSelectionSection" class="section">
-          <h2>Select Trump Suit</h2>
-          <div style="display: flex; justify-content: center; gap: 20px;">
-            <button class="btn trumpButton" data-suit="Hearts" style="background-color:#e74c3c;">♥</button>
-            <button class="btn trumpButton" data-suit="Diamonds" style="background-color:#f1c40f;">♦</button>
-            <button class="btn trumpButton" data-suit="Clubs" style="background-color:#27ae60;">♣</button>
-            <button class="btn trumpButton" data-suit="Spades" style="background-color:#2980b9;">♠</button>
-          </div>
-        </div>
-        <!-- Kitty Selection Section -->
-        <div id="kittySection" class="section">
-          <h2>Kitty Cards</h2>
-          <p id="kittyPrompt">Click "Reveal Kitty" to see the kitty.</p>
-          <div id="kittyCards" class="card-row"></div>
-          <button class="btn" id="revealKittyButton">Reveal Kitty</button>
-          <button class="btn" id="submitKittyButton" style="display:none;">Submit Kitty Selection</button>
-        </div>
-        <!-- Discard Phase -->
-        <div id="discardSection" class="section">
-          <h2>Discard Phase</h2>
-          <p id="discardMessage">Select cards to discard (0-4):</p>
-          <div id="discardHand" class="card-row"></div>
-          <p id="discardCount">Discarding 0 card(s)</p>
-          <button class="btn" id="skipDiscardButton">Submit Discards</button>
-          <p id="computerDiscardInfo"></p>
-        </div>
-        <!-- Trick Play Section -->
-        <div id="trickSection" class="section">
-          <h2>Trick Phase</h2>
-          <div id="currentTrick" class="card-row"></div>
-          <p id="playPrompt"></p>
-          <button class="btn" id="playTrickButton">Play Selected Card</button>
-        </div>
-        <!-- Trick Piles / Score -->
-        <div id="trickPiles" class="section">
-          <div id="dealerTrickPile">
-            <h3>Dealer's Tricks</h3>
-          </div>
-          <div id="playerTrickPile">
-            <h3>Your Tricks</h3>
-          </div>
-        </div>
-      </div>
-      <footer style="text-align: center; margin-top: 20px;">&copy; O'Donohue Software</footer>
-      <script>
-        // --- Utility Functions ---
-        async function sendRequest(url, data = {}) {
-          try {
-            const res = await fetch(url, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(data)
-            });
-            if (!res.ok) {
-              const err = await res.json();
-              return { error: err.error || "Error" };
-            }
-            return await res.json();
-          } catch (err) {
-            console.error("Network error:", err);
-            return { error: err.message };
-          }
-        }
-        function getCardImageUrl(card) {
-          const parts = card.split(" of ");
-          if(parts.length !== 2) return "";
-          let [rank, suit] = parts;
-          let rank_code = rank === "10" ? "0" : (["J","Q","K","A"].includes(rank) ? rank : rank);
-          let suit_code = suit[0].toUpperCase();
-          return `https://deckofcardsapi.com/static/img/${rank_code}${suit_code}.png`;
-        }
-        function getCardBackUrl() {
-          return "https://deckofcardsapi.com/static/img/back.png";
-        }
-        function renderHand(containerId, hand, selectable=false) {
-          const container = document.getElementById(containerId);
-          container.innerHTML = "";
-          hand.forEach(card => {
-            const img = document.createElement("img");
-            img.src = getCardImageUrl(card);
-            img.alt = card;
-            img.className = "card-image";
-            if(selectable) {
-              img.addEventListener("click", () => {
-                if(containerId === "discardHand") {
-                  img.classList.toggle("selected-card");
-                  updateDiscardCount();
-                } else {
-                  [...container.querySelectorAll(".selected-card")].forEach(i => {
-                    if(i !== img) i.classList.remove("selected-card");
-                  });
-                  img.classList.toggle("selected-card");
-                }
-              });
-            }
-            container.appendChild(img);
-          });
-        }
-        function renderKittyCards(containerId, kitty_list) {
-          const container = document.getElementById(containerId);
-          container.innerHTML = "";
-          kitty_list.forEach(card => {
-            const img = document.createElement("img");
-            img.src = getCardBackUrl();
-            img.alt = card;
-            img.className = "card-image";
-            img.addEventListener("click", () => {
-              img.classList.toggle("selected-card");
-            });
-            container.appendChild(img);
-          });
-        }
-        function showSection(id) {
-          document.getElementById(id).style.display = "block";
-        }
-        function hideSection(id) {
-          document.getElementById(id).style.display = "none";
-        }
-        function updateTrumpDisplay(suit) {
-          const suitSymbols = { "Hearts": "♥", "Diamonds": "♦", "Clubs": "♣", "Spades": "♠" };
-          document.getElementById("trumpDisplay").innerHTML = `<span>Trump: <span style="font-size:48px;">${suitSymbols[suit]}</span></span>`;
-        }
-        function updateDiscardCount() {
-          const count = document.querySelectorAll("#discardHand .selected-card").length;
-          document.getElementById("discardCount").innerText = "Discarding " + count + " card(s)";
-        }
-        // --- End Utility Functions ---
-
-        // --- Game Initialization ---
-        async function initGame() {
-          // Call /deal_cards to get a new hand.
-          const dealData = await sendRequest("/deal_cards");
-          if(dealData.error){
-            alert(dealData.error);
-            return;
-          }
-          document.getElementById("dealer").innerText = dealData.dealer;
-          renderHand("hand", dealData.player_hand);
-          // Now fetch the computer's bid.
-          const compBidResp = await sendRequest("/computer_first_bid");
-          if(compBidResp && !compBidResp.error){
-            document.getElementById("computerBid").innerText = "Computer's bid: " + compBidResp.computer_bid;
-            // Enable only valid bid options.
-            document.querySelectorAll(".bidButton").forEach(btn => {
-              const bidVal = parseInt(btn.getAttribute("data-bid"));
-              if(compBidResp.computer_bid == 15){
-                btn.disabled = (bidVal !== 0 && bidVal !== 20);
-              } else if(compBidResp.computer_bid == 20){
-                btn.disabled = (bidVal !== 0 && bidVal !== 25);
-              } else if(compBidResp.computer_bid == 25){
-                btn.disabled = (bidVal !== 0 && bidVal !== 30);
-              }
-            });
-            showSection("biddingSection");
-          }
-        }
-        // --- End Game Initialization ---
-
-        // --- Bidding Handler ---
-        document.querySelectorAll(".bidButton").forEach(btn => {
-          btn.addEventListener("click", async () => {
-            btn.classList.add("selected-card");
-            const bidValue = parseInt(btn.getAttribute("data-bid"));
-            const compBidText = document.getElementById("computerBid").innerText;
-            const compBid = compBidText ? parseInt(compBidText.replace("Computer's bid: ", "")) : 0;
-            const result = await sendRequest("/submit_bid", { player_bid: bidValue, computer_bid: compBid });
-            if(result.error){
-              document.getElementById("bidError").innerText = result.error;
-              return;
-            }
-            alert("Bid outcome: " + result.bid_winner);
-            hideSection("biddingSection");
-            showSection("trumpSelectionSection");
-          });
-        });
-        // --- End Bidding Handler ---
-
-        // --- Trump Selection Handler ---
-        document.querySelectorAll(".trumpButton").forEach(btn => {
-          btn.addEventListener("click", async () => {
-            const suit = btn.getAttribute("data-suit");
-            const resp = await sendRequest("/select_trump", { trump_suit: suit });
-            if(resp.error){
-              alert(resp.error);
-              return;
-            }
-            updateTrumpDisplay(suit);
-            hideSection("trumpSelectionSection");
-            renderKittyCards("kittyCards", resp.kitty_cards);
-            showSection("kittySection");
-          });
-        });
-        // --- End Trump Selection Handler ---
-
-        // --- Kitty Selection Handler ---
-        document.getElementById("revealKittyButton").addEventListener("click", () => {
-            // Flip the kitty cards.
-            const kittyImgs = document.getElementById("kittyCards").querySelectorAll("img");
-            kittyImgs.forEach(img => {
-              img.src = getCardImageUrl(img.alt);
-            });
-            document.getElementById("kittyPrompt").innerText = "Select the kitty cards you want to add, then click 'Submit Kitty Selection'.";
-            document.getElementById("revealKittyButton").style.display = "none";
-            document.getElementById("submitKittyButton").style.display = "inline-block";
-        });
-        document.getElementById("submitKittyButton").addEventListener("click", async () => {
-            const selected = [...document.querySelectorAll("#kittyCards .selected-card")].map(img => img.alt);
-            const resp = await sendRequest("/attach_kitty", { keep_cards: selected });
-            if(resp.error){
-              alert(resp.error);
-              return;
-            }
-            renderHand("hand", resp.player_hand);
-            hideSection("kittySection");
-            renderHand("discardHand", resp.player_hand, true);
-            showSection("discardSection");
-        });
-        // --- End Kitty Selection Handler ---
-
-        // --- Discard Phase Handler ---
-        document.getElementById("skipDiscardButton").addEventListener("click", async () => {
-            const selected = [...document.querySelectorAll("#discardHand .selected-card")].map(img => img.alt);
-            const resp = await sendRequest("/discard_and_draw", { discarded_cards: selected });
-            if(resp.error){
-              alert(resp.error);
-              return;
-            }
-            renderHand("hand", resp.player_hand);
-            hideSection("discardSection");
-            showSection("trickSection");
-            alert("Trick play phase begins. (For demonstration, trick play logic is basic.)");
-        });
-        // --- End Discard Phase Handler ---
-
-        // --- Trick Play Handler ---
-        document.getElementById("playTrickButton").addEventListener("click", async () => {
-            const selected = document.querySelector("#hand .selected-card");
-            const cardStr = selected ? selected.alt : null;
-            const resp = await sendRequest("/play_trick", { played_card: cardStr });
-            if(resp.error){
-              alert(resp.error);
-              return;
-            }
-            alert("Trick result: " + resp.trick_result + "\nCurrent Scores: " + JSON.stringify(resp.hand_scores));
-            renderHand("hand", resp.player_hand);
-        });
-        // --- End Trick Play Handler ---
-
-        // Initialize game on page load.
-        window.addEventListener("load", initGame);
-      </script>
-    </body>
-    </html>
-    """
+    # Render the game UI.
+    game_html = (
+        "<!DOCTYPE html>"
+        "<html lang='en'>"
+        "<head>"
+        "  <meta charset='UTF-8'>"
+        "  <title>45's Heads Up</title>"
+        "  <link rel='icon' href='https://deckofcardsapi.com/static/img/5_of_clubs.png' type='image/png'>"
+        "  <style>"
+        "    body { font-family: Arial, sans-serif; background-color: #35654d; color: #fff; text-align: center; }"
+        "    #gameContainer { max-width: 1000px; margin: 50px auto; padding: 20px; background-color: #2e4e41; border-radius: 10px; }"
+        "    .btn { padding: 10px 20px; font-size: 16px; margin: 10px; border: none; border-radius: 5px; cursor: pointer; }"
+        "    .card-row { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; }"
+        "    .card-image { width: 100px; }"
+        "    .selected-card { border: 2px solid #f1c40f; }"
+        "    .section { margin: 20px 0; display: none; }"
+        "  </style>"
+        "</head>"
+        "<body>"
+        "  <div id='gameContainer'>"
+        "    <h1>45's Heads Up</h1>"
+        "    <p>Dealer: <span id='dealer'>" + dealer + "</span></p>"
+        "    <h2>Your Hand:</h2>"
+        "    <div id='hand' class='card-row'></div>"
+        "    <!-- Bidding Section -->"
+        "    <div id='biddingSection' class='section'>"
+        "      <h2>Bidding</h2>"
+        "      <p id='computerBid'></p>"
+        "      <div id='bidButtons'>"
+        "        <button class='btn bidButton' data-bid='0'>Pass</button>"
+        "        <button class='btn bidButton' data-bid='15'>15</button>"
+        "        <button class='btn bidButton' data-bid='20'>20</button>"
+        "        <button class='btn bidButton' data-bid='25'>25</button>"
+        "        <button class='btn bidButton' data-bid='30'>30</button>"
+        "      </div>"
+        "      <p id='bidError'></p>"
+        "    </div>"
+        "    <!-- Trump Selection Section -->"
+        "    <div id='trumpSelectionSection' class='section'>"
+        "      <h2>Select Trump Suit</h2>"
+        "      <div style='display: flex; justify-content: center; gap: 20px;'>"
+        "        <button class='btn trumpButton' data-suit='Hearts' style='background-color:#e74c3c;'>♥</button>"
+        "        <button class='btn trumpButton' data-suit='Diamonds' style='background-color:#f1c40f;'>♦</button>"
+        "        <button class='btn trumpButton' data-suit='Clubs' style='background-color:#27ae60;'>♣</button>"
+        "        <button class='btn trumpButton' data-suit='Spades' style='background-color:#2980b9;'>♠</button>"
+        "      </div>"
+        "    </div>"
+        "    <!-- Kitty Selection Section -->"
+        "    <div id='kittySection' class='section'>"
+        "      <h2>Kitty Cards</h2>"
+        "      <p id='kittyPrompt'>Click \"Reveal Kitty\" to see the kitty.</p>"
+        "      <div id='kittyCards' class='card-row'></div>"
+        "      <button class='btn' id='revealKittyButton'>Reveal Kitty</button>"
+        "      <button class='btn' id='submitKittyButton' style='display:none;'>Submit Kitty Selection</button>"
+        "    </div>"
+        "    <!-- Discard Phase -->"
+        "    <div id='discardSection' class='section'>"
+        "      <h2>Discard Phase</h2>"
+        "      <p id='discardMessage'>Select cards to discard (0-4):</p>"
+        "      <div id='discardHand' class='card-row'></div>"
+        "      <p id='discardCount'>Discarding 0 card(s)</p>"
+        "      <button class='btn' id='skipDiscardButton'>Submit Discards</button>"
+        "      <p id='computerDiscardInfo'></p>"
+        "    </div>"
+        "    <!-- Trick Play Section -->"
+        "    <div id='trickSection' class='section'>"
+        "      <h2>Trick Phase</h2>"
+        "      <div id='currentTrick' class='card-row'></div>"
+        "      <p id='playPrompt'></p>"
+        "      <button class='btn' id='playTrickButton'>Play Selected Card</button>"
+        "    </div>"
+        "    <!-- Trick Piles / Score -->"
+        "    <div id='trickPiles' class='section'>"
+        "      <div id='dealerTrickPile'>"
+        "        <h3>Dealer's Tricks</h3>"
+        "      </div>"
+        "      <div id='playerTrickPile'>"
+        "        <h3>Your Tricks</h3>"
+        "      </div>"
+        "    </div>"
+        "  </div>"
+        "  <footer style='text-align: center; margin-top: 20px;'>&copy; O'Donohue Software</footer>"
+        "  <script>"
+        "    // --- Utility Functions ---"
+        "    async function sendRequest(url, data = {}) {"
+        "      try {"
+        "        const res = await fetch(url, {"
+        "          method: 'POST',"
+        "          headers: { 'Content-Type': 'application/json' },"
+        "          body: JSON.stringify(data)"
+        "        });"
+        "        if (!res.ok) {"
+        "          const err = await res.json();"
+        "          return { error: err.error || 'Error' };"
+        "        }"
+        "        return await res.json();"
+        "      } catch (err) {"
+        "        console.error('Network error:', err);"
+        "        return { error: err.message };"
+        "      }"
+        "    }"
+        "    function getCardImageUrl(card) {"
+        "      const parts = card.split(' of ');"
+        "      if (parts.length !== 2) return '';"
+        "      let [rank, suit] = parts;"
+        "      let rank_code = rank === '10' ? '0' : (['J','Q','K','A'].includes(rank) ? rank : rank);"
+        "      let suit_code = suit[0].toUpperCase();"
+        "      return 'https://deckofcardsapi.com/static/img/' + rank_code + suit_code + '.png';"
+        "    }"
+        "    function getCardBackUrl() {"
+        "      return 'https://deckofcardsapi.com/static/img/back.png';"
+        "    }"
+        "    function renderHand(containerId, hand, selectable=false) {"
+        "      const container = document.getElementById(containerId);"
+        "      container.innerHTML = '';"
+        "      hand.forEach(card => {"
+        "        const img = document.createElement('img');"
+        "        img.src = getCardImageUrl(card);"
+        "        img.alt = card;"
+        "        img.className = 'card-image';"
+        "        if (selectable) {"
+        "          img.addEventListener('click', () => {"
+        "            if (containerId === 'discardHand') {"
+        "              img.classList.toggle('selected-card');"
+        "              updateDiscardCount();"
+        "            } else {"
+        "              [...container.querySelectorAll('.selected-card')].forEach(i => {"
+        "                if (i !== img) i.classList.remove('selected-card');"
+        "              });"
+        "              img.classList.toggle('selected-card');"
+        "            }"
+        "          });"
+        "        }"
+        "        container.appendChild(img);"
+        "      });"
+        "    }"
+        "    function renderKittyCards(containerId, kitty_list) {"
+        "      const container = document.getElementById(containerId);"
+        "      container.innerHTML = '';"
+        "      kitty_list.forEach(card => {"
+        "        const img = document.createElement('img');"
+        "        img.src = getCardBackUrl();"
+        "        img.alt = card;"
+        "        img.className = 'card-image';"
+        "        img.addEventListener('click', () => {"
+        "          img.classList.toggle('selected-card');"
+        "        });"
+        "        container.appendChild(img);"
+        "      });"
+        "    }"
+        "    function showSection(id) {"
+        "      document.getElementById(id).style.display = 'block';"
+        "    }"
+        "    function hideSection(id) {"
+        "      document.getElementById(id).style.display = 'none';"
+        "    }"
+        "    function updateTrumpDisplay(suit) {"
+        "      const suitSymbols = { 'Hearts': '♥', 'Diamonds': '♦', 'Clubs': '♣', 'Spades': '♠' };"
+        "      document.getElementById('trumpDisplay').innerHTML = `<span>Trump: <span style='font-size:48px;'>${suitSymbols[suit]}</span></span>`;"
+        "    }"
+        "    function updateDiscardCount() {"
+        "      const count = document.querySelectorAll('#discardHand .selected-card').length;"
+        "      document.getElementById('discardCount').innerText = 'Discarding ' + count + ' card(s)';"
+        "    }"
+        "    // --- End Utility Functions ---"
+        ""
+        "    // --- Game Initialization ---"
+        "    async function initGame() {"
+        "      const dealData = await sendRequest('/deal_cards');"
+        "      if(dealData.error){"
+        "        alert(dealData.error);"
+        "        return;"
+        "      }"
+        "      document.getElementById('dealer').innerText = dealData.dealer;"
+        "      renderHand('hand', dealData.player_hand);"
+        "      // Request computer's bid."
+        "      const compBidResp = await sendRequest('/computer_first_bid');"
+        "      if(compBidResp && !compBidResp.error){"
+        "        document.getElementById('computerBid').innerText = 'Computer\\'s bid: ' + compBidResp.computer_bid;"
+        "        // Enable only valid bid options based on computer bid."
+        "        document.querySelectorAll('.bidButton').forEach(btn => {"
+        "          const bidVal = parseInt(btn.getAttribute('data-bid'));"
+        "          if(compBidResp.computer_bid == 15){"
+        "            btn.disabled = (bidVal !== 0 && bidVal !== 20);"
+        "          } else if(compBidResp.computer_bid == 20){"
+        "            btn.disabled = (bidVal !== 0 && bidVal !== 25);"
+        "          } else if(compBidResp.computer_bid == 25){"
+        "            btn.disabled = (bidVal !== 0 && bidVal !== 30);"
+        "          }"
+        "        });"
+        "        showSection('biddingSection');"
+        "      }"
+        "    }"
+        "    // --- End Game Initialization ---"
+        ""
+        "    // --- Bidding Handler ---"
+        "    document.querySelectorAll('.bidButton').forEach(btn => {"
+        "      btn.addEventListener('click', async () => {"
+        "        btn.classList.add('selected-card');"
+        "        const bidValue = parseInt(btn.getAttribute('data-bid'));"
+        "        const compBidText = document.getElementById('computerBid').innerText;"
+        "        const compBid = compBidText ? parseInt(compBidText.replace('Computer\\'s bid: ', '')) : 0;"
+        "        const result = await sendRequest('/submit_bid', { player_bid: bidValue, computer_bid: compBid });"
+        "        if(result.error){"
+        "          document.getElementById('bidError').innerText = result.error;"
+        "          return;"
+        "        }"
+        "        alert('Bid outcome: ' + result.bid_winner);"
+        "        hideSection('biddingSection');"
+        "        showSection('trumpSelectionSection');"
+        "      });"
+        "    });"
+        "    // --- End Bidding Handler ---"
+        ""
+        "    // --- Trump Selection Handler ---"
+        "    document.querySelectorAll('.trumpButton').forEach(btn => {"
+        "      btn.addEventListener('click', async () => {"
+        "        const suit = btn.getAttribute('data-suit');"
+        "        const resp = await sendRequest('/select_trump', { trump_suit: suit });"
+        "        if(resp.error){"
+        "          alert(resp.error);"
+        "          return;"
+        "        }"
+        "        updateTrumpDisplay(suit);"
+        "        hideSection('trumpSelectionSection');"
+        "        renderKittyCards('kittyCards', resp.kitty_cards);"
+        "        showSection('kittySection');"
+        "      });"
+        "    });"
+        "    // --- End Trump Selection Handler ---"
+        ""
+        "    // --- Kitty Selection Handler ---"
+        "    document.getElementById('revealKittyButton').addEventListener('click', () => {"
+        "      const kittyImgs = document.getElementById('kittyCards').querySelectorAll('img');"
+        "      kittyImgs.forEach(img => {"
+        "        img.src = getCardImageUrl(img.alt);"
+        "      });"
+        "      document.getElementById('kittyPrompt').innerText = 'Select the kitty cards you want to add, then click \\'Submit Kitty Selection\\'.';"
+        "      document.getElementById('revealKittyButton').style.display = 'none';"
+        "      document.getElementById('submitKittyButton').style.display = 'inline-block';"
+        "    });"
+        "    document.getElementById('submitKittyButton').addEventListener('click', async () => {"
+        "      const selected = [...document.querySelectorAll('#kittyCards .selected-card')].map(img => img.alt);"
+        "      const resp = await sendRequest('/attach_kitty', { keep_cards: selected });"
+        "      if(resp.error){"
+        "        alert(resp.error);"
+        "        return;"
+        "      }"
+        "      renderHand('hand', resp.player_hand);"
+        "      hideSection('kittySection');"
+        "      renderHand('discardHand', resp.player_hand, true);"
+        "      showSection('discardSection');"
+        "    });"
+        "    // --- End Kitty Selection Handler ---"
+        ""
+        "    // --- Discard Phase Handler ---"
+        "    document.getElementById('skipDiscardButton').addEventListener('click', async () => {"
+        "      const selected = [...document.querySelectorAll('#discardHand .selected-card')].map(img => img.alt);"
+        "      const resp = await sendRequest('/discard_and_draw', { discarded_cards: selected });"
+        "      if(resp.error){"
+        "        alert(resp.error);"
+        "        return;"
+        "      }"
+        "      renderHand('hand', resp.player_hand);"
+        "      hideSection('discardSection');"
+        "      showSection('trickSection');"
+        "      alert('Trick play phase begins. (Basic trick play logic is used for demonstration.)');"
+        "    });"
+        "    // --- End Discard Phase Handler ---"
+        ""
+        "    // --- Trick Play Handler ---"
+        "    document.getElementById('playTrickButton').addEventListener('click', async () => {"
+        "      const selected = document.querySelector('#hand .selected-card');"
+        "      const cardStr = selected ? selected.alt : null;"
+        "      const resp = await sendRequest('/play_trick', { played_card: cardStr });"
+        "      if(resp.error){"
+        "        alert(resp.error);"
+        "        return;"
+        "      }"
+        "      alert('Trick result: ' + resp.trick_result + '\\nCurrent Scores: ' + JSON.stringify(resp.hand_scores));"
+        "      renderHand('hand', resp.player_hand);"
+        "    });"
+        "    // --- End Trick Play Handler ---"
+        ""
+        "    // Initialize the game on page load."
+        "    window.addEventListener('load', initGame);"
+        "  </script>"
+        "</body>"
+        "</html>"
+    )
     return render_template_string(game_html)
 
 #################################
@@ -544,14 +544,14 @@ def api_select_trump():
 def api_discard_and_draw():
     data = request.get_json()
     discards = data.get("discarded_cards", [])
-    result = current_game.discard_phase(0, discards)
+    result = current_game.discard_phase(0, discards)  # Assume human (index 0) is bidder.
     return jsonify(result)
 
 @app.route("/attach_kitty", methods=["POST"])
 def api_attach_kitty():
     data = request.get_json()
     keep_cards = data.get("keep_cards", [])
-    result = current_game.attach_kitty(0, keep_cards)
+    result = current_game.attach_kitty(0, keep_cards)  # Assume human (index 0) is bidder.
     return jsonify(result)
 
 @app.route("/play_trick", methods=["POST"])
