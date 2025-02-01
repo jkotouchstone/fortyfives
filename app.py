@@ -1,5 +1,6 @@
 import os
 import random
+import json
 from flask import Flask, request, jsonify, render_template_string, send_from_directory
 
 app = Flask(__name__)
@@ -26,7 +27,7 @@ class Deck:
     def __init__(self):
         self.cards = []
         suits = ["Hearts", "Diamonds", "Clubs", "Spades"]
-        # For 45's we use a nonstandard deck; here we include these ranks.
+        # For 45's we include these ranks.
         ranks = ["2", "3", "4", "6", "7", "8", "9", "10", "J", "Q", "K", "A"]
         for s in suits:
             for r in ranks:
@@ -59,7 +60,7 @@ class Player:
         return [str(card) for card in self.hand]
     def discard_auto(self, trump):
         before = len(self.hand)
-        # For computer bidder, discard non‑trump cards.
+        # For computer bidder, keep only trump cards.
         self.hand = [card for card in self.hand if card.suit == trump]
         return before - len(self.hand)
 
@@ -94,7 +95,7 @@ class Game:
     def get_player_hand(self):
         return self.players[0].get_hand_strings()
     def get_dealer(self):
-        # In this demo, the human ("You") is always the dealer.
+        # In this simple version, the human ("You") is always the dealer.
         return self.players[0].name
     def confirm_trump(self, suit):
         self.trump_suit = suit
@@ -105,7 +106,7 @@ class Game:
         initial = len(bidder.hand)
         bidder.hand = [card for card in bidder.hand if str(card) not in discards]
         discarded = initial - len(bidder.hand)
-        # Auto-draw to bring hand back to 5 cards.
+        # Auto-draw to complete hand to 5 cards.
         missing = 5 - len(bidder.hand)
         if missing > 0:
             bidder.add_to_hand(self.deck.draw(missing))
@@ -123,7 +124,7 @@ class Game:
             bidder.hand = bidder.hand[:5]
         return {"player_hand": self.players[0].get_hand_strings()}
     def play_trick(self, played_card=None):
-        # Very basic trick play logic for demonstration.
+        # Basic trick play logic for demonstration.
         played = {}
         if self.leading_player == 1:  # Computer leads.
             if played_card is None:
@@ -163,7 +164,7 @@ class Game:
                 "You": str(played.get(0)) if played.get(0) else "",
                 "Computer": str(played.get(1)) if played.get(1) else ""
             }
-        # Determine winner (for demonstration, we simply compare the card strings)
+        # Determine winner (for demonstration, compare card strings)
         if played.get(0) is None or played.get(1) is None:
             winner = "You" if played.get(0) else "Computer"
         else:
@@ -178,10 +179,8 @@ class Game:
                       "cards": current_trick,
                       "winner": winner}
         self.trick_history.append(trick_info)
-        # Alternate lead based on trick winner.
         self.leading_player = 0 if winner == "You" else 1
         self.trick_count += 1
-        # If 5 tricks have been played (or hand is empty), hand is complete.
         if self.trick_count >= 5 or len(self.players[0].hand) == 0:
             hand_scores = {p.name: p.score - self.starting_scores[p.name] for p in self.players}
             result_text = self.trick_log_text + " Hand complete. Last trick won by " + self.trick_history[-1]["winner"] + "."
@@ -193,14 +192,13 @@ class Game:
 #           ROUTES              #
 #################################
 
-# The landing page starts the game immediately.
+# Landing page – starts the game immediately.
 @app.route("/", methods=["GET"])
 def landing():
     global current_game
     current_game = Game()
     current_game.deal_hands()
     dealer = current_game.get_dealer()
-    # Render the game UI.
     game_html = """
     <!DOCTYPE html>
     <html lang="en">
@@ -272,7 +270,7 @@ def landing():
           <button class="btn" id="playTrickButton">Play Selected Card</button>
         </div>
         <!-- Trick Piles / Score -->
-        <div id="trickPiles" class="section" style="display: none;">
+        <div id="trickPiles" class="section">
           <div id="dealerTrickPile">
             <h3>Dealer's Tricks</h3>
           </div>
@@ -368,7 +366,7 @@ def landing():
 
         // --- Game Initialization ---
         async function initGame() {
-          // First, call /deal_cards to auto-deal a new hand.
+          // Call /deal_cards to get a new hand.
           const dealData = await sendRequest("/deal_cards");
           if(dealData.error){
             alert(dealData.error);
@@ -376,7 +374,7 @@ def landing():
           }
           document.getElementById("dealer").innerText = dealData.dealer;
           renderHand("hand", dealData.player_hand);
-          // After dealing, request computer's bid.
+          // Now fetch the computer's bid.
           const compBidResp = await sendRequest("/computer_first_bid");
           if(compBidResp && !compBidResp.error){
             document.getElementById("computerBid").innerText = "Computer's bid: " + compBidResp.computer_bid;
@@ -410,7 +408,6 @@ def landing():
             }
             alert("Bid outcome: " + result.bid_winner);
             hideSection("biddingSection");
-            // After bidding, show trump selection.
             showSection("trumpSelectionSection");
           });
         });
@@ -427,7 +424,6 @@ def landing():
             }
             updateTrumpDisplay(suit);
             hideSection("trumpSelectionSection");
-            // Show kitty selection.
             renderKittyCards("kittyCards", resp.kitty_cards);
             showSection("kittySection");
           });
@@ -436,7 +432,7 @@ def landing():
 
         // --- Kitty Selection Handler ---
         document.getElementById("revealKittyButton").addEventListener("click", () => {
-            // Flip kitty cards to reveal faces.
+            // Flip the kitty cards.
             const kittyImgs = document.getElementById("kittyCards").querySelectorAll("img");
             kittyImgs.forEach(img => {
               img.src = getCardImageUrl(img.alt);
@@ -454,7 +450,6 @@ def landing():
             }
             renderHand("hand", resp.player_hand);
             hideSection("kittySection");
-            // Show discard phase.
             renderHand("discardHand", resp.player_hand, true);
             showSection("discardSection");
         });
@@ -470,7 +465,6 @@ def landing():
             }
             renderHand("hand", resp.player_hand);
             hideSection("discardSection");
-            // After discard, show trick play section.
             showSection("trickSection");
             alert("Trick play phase begins. (For demonstration, trick play logic is basic.)");
         });
@@ -516,7 +510,6 @@ def api_deal_cards():
 
 @app.route("/computer_first_bid", methods=["POST"])
 def api_computer_first_bid():
-    # Randomly choose a bid from 15, 20, 25, or 30.
     comp_bid = random.choice([15, 20, 25, 30])
     return jsonify({"computer_bid": comp_bid})
 
@@ -551,14 +544,14 @@ def api_select_trump():
 def api_discard_and_draw():
     data = request.get_json()
     discards = data.get("discarded_cards", [])
-    result = current_game.discard_phase(0, discards)  # Assume human (index 0) is bidder.
+    result = current_game.discard_phase(0, discards)
     return jsonify(result)
 
 @app.route("/attach_kitty", methods=["POST"])
 def api_attach_kitty():
     data = request.get_json()
     keep_cards = data.get("keep_cards", [])
-    result = current_game.attach_kitty(0, keep_cards)  # Assume human (index 0) is bidder.
+    result = current_game.attach_kitty(0, keep_cards)
     return jsonify(result)
 
 @app.route("/play_trick", methods=["POST"])
