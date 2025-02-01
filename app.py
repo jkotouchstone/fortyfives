@@ -293,7 +293,7 @@ class Game:
             self.players[winner].tricks_won += 1
             self.leading_player = winner
             self.trick_count += 1
-            if winner == 0) :
+            if winner == 0:
                 self.trick_log_text += "You win the trick! "
                 self.player_trick_pile.extend(current_trick_cards)
             else:
