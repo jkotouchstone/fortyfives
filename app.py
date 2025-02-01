@@ -1,6 +1,5 @@
 import os
 import random
-import time
 from flask import Flask, request, jsonify, render_template_string, send_from_directory
 
 app = Flask(__name__)
@@ -100,14 +99,12 @@ class Game:
         self.trump_suit = suit
         return [str(card) for card in self.kitty]
     def discard_phase(self, bidder_index, discards):
-        # Remove selected discard cards (list of strings) from bidder's hand.
         bidder = self.players[bidder_index]
         initial = len(bidder.hand)
         bidder.hand = [card for card in bidder.hand if str(card) not in discards]
         discarded = initial - len(bidder.hand)
         return {"player_hand": self.get_player_hand(), "discard_count": discarded}
     def attach_kitty(self, player_index, keep_list):
-        # Add selected kitty cards (by their string) to the bidder's hand.
         bidder = self.players[player_index]
         for card_str in keep_list:
             for c in self.kitty:
@@ -248,7 +245,7 @@ def landing():
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ mode: mode })
           });
-          if(res.ok){
+          if (res.ok) {
             window.location.href = '/game';
           } else {
             alert("Error setting mode.");
@@ -278,7 +275,7 @@ def api_game_ui():
     current_game.deal_hands()
     dealer = current_game.get_dealer()
     print("Dealt a new hand. Dealer:", dealer)
-    game_html = f"""
+    game_html = """
     <!DOCTYPE html>
     <html lang="en">
     <head>
@@ -286,18 +283,18 @@ def api_game_ui():
       <title>45's Card Game</title>
       <link rel="icon" href="https://deckofcardsapi.com/static/img/5_of_clubs.png" type="image/png">
       <style>
-        body {{ font-family: Arial, sans-serif; background-color: #35654d; color: #fff; text-align: center; }}
-        #gameContainer {{ max-width: 1000px; margin: 50px auto; padding: 20px; background-color: #2e4e41; border-radius: 10px; }}
-        .btn {{ padding: 10px 20px; font-size: 16px; margin: 10px; border: none; border-radius: 5px; cursor: pointer; }}
-        .card-row {{ display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; }}
-        .card-image {{ width: 100px; }}
-        .selected-card {{ border: 2px solid #f1c40f; }}
-        .section {{ margin: 20px 0; display: none; }}
-        #scoreBoard {{ font-weight: bold; margin-bottom: 10px; font-size: 20px; }}
-        #trumpDisplay span {{ font-size: 48px; }}
-        .pile {{ width: 45%; background-color: #3b7d63; padding: 10px; border-radius: 5px; }}
-        #discardCount {{ font-size: 18px; margin-top: 5px; }}
-        #bidError {{ color: #ffcccc; }}
+        body { font-family: Arial, sans-serif; background-color: #35654d; color: #fff; text-align: center; }
+        #gameContainer { max-width: 1000px; margin: 50px auto; padding: 20px; background-color: #2e4e41; border-radius: 10px; }
+        .btn { padding: 10px 20px; font-size: 16px; margin: 10px; border: none; border-radius: 5px; cursor: pointer; }
+        .card-row { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; }
+        .card-image { width: 100px; }
+        .selected-card { border: 2px solid #f1c40f; }
+        .section { margin: 20px 0; display: none; }
+        #scoreBoard { font-weight: bold; margin-bottom: 10px; font-size: 20px; }
+        #trumpDisplay span { font-size: 48px; }
+        .pile { width: 45%; background-color: #3b7d63; padding: 10px; border-radius: 5px; }
+        #discardCount { font-size: 18px; margin-top: 5px; }
+        #bidError { color: #ffcccc; }
       </style>
     </head>
     <body>
@@ -306,56 +303,61 @@ def api_game_ui():
         <div id="scoreBoard">Player: 0 | Computer: 0</div>
         <div id="trumpDisplay"></div>
         <div>
-          <h2>Dealer: <span id="dealer">{dealer}</span></h2>
+          <h2>Dealer: <span id="dealer">""" + dealer + """</span></h2>
         </div>
         <div id="playerHandSection">
           <h2>Your Hand</h2>
           <div id="playerHand" class="card-row"></div>
         </div>
-        <!-- Additional game flow sections (bidding, trump selection, kitty, discard, trick play) would be inserted here -->
+        <!-- Additional game flow sections (bidding, trump selection, kitty, discard, trick) would go here -->
       </div>
       <footer style="text-align: center; margin-top: 20px;">&copy; O'Donohue Software</footer>
       <script>
-        async function sendRequest(url, data = {}) {{
-          try {{
-            const res = await fetch(url, {{
+        async function sendRequest(url, data = {}) {
+          try {
+            const res = await fetch(url, {
               method: "POST",
-              headers: {{ "Content-Type": "application/json" }},
+              headers: { "Content-Type": "application/json" },
               body: JSON.stringify(data)
-            }});
-            if (!res.ok) {{
+            });
+            if (!res.ok) {
               const err = await res.json();
-              return {{ error: err.error || "Error" }};
-            }}
+              return { error: err.error || "Error" };
+            }
             return await res.json();
-          }} catch (err) {{
+          } catch (err) {
             console.error("Network error:", err);
-            return {{ error: err.message }};
-          }}
-        }}
-        function getCardImageUrl(card) {{
+            return { error: err.message };
+          }
+        }
+        function getCardImageUrl(card) {
           const parts = card.split(" of ");
           if(parts.length !== 2) return "";
           let [rank, suit] = parts;
           let rank_code = rank === "10" ? "0" : (["J","Q","K","A"].includes(rank) ? rank : rank);
           let suit_code = suit[0].toUpperCase();
-          return `https://deckofcardsapi.com/static/img/${{rank_code}}${{suit_code}}.png`;
-        }}
-        function renderHand(containerId, hand) {{
+          return `https://deckofcardsapi.com/static/img/${rank_code}${suit_code}.png`;
+        }
+        function renderHand(containerId, hand) {
           const container = document.getElementById(containerId);
           container.innerHTML = "";
-          hand.forEach(card => {{
+          hand.forEach(card => {
             const img = document.createElement("img");
             img.src = getCardImageUrl(card);
             img.alt = card;
             img.className = "card-image";
             container.appendChild(img);
-          }});
-        }}
-        // Auto-render player's hand on page load.
-        window.addEventListener("load", () => {{
-          renderHand("playerHand", {current_game.get_player_hand()});
-        }});
+          });
+        }
+        // Auto-fetch and render the player's hand on page load.
+        window.addEventListener("load", async () => {
+          const data = await sendRequest("/deal_cards");
+          if (data.error) {
+            alert(data.error);
+            return;
+          }
+          renderHand("playerHand", data.player_hand);
+        });
       </script>
     </body>
     </html>
