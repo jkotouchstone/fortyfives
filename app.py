@@ -1,7 +1,7 @@
 import os
-from flask import Flask, request, jsonify, render_template_string, send_from_directory, redirect, url_for
 import random
 import time
+from flask import Flask, request, jsonify, render_template_string, send_from_directory, redirect, url_for
 
 app = Flask(__name__)
 
@@ -9,8 +9,7 @@ app = Flask(__name__)
 #       GLOBAL GAME STATE       #
 #################################
 
-# Global variables for game mode and current game instance.
-game_mode = None  # e.g., "headsup"
+game_mode = None   # For now, we support only "headsup"
 current_game = None
 
 #################################
@@ -19,28 +18,31 @@ current_game = None
 
 class Card:
     def __init__(self, suit, rank):
-        self.suit = suit      # e.g., "Hearts"
-        self.rank = rank      # e.g., "A", "7", etc.
+        self.suit = suit    # e.g., "Hearts"
+        self.rank = rank    # e.g., "A", "7", etc.
     def __str__(self):
         return f"{self.rank} of {self.suit}"
 
 class Deck:
-    def __init__(self, num_decks=1):
+    def __init__(self):
+        self.cards = []
         suits = ["Hearts", "Diamonds", "Clubs", "Spades"]
         ranks = ["2", "3", "4", "6", "7", "8", "9", "10", "J", "Q", "K", "A"]
-        self.cards = []
-        for _ in range(num_decks):
-            self.cards.extend([Card(s, r) for s in suits for r in ranks])
-            # Ensure the 5 of Hearts is included.
-            if not any(str(c) == "5 of Hearts" for c in self.cards):
-                self.cards.append(Card("Hearts", "5"))
+        for s in suits:
+            for r in ranks:
+                self.cards.append(Card(s, r))
+        # Ensure the special 5 of Hearts is in the deck.
+        if not any(str(c) == "5 of Hearts" for c in self.cards):
+            self.cards.append(Card("Hearts", "5"))
         self.shuffle()
     def shuffle(self):
         random.shuffle(self.cards)
     def deal(self, num_cards):
-        return [self.cards.pop(0) for _ in range(num_cards)]
+        dealt = self.cards[:num_cards]
+        self.cards = self.cards[num_cards:]
+        return dealt
 
-# Ranking table and scoring constants.
+# Ranking and scoring constants.
 RANK_PRIORITY = {
     "5 of Hearts": 200,
     "J of Hearts": 199,
@@ -124,7 +126,7 @@ def getCardImageUrl(card):
     if len(parts) != 2:
         return ""
     rank, suit = parts
-    rank_code = "0" if rank == "10" else (rank if rank in ["J","Q","K","A"] else rank)
+    rank_code = "0" if rank == "10" else (rank if rank in ["J", "Q", "K", "A"] else rank)
     suit_code = suit[0].upper()
     return f"https://deckofcardsapi.com/static/img/{rank_code}{suit_code}.png"
 
@@ -138,7 +140,7 @@ class Player:
         self.hand = []
         self.score = 0
         self.tricks_won = 0
-        self.trick_pile = []  # Collected cards from won tricks.
+        self.trick_pile = []  # Cards collected from won tricks.
     def add_to_hand(self, cards):
         self.hand.extend(cards)
     def trump_count(self, trump):
@@ -147,25 +149,25 @@ class Player:
         before = len(self.hand)
         trump_cards = [card for card in self.hand if card.suit == trump]
         self.hand = trump_cards
-        return before - len(self.hand)  # Number of cards discarded.
+        return before - len(self.hand)
 
-# Extended Game class (Heads Up variant only).
+# Extended Game class (Heads Up variant).
 class Game:
     def __init__(self, mode):
-        self.mode = mode  # Only "headsup" implemented.
+        self.mode = mode
         self.players = self.initialize_players(mode)
         self.num_players = len(self.players)
-        self.deck = Deck(num_decks=1)
+        self.deck = Deck()
         self.kitty = []
         self.trump_suit = None
-        self.bid_winner = None  # 0 = human, 1 = computer.
-        self.bid = 0            # Winning bid value.
+        self.bid_winner = None   # 0 = human, 1 = computer
+        self.bid = 0             # Winning bid value
         self.leading_player = None
         self.trick_count = 0
         self.trick_log_text = ""
         self.current_lead_suit = None
         self.starting_scores = {p.name: p.score for p in self.players}
-        self.trick_history = []  # List of trick objects.
+        self.trick_history = []  # List of trick dicts.
     def initialize_players(self, mode):
         if mode == "headsup":
             return [Player("You"), Player("Computer")]
@@ -183,19 +185,18 @@ class Game:
         self.trick_log_text = ""
         self.starting_scores = {p.name: p.score for p in self.players}
         self.trick_history = []
-        # Clear trump display.
         self.trump_suit = None
     def confirm_trump(self, suit):
         self.trump_suit = suit
         return [str(card) for card in self.kitty]
     def discard_phase(self, bidder_index, discards):
-        # Manual discard: remove each card in discards from bidder's hand.
+        # Remove manually selected discards from bidder's hand.
         bidder = self.players[bidder_index]
         initial = len(bidder.hand)
         bidder.hand = [card for card in bidder.hand if str(card) not in discards]
-        discarded_count = initial - len(bidder.hand)
+        discarded = initial - len(bidder.hand)
         return {"player_hand": [str(c) for c in self.players[0].hand],
-                "discard_count": discarded_count}
+                "discard_count": discarded}
     def attach_kitty(self, player_index, keep_list):
         bidder = self.players[player_index]
         for card_str in keep_list:
@@ -205,7 +206,7 @@ class Game:
         self.kitty = [c for c in self.kitty if str(c) not in keep_list]
         return {"player_hand": [str(c) for c in self.players[0].hand]}
     def play_trick(self, played_card=None):
-        # Trick play in Heads Up.
+        # In Heads Up, the winner of the previous trick leads.
         played = {}
         if self.leading_player == 1:
             # Computer leads.
@@ -228,14 +229,13 @@ class Game:
                 self.players[0].hand.remove(human_card)
                 played[0] = human_card
                 self.trick_log_text = f"You played {human_card}."
-            # Create an object mapping each player's name to their played card.
-            current_trick_cards = {
+            current_trick = {
                 self.players[1].name: str(played.get(1)) if played.get(1) else "",
                 self.players[0].name: str(played.get(0)) if played.get(0) else ""
             }
             comp_card = played.get(1)
             human_card = played.get(0)
-            # Determine winner.
+            # Determine trick winner.
             if human_card and human_card.suit == self.trump_suit and (not comp_card or comp_card.suit != self.trump_suit):
                 winner = "You"
             else:
@@ -244,13 +244,11 @@ class Game:
                 winner = "You" if r_human > r_comp else "Computer"
             self.players[0 if winner=="You" else 1].score += 5
             self.players[0 if winner=="You" else 1].tricks_won += 1
-            # Record trick history.
-            trick_info = {
+            self.trick_history.append({
                 "trick_number": self.trick_count + 1,
-                "cards": current_trick_cards,
+                "cards": current_trick,
                 "winner": winner
-            }
-            self.trick_history.append(trick_info)
+            })
             self.leading_player = 0 if winner=="You" else 1
         else:
             # Human leads.
@@ -272,7 +270,7 @@ class Game:
             else:
                 comp_card = None
                 self.trick_log_text += " Computer did not play."
-            current_trick_cards = {
+            current_trick = {
                 self.players[0].name: str(played.get(0)) if played.get(0) else "",
                 self.players[1].name: str(played.get(1)) if played.get(1) else ""
             }
@@ -284,17 +282,15 @@ class Game:
                 winner = "You" if r_human > r_comp else "Computer"
             self.players[0 if winner=="You" else 1].score += 5
             self.players[0 if winner=="You" else 1].tricks_won += 1
-            trick_info = {
+            self.trick_history.append({
                 "trick_number": self.trick_count + 1,
-                "cards": current_trick_cards,
+                "cards": current_trick,
                 "winner": winner
-            }
-            self.trick_history.append(trick_info)
+            })
             self.leading_player = 0 if winner=="You" else 1
         self.trick_count += 1
-
-        # If hand is complete, return summary.
         if self.trick_count >= 5 or len(self.players[0].hand) == 0:
+            # End-of-hand: determine bonus.
             best_card = None
             best_player = None
             best_val = -1
@@ -314,16 +310,15 @@ class Game:
                         break
             hand_scores = {p.name: p.score - self.starting_scores[p.name] for p in self.players}
             result_text = self.trick_log_text + bonus_text + f" Hand complete. Last trick won by {self.trick_history[-1]['winner']}."
-            return {"trick_result": result_text, "current_trick_cards": current_trick_cards, "trick_history": self.trick_history}, hand_scores
+            return {"trick_result": result_text, "current_trick_cards": current_trick, "trick_history": self.trick_history}, hand_scores
         else:
-            # Return current trick info along with who won this trick.
-            return {"trick_result": self.trick_log_text, "current_trick_cards": current_trick_cards, "trick_winner": winner}, None
+            return {"trick_result": self.trick_log_text, "current_trick_cards": current_trick, "trick_winner": winner}, None
 
 #################################
 #           ROUTES              #
 #################################
 
-# Landing page: Game mode selection.
+# Landing page: Mode selection.
 @app.route("/", methods=["GET"])
 def landing():
     return render_template_string("""
@@ -348,7 +343,7 @@ def landing():
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ mode: mode })
           });
-          if (response.ok) {
+          if(response.ok){
             window.location.href = '/game';
           } else {
             document.body.innerHTML += "<p>Error setting game mode.</p>";
@@ -362,7 +357,7 @@ def landing():
 # Main game UI.
 @app.route("/game", methods=["GET"])
 def game_ui():
-    # Clear trump display and trick history when starting a new hand.
+    # When a new hand starts, clear trump and trick history.
     return render_template_string("""
     <!DOCTYPE html>
     <html lang="en">
@@ -393,7 +388,7 @@ def game_ui():
     </head>
     <body>
       <div id="gameContainer">
-        <h1>45's Card Game</h1>
+        <h1>45's Card Game - Heads Up</h1>
         <div id="scoreBoard">Player: 0 | Computer: 0</div>
         <div id="trumpDisplay"></div>
         <div>
@@ -507,7 +502,12 @@ def game_ui():
             img.className = "card-image";
             if (selectable) {
               img.addEventListener("click", () => {
-                // For discard area, allow multiple selections (do not deselect others).
+                // In discard area, allow multiple selection.
+                if (containerId === "playerHand") {
+                  [...container.querySelectorAll(".selected-card")].forEach(i => {
+                    if (i !== img) i.classList.remove("selected-card");
+                  });
+                }
                 img.classList.toggle("selected-card");
                 if (containerId === "discardHand") updateDiscardCount();
               });
@@ -566,7 +566,6 @@ def game_ui():
           if (leadResp && !leadResp.error) {
             if (leadResp.computer_card) {
               document.getElementById("currentTrick").innerHTML = "";
-              // Display computer's played card on the right.
               const compDiv = document.createElement("div");
               compDiv.style.display = "inline-block";
               compDiv.style.margin = "10px";
@@ -590,7 +589,7 @@ def game_ui():
             alert(result.error);
             return;
           }
-          // Clear trump display and trick piles for a new hand.
+          // Clear trump display and trick piles.
           document.getElementById("trumpDisplay").innerHTML = "";
           document.getElementById("dealerTrickPile").innerHTML = "<h3>Dealer's Tricks</h3>";
           document.getElementById("playerTrickPile").innerHTML = "<h3>Your Tricks</h3>";
@@ -599,9 +598,7 @@ def game_ui():
           document.getElementById("currentTrick").innerHTML = "";
           document.getElementById("playPrompt").innerText = "";
           document.getElementById("discardCount").innerText = "Discarding 0 card(s)";
-          // Clear any previous bid error.
           document.getElementById("bidError").innerText = "";
-          // Clear kitty prompt.
           document.getElementById("kittyPrompt").innerText = "Click 'Reveal Kitty' to see the kitty.";
           document.getElementById("revealKittyButton").style.display = "inline-block";
           document.getElementById("submitKittyButton").style.display = "none";
@@ -653,7 +650,7 @@ def game_ui():
             } else {
               updateTrumpDisplay(result.trump_suit);
               computerLeads = true;
-              // For computer bidder, automatically perform discard.
+              // For computer bidder, perform automatic discard.
               const discResp = await sendRequest("/discard_and_draw", {});
               if (discResp.error) {
                 document.getElementById("bidError").innerText = discResp.error;
@@ -684,7 +681,6 @@ def game_ui():
 
         // 4. Kitty Selection.
         document.getElementById("revealKittyButton").addEventListener("click", () => {
-            // Flip kitty cards.
             const kittyImgs = document.getElementById("kittyCards").querySelectorAll("img");
             kittyImgs.forEach(img => {
               img.src = getCardImageUrl(img.alt);
@@ -703,7 +699,7 @@ def game_ui():
             }
             renderHand("playerHand", resp.player_hand, true);
             hideSection("kittySection");
-            // Now allow manual discard selection.
+            // Render the player's hand into the discard area.
             renderHand("discardHand", resp.player_hand, true);
             document.getElementById("discardMessage").innerText = "Select cards to discard (0-4):";
             updateDiscardCount();
@@ -733,11 +729,9 @@ def game_ui():
               document.getElementById("trickResult").innerText = resp.error;
               return;
             }
-            // Display current trick as images with a slight delay.
             if (resp.current_trick_cards) {
               const container = document.getElementById("currentTrick");
               container.innerHTML = "";
-              // Create a temporary display for 1.5 seconds.
               for (let key in resp.current_trick_cards) {
                 const div = document.createElement("div");
                 div.style.display = "inline-block";
@@ -745,12 +739,10 @@ def game_ui():
                 div.innerHTML = `<h4>${key}</h4><img src="${getCardImageUrl(resp.current_trick_cards[key])}" alt="${resp.current_trick_cards[key]}" class="card-image">`;
                 container.appendChild(div);
               }
+              // Delay 1.5 seconds to simulate card gathering.
               setTimeout(() => {
-                // After delay, move these cards into the collected trick pile.
-                if (resp.trick_winner) {
-                  addTrickToPile(Object.values(resp.current_trick_cards), resp.trick_winner);
-                }
-                container.innerHTML = "";
+                addTrickToPile(Object.values(resp.current_trick_cards), resp.trick_winner);
+                document.getElementById("currentTrick").innerHTML = "";
               }, 1500);
             }
             document.getElementById("trickResult").innerText = resp.trick_result;
@@ -772,7 +764,7 @@ def game_ui():
 @app.route("/set_mode", methods=["POST"])
 def set_mode():
     global game_mode, current_game
-    data = request.json
+    data = request.get_json()
     mode = data.get("mode", "headsup")
     game_mode = mode
     current_game = Game(mode)
@@ -785,10 +777,11 @@ def deal_cards_route():
         return jsonify({"error": "Game mode not set. Please select a game mode."}), 400
     current_game.deal_hands()
     current_game.starting_scores = {p.name: p.score for p in current_game.players}
-    # Clear trump and trick history when a new hand is dealt.
+    # Clear trump and trick history for new hand.
     current_game.trump_suit = None
     current_game.trick_history = []
-    dealer = current_game.players[0].name  # For Heads Up, human is dealer.
+    dealer = current_game.players[0].name  # In Heads Up, human is dealer.
+    print("Dealt a new hand. Dealer:", dealer)
     return jsonify({"player_hand": [str(c) for c in current_game.players[0].hand],
                     "dealer": dealer, "mode": game_mode})
 
@@ -802,7 +795,7 @@ def submit_bid():
     try:
         if current_game is None:
             return jsonify({"error": "No game in progress. Set a game mode and deal cards first."}), 400
-        data = request.json
+        data = request.get_json()
         player_bid = data.get("player_bid", None)
         comp_bid = data.get("computer_bid", None)
         if comp_bid is None:
@@ -824,7 +817,7 @@ def submit_bid():
                 current_game.bid = 15
                 current_game.leading_player = 0
                 return jsonify({"computer_bid": comp_bid, "bid_winner": "Player"})
-        # Otherwise, if computer bid is 15, 20, or 25, the only valid dealer bid is comp_bid+5 or pass (0).
+        # Otherwise, valid dealer bid is comp_bid+5 or pass.
         let_bid = comp_bid + 5
         if player_bid == 0:
             current_game.bid_winner = 1
@@ -846,17 +839,17 @@ def submit_bid():
 
 @app.route("/select_trump", methods=["POST"])
 def select_trump_route():
-    data = request.json
+    data = request.get_json()
     suit = data.get("trump_suit", "Hearts")
     kitty = current_game.confirm_trump(suit)
     return jsonify({"kitty_cards": kitty, "trump_suit": suit})
 
 @app.route("/discard_and_draw", methods=["POST"])
 def discard_and_draw():
-    data = request.json
+    data = request.get_json()
     discards = data.get("discarded_cards", None)
     result = current_game.discard_phase(current_game.bid_winner, discards)
-    # For computer bidder, include discard count.
+    # For computer bidder, perform auto-discard and include count.
     if current_game.bid_winner == 1:
         comp_disc = current_game.players[1].discard_auto(current_game.trump_suit)
         result["computer_discard_count"] = comp_disc
@@ -864,7 +857,7 @@ def discard_and_draw():
 
 @app.route("/attach_kitty", methods=["POST"])
 def attach_kitty_route():
-    data = request.json
+    data = request.get_json()
     keep_cards = data.get("keep_cards", [])
     bidder = current_game.players[current_game.bid_winner]
     for card_str in keep_cards:
@@ -876,7 +869,7 @@ def attach_kitty_route():
 
 @app.route("/play_trick", methods=["POST"])
 def play_trick_route():
-    data = request.json
+    data = request.get_json()
     played_card = data.get("played_card")
     result_obj, hand_scores = current_game.play_trick(played_card)
     resp = {
