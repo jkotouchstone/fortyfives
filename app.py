@@ -8,8 +8,8 @@ app = Flask(__name__)
 #       GLOBAL GAME STATE       #
 #################################
 
-# Global variables for game mode and the current game instance.
-game_mode = None  # e.g., "headsup", "cutthroat", etc.
+# Global variables for game mode and current game instance.
+game_mode = None  # e.g. "headsup", "cutthroat", etc.
 current_game = None
 
 #################################
@@ -18,8 +18,8 @@ current_game = None
 
 class Card:
     def __init__(self, suit, rank):
-        self.suit = suit  # e.g., "Hearts"
-        self.rank = rank  # e.g., "A", "7", etc.
+        self.suit = suit      # e.g., "Hearts"
+        self.rank = rank      # e.g., "A", "7", etc.
     def __str__(self):
         return f"{self.rank} of {self.suit}"
 
@@ -30,7 +30,7 @@ class Deck:
         self.cards = []
         for _ in range(num_decks):
             self.cards.extend([Card(s, r) for s in suits for r in ranks])
-            # Ensure the 5 of Hearts is included.
+            # Ensure 5 of Hearts is present.
             if not any(str(c) == "5 of Hearts" for c in self.cards):
                 self.cards.append(Card("Hearts", "5"))
         self.shuffle()
@@ -39,7 +39,7 @@ class Deck:
     def deal(self, num_cards):
         return [self.cards.pop(0) for _ in range(num_cards)]
 
-# Ranking table and scoring constants.
+# Ranking and scoring constants.
 RANK_PRIORITY = {
     "5 of Hearts": 200,
     "J of Hearts": 199,
@@ -51,8 +51,8 @@ RANK_PRIORITY = {
     "7_black": 105, "8_black": 106, "9_black": 107, "10_black": 108,
     "Q_black": 110, "K_black": 111, "A_black": 112
 }
-HAND_TOTAL_POINTS = 30   # Total points available per hand (from tricks)
-BONUS_POINTS = 5         # Bonus for highest card in the hand
+HAND_TOTAL_POINTS = 30
+BONUS_POINTS = 5
 
 def get_card_rank(card_str, trump=None):
     if trump is not None and trump in ["Diamonds", "Clubs", "Spades"]:
@@ -123,7 +123,7 @@ def getCardImageUrl(card):
     if len(parts) != 2:
         return ""
     rank, suit = parts
-    rank_code = "0" if rank == "10" else (rank if rank in ["J", "Q", "K", "A"] else rank)
+    rank_code = "0" if rank == "10" else (rank if rank in ["J","Q","K","A"] else rank)
     suit_code = suit[0].upper()
     return f"https://deckofcardsapi.com/static/img/{rank_code}{suit_code}.png"
 
@@ -137,20 +137,20 @@ class Player:
         self.hand = []
         self.score = 0
         self.tricks_won = 0
-        self.trick_pile = []  # Collected cards from won tricks.
+        self.trick_pile = []  # Cards collected from winning tricks.
     def add_to_hand(self, cards):
         self.hand.extend(cards)
     def trump_count(self, trump):
         return sum(1 for card in self.hand if card.suit == trump)
     def discard_auto(self, trump):
         # Automatically discard all non-trump cards.
+        before = len(self.hand)
         trump_cards = [card for card in self.hand if card.suit == trump]
         self.hand = trump_cards
-        if len(self.hand) > 5:
-            self.hand.sort(key=lambda card: get_card_rank(str(card), trump), reverse=True)
-            self.hand = self.hand[:5]
+        after = len(self.hand)
+        return before - after  # Number of cards discarded.
 
-# Extended Game class (Heads Up only).
+# Extended Game class (Heads Up variant only).
 class Game:
     def __init__(self, mode):
         self.mode = mode  # For now, only "headsup" is implemented.
@@ -159,18 +159,16 @@ class Game:
         self.deck = Deck(num_decks=1)
         self.kitty = []
         self.trump_suit = None
-        self.bid_winner = None  # 0 for human, 1 for computer
-        self.bid = 0            # Winning bid value
+        self.bid_winner = None   # 0 = human, 1 = computer.
+        self.bid = 0             # Winning bid value.
         self.leading_player = None
         self.trick_count = 0
-        self.played_cards_log = []  # For current trick (not used in full multiplayer trick order here)
         self.trick_log_text = ""
         self.current_lead_suit = None
         self.starting_scores = {p.name: p.score for p in self.players}
     def initialize_players(self, mode):
         if mode == "headsup":
             return [Player("You"), Player("Computer")]
-        # Additional modes can be added here.
         return [Player("You"), Player("Computer")]
     def deal_hands(self):
         self.deck.shuffle()
@@ -182,16 +180,34 @@ class Game:
         for p in self.players:
             p.add_to_hand(self.deck.deal(5))
         self.trick_count = 0
-        self.played_cards_log = []
+        self.trick_log_text = ""
         self.starting_scores = {p.name: p.score for p in self.players}
     def confirm_trump(self, suit):
         self.trump_suit = suit
         return [str(card) for card in self.kitty]
-    def discard_phase(self, bidder_index):
-        # For the winning bidder, automatically discard all non-trump cards.
+    def discard_phase(self, bidder_index, discards=None):
+        """
+        If discards is provided (list of card strings), remove them from the bidder's hand.
+        Also return the count of discarded cards.
+        If discards is None, then perform automatic discard (for computer).
+        """
         bidder = self.players[bidder_index]
-        bidder.discard_auto(self.trump_suit)
-        return {"player_hand": [str(c) for c in self.players[0].hand]}
+        if discards is not None:
+            count = 0
+            new_hand = []
+            for card in bidder.hand:
+                if str(card) in discards:
+                    count += 1
+                else:
+                    new_hand.append(card)
+            bidder.hand = new_hand
+            return {"player_hand": [str(c) for c in self.players[0].hand],
+                    "player_discard_count": count}
+        else:
+            # Automatic discard (for computer bidder).
+            before = len(bidder.hand)
+            discarded = bidder.discard_auto(self.trump_suit)
+            return {"computer_discard_count": discarded}
     def attach_kitty(self, player_index, keep_list):
         bidder = self.players[player_index]
         for card_str in keep_list:
@@ -201,10 +217,18 @@ class Game:
         self.kitty = [c for c in self.kitty if str(c) not in keep_list]
         return {"player_hand": [str(c) for c in self.players[0].hand]}
     def play_trick(self, played_card=None):
-        # Heads Up variant.
+        """
+        In Heads Up:
+         - The winner of the previous trick leads.
+         - If the computer is leading, it automatically plays its best trump (if available); then the human responds.
+         - If the human is leading, they select a card, then the computer responds.
+         - The trick winner is determined and awarded 5 points.
+         - The played cards (as images) will be shown and then moved to the winner's collected trick pile.
+         - The winner of the trick leads next.
+        """
         played = {}
-        # If computer is leading:
         if self.leading_player == 1:
+            # Computer leads.
             if played_card is None:
                 comp_hand = self.players[1].hand
                 trump_cards = [card for card in comp_hand if card.suit == self.trump_suit]
@@ -227,6 +251,7 @@ class Game:
             current_trick_cards = [str(card) for card in played.values()]
             comp_card = played.get(1)
             human_card = played.get(0)
+            # Determine winner.
             if human_card and human_card.suit == self.trump_suit and (not comp_card or comp_card.suit != self.trump_suit):
                 winner = 0
             else:
@@ -240,7 +265,7 @@ class Game:
         else:
             # Human leads.
             if played_card is None:
-                return {"trick_result": "Your turn to lead. Please select a card.", "current_trick_cards": []}, None
+                return {"trick_result": "Your turn to lead.", "current_trick_cards": []}, None
             if played_card not in [str(c) for c in self.players[0].hand]:
                 return {"trick_result": "Invalid card.", "current_trick_cards": []}, None
             human_card = next(c for c in self.players[0].hand if str(c)==played_card)
@@ -269,6 +294,7 @@ class Game:
             self.players[winner].trick_pile.extend(current_trick_cards)
             self.leading_player = winner
         self.trick_count += 1
+        # End-of-hand processing.
         if self.trick_count >= 5 or len(self.players[0].hand) == 0:
             best_card = None
             best_player = None
@@ -366,6 +392,7 @@ def game_ui():
         #trickPiles { display: flex; justify-content: space-between; margin-top: 20px; }
         #dealerTrickPile, #playerTrickPile { width: 45%; background-color: #3b7d63; padding: 10px; border-radius: 5px; }
         #discardMessage { font-size: 18px; margin-bottom: 10px; }
+        #discardCount { font-size: 18px; margin-top: 5px; }
         #bidError { color: #ffcccc; }
       </style>
     </head>
@@ -413,8 +440,9 @@ def game_ui():
           <h2>Discard Phase</h2>
           <p id="discardMessage"></p>
           <div id="discardHand" class="card-row"></div>
-          <!-- In this automatic version, discard happens automatically after kitty selection -->
-          <button id="skipDiscardButton">Continue</button>
+          <p id="discardCount">Discarding 0 card(s)</p>
+          <!-- In this version, player manually selects cards to discard -->
+          <button id="skipDiscardButton">Submit Discards</button>
         </div>
         <div id="trickSection" class="section">
           <h2>Trick Phase</h2>
@@ -484,12 +512,13 @@ def game_ui():
             img.className = "card-image";
             if (selectable) {
               img.addEventListener("click", () => {
-                if (containerId === "playerHand") {
+                if (containerId === "playerHand" || containerId === "discardHand") {
                   [...container.querySelectorAll(".selected-card")].forEach(i => {
                     if(i !== img) i.classList.remove("selected-card");
                   });
                 }
                 img.classList.toggle("selected-card");
+                updateDiscardCount();
               });
             }
             container.appendChild(img);
@@ -541,6 +570,11 @@ def game_ui():
           document.getElementById("currentTrick").innerHTML = "";
         }
 
+        function updateDiscardCount() {
+          const selected = document.querySelectorAll("#discardHand .selected-card");
+          document.getElementById("discardCount").innerText = "Discarding " + selected.length + " card(s)";
+        }
+
         async function startTrickIfComputerLeads() {
           const leadResp = await sendRequest("/play_trick", { played_card: null });
           if (leadResp && !leadResp.error) {
@@ -574,7 +608,6 @@ def game_ui():
             const compBidResp = await sendRequest("/computer_first_bid");
             if (compBidResp && !compBidResp.error) {
               document.getElementById("computerBid").innerText = `Computer's bid: ${compBidResp.computer_bid}`;
-              // Example: if computer bids 15, then valid human bid is only 0 (Pass) or 20.
               if (parseInt(compBidResp.computer_bid) === 15) {
                 document.querySelectorAll(".bidButton").forEach(btn => {
                   const bidVal = parseInt(btn.dataset.bid);
@@ -590,9 +623,6 @@ def game_ui():
                   const bidVal = parseInt(btn.dataset.bid);
                   btn.disabled = (bidVal !== 0 && bidVal !== 30);
                 });
-              } else {
-                // If computer bid 30, bidding ends automatically.
-                // (This branch will be handled in /submit_bid.)
               }
             }
           }
@@ -621,7 +651,8 @@ def game_ui():
               // Automatically proceed to discard phase.
               renderHand("discardHand", [...document.getElementById("playerHand").querySelectorAll("img")].map(img => img.alt), true);
               let excess = document.getElementById("playerHand").querySelectorAll("img").length - 5;
-              document.getElementById("discardMessage").innerText = "Discard " + excess + " card(s).";
+              document.getElementById("discardMessage").innerText = "Select cards to discard (up to " + excess + "):";
+              document.getElementById("discardCount").innerText = "Discarding 0 card(s)";
               showSection("discardSection");
             }
           });
@@ -657,24 +688,26 @@ def game_ui():
             }
             renderHand("playerHand", resp.player_hand, true);
             hideSection("kittySection");
-            const discardResp = await sendRequest("/discard_and_draw", {});
-            if (discardResp.error) {
-              document.getElementById("bidError").innerText = discardResp.error;
+            // For human bidder, wait for manual discard selection.
+            showSection("discardSection");
+          });
+
+        // 4b. Skip/Submit Discard Phase.
+        document.getElementById("skipDiscardButton").addEventListener("click", async () => {
+            // Gather selected discard cards from "discardHand" section.
+            const selected = [...document.querySelectorAll("#discardHand .selected-card")].map(img => img.alt);
+            const resp = await sendRequest("/discard_and_draw", { discarded_cards: selected });
+            if (resp.error) {
+              document.getElementById("bidError").innerText = resp.error;
+              return;
             }
+            renderHand("playerHand", resp.player_hand, true);
+            hideSection("discardSection");
             showSection("trickSection");
             if (computerLeads) {
               startTrickIfComputerLeads();
             }
-        });
-
-        // 4b. Skip Discard.
-        document.getElementById("skipDiscardButton").addEventListener("click", () => {
-          hideSection("discardSection");
-          showSection("trickSection");
-          if (computerLeads) {
-            startTrickIfComputerLeads();
-          }
-        });
+          });
 
         // 5. Trick Phase – Player plays a card.
         document.getElementById("playTrickButton").addEventListener("click", async () => {
@@ -739,7 +772,7 @@ def submit_bid():
         comp_bid = data.get("computer_bid", None)
         if comp_bid is None:
             return jsonify({"error": "Computer bid missing."}), 400
-        # If computer (non-dealer) bids 30, bidding stops.
+        # If computer bids 30, bidding stops immediately.
         if comp_bid == 30:
             trump_suit = random.choice(["Hearts", "Diamonds", "Clubs", "Spades"])
             kitty = current_game.confirm_trump(trump_suit)
@@ -756,10 +789,9 @@ def submit_bid():
                 current_game.bid = 15
                 current_game.leading_player = 0
                 return jsonify({"computer_bid": comp_bid, "bid_winner": "Player"})
-        # Otherwise, if computer bid is 15 or 20 or 25, the only valid bid for dealer is comp_bid+5.
+        # Otherwise, if computer bid is 15 or 20 or 25, dealer's only valid bid is comp_bid + 5 or pass.
         let_bid = comp_bid + 5
         if player_bid == 0:
-            # Dealer passes: computer wins bid.
             current_game.bid_winner = 1
             current_game.bid = comp_bid
             current_game.leading_player = 1
@@ -786,7 +818,9 @@ def select_trump_route():
 
 @app.route("/discard_and_draw", methods=["POST"])
 def discard_and_draw():
-    result = current_game.discard_phase(current_game.bid_winner)
+    data = request.json
+    discards = data.get("discarded_cards", None)
+    result = current_game.discard_phase(current_game.bid_winner, discards)
     return jsonify(result)
 
 @app.route("/attach_kitty", methods=["POST"])
