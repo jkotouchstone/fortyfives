@@ -9,7 +9,7 @@ app = Flask(__name__)
 #       GLOBAL GAME STATE       #
 #################################
 
-# Currently only "headsup" mode is supported.
+# We only support "headsup" mode in this version.
 game_mode = None
 current_game = None
 
@@ -32,7 +32,7 @@ class Deck:
         for s in suits:
             for r in ranks:
                 self.cards.append(Card(s, r))
-        # Ensure 5 of Hearts is in the deck.
+        # Ensure 5 of Hearts is included.
         if not any(str(c) == "5 of Hearts" for c in self.cards):
             self.cards.append(Card("Hearts", "5"))
         self.shuffle()
@@ -61,7 +61,7 @@ class Player:
 
 class Game:
     def __init__(self, mode):
-        self.mode = mode  # Only "headsup" is implemented.
+        self.mode = mode  # Only "headsup" implemented.
         self.players = self.initialize_players(mode)
         self.deck = Deck()
         self.kitty = []         # 3 cards set aside
@@ -108,6 +108,7 @@ class Game:
         discarded = initial - len(bidder.hand)
         return {"player_hand": self.get_player_hand(), "discard_count": discarded}
     def attach_kitty(self, player_index, keep_list):
+        # Add selected kitty cards (by their string) to the bidder's hand.
         bidder = self.players[player_index]
         for card_str in keep_list:
             for c in self.kitty:
@@ -244,10 +245,10 @@ def landing():
         async function setMode(mode) {
           const res = await fetch('/set_mode', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({mode: mode})
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mode: mode })
           });
-          if(res.ok){
+          if (res.ok){
             window.location.href = '/game';
           } else {
             alert("Error setting mode.");
@@ -261,7 +262,7 @@ def landing():
 
 # Set game mode endpoint.
 @app.route("/set_mode", methods=["POST"])
-def set_mode_endpoint():
+def set_mode_route():
     global game_mode, current_game
     data = request.get_json()
     mode = data.get("mode", "headsup")
@@ -271,7 +272,7 @@ def set_mode_endpoint():
 
 # Main game UI.
 @app.route("/game", methods=["GET"])
-def game_ui():
+def game_ui_route():
     game_html = """
     <!DOCTYPE html>
     <html lang="en">
@@ -666,7 +667,7 @@ def game_ui():
 #################################
 
 @app.route("/set_mode", methods=["POST"])
-def set_mode_route():
+def set_mode():
     global game_mode, current_game
     data = request.get_json()
     mode = data.get("mode", "headsup")
