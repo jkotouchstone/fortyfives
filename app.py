@@ -5,7 +5,7 @@ from flask import Flask, request, jsonify
 app = Flask(__name__)
 
 ###############################################################################
-#                                  RANK TABLES                                #
+#                      1) CARD RANK LOOKUPS (Forty-Fives)                     #
 ###############################################################################
 
 TRUMP_DIAMONDS = {
@@ -34,6 +34,7 @@ TRUMP_SPADES = {
     "6 of Spades": 191, "7 of Spades": 190, "8 of Spades": 189,
     "9 of Spades": 188, "10 of Spades": 187
 }
+
 OFFSUIT_DIAMONDS = {
     "K of Diamonds": 200, "Q of Diamonds": 199, "J of Diamonds": 198, "10 of Diamonds": 197,
     "9 of Diamonds": 196, "8 of Diamonds": 195, "7 of Diamonds": 194, "6 of Diamonds": 193,
@@ -58,8 +59,10 @@ OFFSUIT_SPADES = {
     "10 of Spades": 188
 }
 
-
 def get_card_rank(card_str: str, trump_suit: str) -> int:
+    """
+    Return the card's rank value for the given trump suit, or 0 if not found.
+    """
     if trump_suit == "Diamonds":
         if card_str in TRUMP_DIAMONDS:
             return TRUMP_DIAMONDS[card_str]
@@ -111,7 +114,51 @@ def get_card_rank(card_str: str, trump_suit: str) -> int:
     return 0
 
 ###############################################################################
-#                                GAME CLASSES                                 #
+#                  2) CARD IMAGE HELPERS (deckofcardsapi.com)                 #
+###############################################################################
+
+def card_to_image_url(card_str):
+    """
+    Convert "10 of Hearts" -> "https://deckofcardsapi.com/static/img/0H.png"
+    Convert "A of Spades" -> ".../AS.png"
+    etc.
+    """
+    # parse rank, suit
+    # card_str e.g. "10 of Hearts"
+    parts = card_str.split(" of ")
+    if len(parts) != 2:
+        return "https://deckofcardsapi.com/static/img/back.png"  # fallback
+    rank, suit = parts
+    suit_letter = suit[0].upper()  # H, D, C, S
+
+    # deckofcardsapi uses "0" for "10"
+    if rank == "10":
+        rank_code = "0"
+    else:
+        rank_code = rank.upper()[:1]  # e.g., "K", "Q", "A", "9", "2", etc.
+
+    # Special case: "J", "Q", "K", "A" are single letters, but numeric ranks are as is
+    # Actually "9 of Hearts" => "9H.png"
+    # "A of Hearts" => "AH.png"
+    # "10 of Hearts" => "0H.png"
+
+    # If rank is "A", "J", "Q", "K", that's fine. If rank is "5", we do "5H".
+    # So let's finalize:
+    if rank_code in ["J", "Q", "K", "A", "0", "2", "3", "4", "5", "6", "7", "8", "9"]:
+        pass
+    else:
+        # fallback if something else
+        rank_code = rank[0].upper()  # just in case
+
+    code = f"{rank_code}{suit_letter}"
+    return f"https://deckofcardsapi.com/static/img/{code}.png"
+
+def card_back_url():
+    """URL for a card back image (computer's hand, kitty face-down, etc.)."""
+    return "https://deckofcardsapi.com/static/img/back.png"
+
+###############################################################################
+#                  3) CLASSES (Card, Deck, Player, Game)                      #
 ###############################################################################
 
 class Card:
@@ -150,17 +197,13 @@ class Player:
     def add_to_hand(self, cards):
         self.hand.extend(cards)
 
-###############################################################################
-#                             MAIN GAME LOGIC                                 #
-###############################################################################
-
 class Game:
     def __init__(self):
         self.players = [Player("You"), Player("Computer")]
         self.deck = Deck()
         self.kitty = []
         self.trump_suit = None
-        self.bid_winner = None  # index 0 or 1
+        self.bid_winner = None
         self.bid = 0
         self.leading_player = 0
         self.highest_card_played = None
@@ -185,27 +228,18 @@ class Game:
             p.hand.clear()
         self.kitty.clear()
 
-        # Eldest = 0 if dealer=1
         eldest_index = 0 if dealer_index == 1 else 1
-
         # 3 each
         self.players[eldest_index].add_to_hand(self.deck.deal(3))
         self.players[dealer_index].add_to_hand(self.deck.deal(3))
-
-        # kitty 3
+        # kitty
         self.kitty.extend(self.deck.deal(3))
-
         # 2 each
         self.players[eldest_index].add_to_hand(self.deck.deal(2))
         self.players[dealer_index].add_to_hand(self.deck.deal(2))
 
-    def get_player_hand_strings(self, player_index=0):
-        return [str(c) for c in self.players[player_index].hand]
-
     def perform_bidding(self, dealer_index=1, player_bid=0):
-        # naive computer bid
         comp_bid = random.choice([0, 15, 20, 25, 30])
-
         eldest_index = 0 if dealer_index == 1 else 1
         if eldest_index == 0:
             p0_bid = player_bid
@@ -213,14 +247,11 @@ class Game:
         else:
             p0_bid = comp_bid
             p1_bid = player_bid
-
-        # if both pass => dealer forced to 15
         if p0_bid == 0 and p1_bid == 0:
             if dealer_index == 1:
                 p1_bid = 15
             else:
                 p0_bid = 15
-
         if p0_bid > p1_bid:
             self.bid_winner = 0
             self.bid = p0_bid
@@ -235,14 +266,13 @@ class Game:
         bidder = self.players[self.bid_winner]
         bidder.hand.extend(self.kitty)
         self.kitty.clear()
-
+        # Simple discard logic
         def is_trump_or_ace_hearts(c):
             if c.suit == self.trump_suit:
                 return True
             if c.suit == "Hearts" and c.rank == "A":
                 return True
             return False
-
         bidder.hand.sort(
             key=lambda card: (is_trump_or_ace_hearts(card), get_card_rank(str(card), self.trump_suit)),
             reverse=True
@@ -260,20 +290,21 @@ class Game:
             )
             while len(p.hand) > 5:
                 p.hand.pop()
-
             while len(p.hand) < 5 and len(self.deck.cards) > 0:
                 p.hand.append(self.deck.deal(1)[0])
 
     def play_trick(self, lead_card_str=None):
+        # Very naive logic for demonstration
         if lead_card_str is None and self.leading_player == 1:
-            # computer leads
+            # Computer leads
             lead_card_str = self.computer_select_lead_card(self.players[1].hand)
+            if not lead_card_str:
+                return "Computer has no cards to lead."
             lead_card = next(c for c in self.players[1].hand if str(c) == lead_card_str)
             self.players[1].hand.remove(lead_card)
             trick_log = f"Computer led {lead_card_str}. "
 
-            # user auto-respond?? Here we can’t auto-pick user’s card. We’ll skip a real follow-suit check for demonstration.
-            # In a real interactive UI, the user must pick. Let's do the simplest: user picks random:
+            # Your auto-response (for demonstration, random)
             if self.players[0].hand:
                 respond_card_str = random.choice([str(c) for c in self.players[0].hand])
                 respond_card = next(c for c in self.players[0].hand if str(c) == respond_card_str)
@@ -281,14 +312,14 @@ class Game:
                 trick_log += f"You played {respond_card_str}. "
             else:
                 respond_card = None
-                trick_log += "You have no cards left to play. "
+                trick_log += "You have no cards left to play."
 
             winner_index = self.evaluate_trick_winner([(1, lead_card), (0, respond_card)] if respond_card else [(1, lead_card)])
             self.players[winner_index].score += 5
             self.players[winner_index].tricks_won += 1
             trick_log += f"Winner: {self.players[winner_index].name}."
 
-            # highest card check
+            # Highest card check
             for pid, cobj in [(1, lead_card), (0, respond_card)]:
                 if cobj:
                     val = get_card_rank(str(cobj), self.trump_suit)
@@ -300,7 +331,7 @@ class Game:
             return trick_log
 
         elif self.leading_player == 0:
-            # user leads
+            # You lead
             if lead_card_str not in [str(c) for c in self.players[0].hand]:
                 return "User tried to lead a card not in hand."
 
@@ -308,18 +339,18 @@ class Game:
             self.players[0].hand.remove(lead_card)
             trick_log = f"You led {lead_card_str}. "
 
-            # computer responds
-            comp_respond_str = self.computer_follow_card(self.players[1], lead_card.suit)
-            comp_card = next(c for c in self.players[1].hand if str(c) == comp_respond_str)
+            # Computer responds
+            respond_card_str = self.computer_follow_card(self.players[1], lead_card.suit)
+            comp_card = next(c for c in self.players[1].hand if str(c) == respond_card_str)
             self.players[1].hand.remove(comp_card)
-            trick_log += f"Computer played {comp_respond_str}. "
+            trick_log += f"Computer played {respond_card_str}. "
 
             winner_index = self.evaluate_trick_winner([(0, lead_card), (1, comp_card)])
             self.players[winner_index].score += 5
             self.players[winner_index].tricks_won += 1
             trick_log += f"Winner: {self.players[winner_index].name}."
 
-            # highest card check
+            # Highest card check
             for pid, cobj in [(0, lead_card), (1, comp_card)]:
                 val = get_card_rank(str(cobj), self.trump_suit)
                 if self.highest_card_played is None or val > get_card_rank(self.highest_card_played, self.trump_suit):
@@ -329,7 +360,7 @@ class Game:
             self.leading_player = winner_index
             return trick_log
         else:
-            return "Invalid play. Possibly missing 'lead_card' or it's not your turn."
+            return "Invalid play or missing 'lead_card' (user lead) if leading_player=0."
 
     def evaluate_trick_winner(self, played_cards):
         if not played_cards:
@@ -344,23 +375,27 @@ class Game:
             winner_pid, winner_card = max(trump_cards, key=lambda x: get_card_rank(str(x[1]), self.trump_suit))
             return winner_pid
         else:
-            same_suit = [(pid, c) for (pid, c) in played_cards if c.suit == lead_suit]
+            same_suit = [(pid, c) for (pid, c) in played_cards if c and c.suit == lead_suit]
+            if not same_suit:
+                return played_cards[0][0]  # fallback
             winner_pid, winner_card = max(same_suit, key=lambda x: get_card_rank(str(x[1]), self.trump_suit))
             return winner_pid
 
     def computer_select_lead_card(self, comp_hand):
+        if not comp_hand:
+            return None
         comp_hand.sort(key=lambda c: get_card_rank(str(c), self.trump_suit), reverse=True)
-        return str(comp_hand[0]) if comp_hand else None
+        return str(comp_hand[0])
 
     def computer_follow_card(self, player_obj, lead_suit):
-        # super naive
+        # naive
         valid_cards = [c for c in player_obj.hand if c.suit == lead_suit]
         if valid_cards:
             valid_cards.sort(key=lambda x: get_card_rank(str(x), self.trump_suit), reverse=True)
             return str(valid_cards[0])
         else:
             player_obj.hand.sort(key=lambda x: get_card_rank(str(x), self.trump_suit))
-            return str(player_obj.hand[-1])  # slough lowest
+            return str(player_obj.hand[-1])
 
     def finalize_hand(self):
         if self.highest_card_owner is not None:
@@ -370,16 +405,13 @@ class Game:
         bidder_points_this_round = bidder.tricks_won * 5
         if self.highest_card_owner == self.bid_winner:
             bidder_points_this_round += 5
-
         if bidder_points_this_round < self.bid:
             bidder.score -= self.bid
 
-        # check for 120
         result = {"game_over": False, "winner": None}
         p0 = self.players[0].score
         p1 = self.players[1].score
         if p0 >= 120 and p1 >= 120:
-            # bidder goes out
             result["game_over"] = True
             result["winner"] = self.players[self.bid_winner].name
         elif p0 >= 120:
@@ -388,49 +420,43 @@ class Game:
         elif p1 >= 120:
             result["game_over"] = True
             result["winner"] = self.players[1].name
-
         return result
 
 ###############################################################################
-#                               GLOBAL STATE                                  #
+#                   4) GLOBALS & FLASK ROUTES (WITH UI)                       #
 ###############################################################################
-current_game = None
-dealer_index = 1  # let's fix the dealer as "Computer"
-round_trick_count = 0
 
-###############################################################################
-#                             HTML + JS INTERFACE                             #
-###############################################################################
+current_game = None
+dealer_index = 1
+round_trick_count = 0
 
 @app.route("/", methods=["GET"])
 def index():
     """
-    Returns a simple HTML page with embedded JavaScript that allows
-    you to play the game by clicking buttons. We’ll interact with the
-    endpoints below.
+    Returns a simple HTML + JS page. We also display the kitty, computer's hand as face-down images,
+    and your hand face-up.
     """
-    html_content = """
+    html_page = """
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Forty-Fives (Heads-Up)</title>
+    <title>Forty-Fives with Card Images</title>
     <style>
-      body { font-family: sans-serif; margin: 20px; }
-      button { margin: 5px; }
+      body { font-family: sans-serif; }
       #log { white-space: pre-wrap; background: #f8f8f8; padding: 10px; margin-top: 10px; }
-      #playerHand { margin-top: 10px; }
-      .card { display: inline-block; padding: 8px; margin: 3px; background: #eee; border-radius: 5px; }
+      .card-row { display: flex; flex-wrap: wrap; margin: 5px 0; }
+      .card { margin: 2px; }
     </style>
 </head>
 <body>
-<h1>Heads-Up Forty-Fives (120-Point)</h1>
+<h1>Heads-Up Forty-Fives (120 pts) - Card Images</h1>
 <div>
   <button onclick="newRound()">New Round</button>
   <button onclick="showState()">Show State</button>
 </div>
 <div>
-  <label>Bid Amount:</label>
-  <select id="bidValue">
+  <label>Bid:</label>
+  <select id="bidVal">
     <option value="0">Pass</option>
     <option value="15">15</option>
     <option value="20">20</option>
@@ -442,89 +468,118 @@ def index():
 <div>
   <label>Trump Suit:</label>
   <select id="trumpSuit">
-    <option value="Hearts">Hearts</option>
-    <option value="Diamonds">Diamonds</option>
-    <option value="Clubs">Clubs</option>
-    <option value="Spades">Spades</option>
+    <option>Hearts</option>
+    <option>Diamonds</option>
+    <option>Clubs</option>
+    <option>Spades</option>
   </select>
-  <button onclick="selectTrump()">Select Trump</button>
+  <button onclick="chooseTrump()">Select Trump</button>
 </div>
 <div>
   <button onclick="attachKitty()">Attach Kitty</button>
+</div>
+<div>
+  <label>Your lead card:</label>
+  <input type="text" id="leadCard" placeholder="e.g. 'K of Hearts'">
   <button onclick="playTrick()">Play Trick</button>
-  <label>(If it's your lead, specify card:)</label>
-  <input id="leadCard" type="text" placeholder="e.g. 'K of Clubs'">
 </div>
 <div>
   <button onclick="finalizeRound()">Finalize Round</button>
 </div>
 
-<hr>
-<div id="playerHand"></div>
+<h2>Game State</h2>
 <div id="scores"></div>
+<div>
+  <h3>Your Hand</h3>
+  <div id="playerHand" class="card-row"></div>
+  <h3>Computer's Hand (Face-Down)</h3>
+  <div id="computerHand" class="card-row"></div>
+  <h3>Kitty</h3>
+  <div id="kittyCards" class="card-row"></div>
+</div>
 <pre id="log"></pre>
 
 <script>
 async function newRound() {
   const resp = await fetch('/new_round', { method: 'POST' });
   const data = await resp.json();
-  log('New round: ' + JSON.stringify(data, null, 2));
-  showState(); // update UI
+  log("New Round: " + JSON.stringify(data, null, 2));
+  showState();
 }
 
 async function showState() {
   const resp = await fetch('/show_state');
   const data = await resp.json();
-  if (data.error) {
-    log(data.error);
-    return;
-  }
-  // update hand display
-  const handDiv = document.getElementById('playerHand');
-  handDiv.innerHTML = '<h3>Your Hand</h3>';
-  if (data.player_hand) {
-    data.player_hand.forEach(card => {
-      handDiv.innerHTML += '<span class="card">' + card + '</span>';
+  if (data.error) { log("Error: " + data.error); return; }
+
+  // Update scores
+  let scoresDiv = document.getElementById('scores');
+  scoresDiv.innerHTML = "You: " + data.player_score + " | Computer: " + data.computer_score +
+    "<br>Bid winner: " + data.bid_winner + " (bid=" + data.bid + "), Trump: " + (data.trump_suit || "(none)") +
+    "<br>Tricks played: " + data.tricks_played;
+
+  // Player hand (face-up)
+  let playerDiv = document.getElementById('playerHand');
+  playerDiv.innerHTML = "";
+  if (data.player_hand_images) {
+    data.player_hand_images.forEach(url => {
+      playerDiv.innerHTML += '<img class="card" src="'+ url +'" height="120">';
     });
   }
 
-  // update scores
-  const scoresDiv = document.getElementById('scores');
-  scoresDiv.innerHTML = '<h3>Scores</h3>' +
-    'You: ' + data.player_score + '<br>' +
-    'Computer: ' + data.computer_score + '<br>' +
-    'Bid winner: ' + data.bid_winner + ' @ ' + data.bid + '<br>' +
-    'Trump suit: ' + (data.trump_suit || '(none)') + '<br>';
+  // Computer hand (face-down)
+  let compDiv = document.getElementById('computerHand');
+  compDiv.innerHTML = "";
+  for (let i = 0; i < data.computer_hand_count; i++) {
+    compDiv.innerHTML += '<img class="card" src="' + data.card_back + '" height="120">';
+  }
+
+  // Kitty (face-down if not attached, otherwise face-up for demonstration)
+  let kittyDiv = document.getElementById('kittyCards');
+  kittyDiv.innerHTML = "";
+  if (!data.kitty_attached) {
+    // show them face-down
+    for (let i = 0; i < data.kitty_size; i++) {
+      kittyDiv.innerHTML += '<img class="card" src="' + data.card_back + '" height="120">';
+    }
+  } else {
+    // show them face-up (the code auto-discards, so these might be fewer or none)
+    if (data.kitty_images && data.kitty_images.length > 0) {
+      data.kitty_images.forEach(url => {
+        kittyDiv.innerHTML += '<img class="card" src="'+ url +'" height="120">';
+      });
+    }
+  }
 }
 
 async function placeBid() {
-  const bidVal = document.getElementById('bidValue').value;
+  let val = parseInt(document.getElementById('bidVal').value);
   const resp = await fetch('/bid', {
     method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ player_bid: parseInt(bidVal) })
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ player_bid: val })
   });
   const data = await resp.json();
-  log(JSON.stringify(data, null, 2));
+  log("Bid: " + JSON.stringify(data, null, 2));
   showState();
 }
 
-async function selectTrump() {
-  const suit = document.getElementById('trumpSuit').value;
+async function chooseTrump() {
+  let suit = document.getElementById('trumpSuit').value;
   const resp = await fetch('/select_trump', {
     method: 'POST',
-    headers: {'Content-Type': 'application/json'},
+    headers: {"Content-Type": "application/json"},
     body: JSON.stringify({ suit })
   });
   const data = await resp.json();
-  log(JSON.stringify(data, null, 2));
+  log("Set Trump: " + JSON.stringify(data, null, 2));
   showState();
 }
 
 async function attachKitty() {
   const resp = await fetch('/attach_kitty', { method: 'POST' });
   const data = await resp.json();
-  log(JSON.stringify(data, null, 2));
+  log("Attach Kitty: " + JSON.stringify(data, null, 2));
   showState();
 }
 
@@ -534,15 +589,15 @@ async function playTrick() {
   const bodyObj = cardInput ? { lead_card: cardInput } : {};
   const resp = await fetch('/play_trick', {
     method: 'POST',
-    headers: {'Content-Type': 'application/json'},
+    headers: {"Content-Type": "application/json"},
     body: JSON.stringify(bodyObj)
   });
   const data = await resp.json();
   if (data.error) {
-    log('Error: ' + data.error);
+    log("Error: " + data.error);
   } else {
     if (data.trick_result) {
-      log(data.trick_result);
+      log("Trick: " + data.trick_result);
     } else {
       log(JSON.stringify(data, null, 2));
     }
@@ -553,7 +608,7 @@ async function playTrick() {
 async function finalizeRound() {
   const resp = await fetch('/finalize_round', { method: 'POST' });
   const data = await resp.json();
-  log('Finalize Round:\n' + JSON.stringify(data, null, 2));
+  log("Finalize: " + JSON.stringify(data, null, 2));
   showState();
 }
 
@@ -564,11 +619,11 @@ function log(msg) {
 
 </body>
 </html>
-"""
-    return html_content
+    """
+    return html_page
 
 ###############################################################################
-#                                API ROUTES                                   #
+#                            5) FLASK API ROUTES                              #
 ###############################################################################
 
 @app.route("/new_round", methods=["POST"])
@@ -578,123 +633,114 @@ def new_round():
         current_game = Game()
     else:
         current_game.reset_round_state()
-
     current_game.deal_hands(dealer_index)
     round_trick_count = 0
-
-    return jsonify({
-        "message": "New round dealt.",
-        "player_hand": current_game.get_player_hand_strings(0),
-        "dealer_index": dealer_index
-    })
+    return jsonify({"message": "New round dealt."})
 
 @app.route("/bid", methods=["POST"])
 def bid():
     global current_game, dealer_index
-    if current_game is None:
-        return jsonify({"error": "No game in progress. Call /new_round first."}), 400
+    if not current_game:
+        return jsonify({"error": "No game in progress"}), 400
     data = request.get_json() or {}
     player_bid = data.get("player_bid", 0)
     current_game.perform_bidding(dealer_index, player_bid)
-    winner_name = current_game.players[current_game.bid_winner].name
-    bid_amount = current_game.bid
-    return jsonify({
-        "message": f"Bidding complete. {winner_name} won the bid at {bid_amount}."
-    })
+    winner = current_game.players[current_game.bid_winner].name
+    return jsonify({"message": f"{winner} won the bid with {current_game.bid}."})
 
 @app.route("/select_trump", methods=["POST"])
 def select_trump():
     global current_game
-    if current_game is None:
-        return jsonify({"error": "No game in progress. /new_round first."}), 400
+    if not current_game:
+        return jsonify({"error": "No game in progress"}), 400
     if current_game.bid_winner is None:
-        return jsonify({"error": "No bid winner yet. /bid first."}), 400
-    bidder = current_game.players[current_game.bid_winner]
-
+        return jsonify({"error": "No bid winner yet."}), 400
     data = request.get_json() or {}
-    chosen_suit = data.get("suit")
-    if bidder.name == "You":
-        if chosen_suit not in ["Hearts", "Diamonds", "Clubs", "Spades"]:
-            return jsonify({"error": "Invalid suit."}), 400
-        current_game.set_trump_suit(chosen_suit)
-        return jsonify({"message": f"You chose trump: {chosen_suit}."})
-    else:
-        # computer picks automatically
-        comp_suit = current_game.computer_select_lead_card(bidder.hand)
-        # That's not ideal, let's do a simpler approach:
-        suits_in_hand = set(c.suit for c in bidder.hand)
-        if suits_in_hand:
-            picked = random.choice(list(suits_in_hand))
-        else:
-            picked = "Hearts"
-        current_game.set_trump_suit(picked)
-        return jsonify({"message": f"Computer chose trump: {picked}."})
+    suit = data.get("suit")
+    if suit not in ["Hearts", "Diamonds", "Clubs", "Spades"]:
+        return jsonify({"error": "Invalid suit."}), 400
+    current_game.set_trump_suit(suit)
+    return jsonify({"message": f"Trump set to {suit}."})
 
 @app.route("/attach_kitty", methods=["POST"])
 def attach_kitty():
     global current_game
-    if current_game is None:
-        return jsonify({"error": "No game in progress."}), 400
+    if not current_game:
+        return jsonify({"error": "No game in progress"}), 400
     if current_game.bid_winner is None:
-        return jsonify({"error": "No bid winner. /bid first."}), 400
+        return jsonify({"error": "No bid winner yet."}), 400
     if current_game.trump_suit is None:
-        return jsonify({"error": "No trump set yet. /select_trump first."}), 400
+        return jsonify({"error": "No trump suit set yet."}), 400
 
     current_game.attach_kitty()
     current_game.allow_other_player_discard()
-
-    return jsonify({
-        "message": "Kitty attached and discard phase done.",
-        "player_hand": current_game.get_player_hand_strings(0)
-    })
+    return jsonify({"message": "Kitty attached and discard done."})
 
 @app.route("/play_trick", methods=["POST"])
 def play_trick():
     global current_game, round_trick_count
-    if current_game is None:
-        return jsonify({"error": "No game in progress."}), 400
+    if not current_game:
+        return jsonify({"error": "No game in progress"}), 400
     data = request.get_json() or {}
     lead_card_str = data.get("lead_card")
-    result_str = current_game.play_trick(lead_card_str)
-    if "error" in result_str.lower():
-        return jsonify({"error": result_str})
+    result = current_game.play_trick(lead_card_str)
+    if "error" in result.lower():
+        return jsonify({"error": result})
     round_trick_count += 1
-    return jsonify({"trick_result": result_str})
+    return jsonify({"trick_result": result})
 
 @app.route("/finalize_round", methods=["POST"])
 def finalize_round():
     global current_game, round_trick_count
-    if current_game is None:
-        return jsonify({"error": "No game in progress."}), 400
+    if not current_game:
+        return jsonify({"error": "No game in progress"}), 400
     if round_trick_count < 5:
-        return jsonify({"error": "You haven't played all 5 tricks yet."}), 400
-
-    final_info = current_game.finalize_hand()
+        return jsonify({"error": "Not all 5 tricks have been played."}), 400
+    res = current_game.finalize_hand()
     return jsonify({
-        "round_result": final_info,
-        "player_score": current_game.players[0].score,
-        "computer_score": current_game.players[1].score
+        "round_result": res,
+        "scores": {
+            "You": current_game.players[0].score,
+            "Computer": current_game.players[1].score
+        }
     })
 
 @app.route("/show_state", methods=["GET"])
 def show_state():
-    global current_game
-    if current_game is None:
-        return jsonify({"error": "No game in progress."}), 400
+    global current_game, round_trick_count
+    if not current_game:
+        return jsonify({"error": "No game in progress"}), 400
+
+    # Build data for player's hand (face-up):
+    player_hand = current_game.players[0].hand
+    player_hand_images = [card_to_image_url(str(c)) for c in player_hand]
+
+    # Computer's hand size (face-down):
+    comp_count = len(current_game.players[1].hand)
+
+    # For demonstration, if the kitty isn't attached, show them as face-down. If attached, show them face-up.
+    kitty_size = len(current_game.kitty)
+    kitty_images = [card_to_image_url(str(c)) for c in current_game.kitty]
+
+    # Are we sure the kitty is "attached"? i.e. has the bidder taken it yet?
+    # In this code, once the bidder attaches the kitty, we empty self.kitty, but we do it
+    # after discarding. Actually, we just appended them to the bidder. So let's do:
+    kitty_attached = (current_game.bid_winner is not None and kitty_size < 3)
 
     return jsonify({
-        "player_hand": current_game.get_player_hand_strings(0),
         "player_score": current_game.players[0].score,
-        "computer_hand_count": len(current_game.players[1].hand),
         "computer_score": current_game.players[1].score,
+        "player_hand_images": player_hand_images,
+        "computer_hand_count": comp_count,
+        "kitty_size": kitty_size,
+        "kitty_images": kitty_images,  # face-up images
+        "kitty_attached": kitty_attached,
         "bid_winner": current_game.bid_winner,
         "bid": current_game.bid,
-        "trump_suit": current_game.trump_suit
+        "trump_suit": current_game.trump_suit,
+        "tricks_played": round_trick_count,
+        "card_back": card_back_url()
     })
-
-###############################################################################
-#                                 APP RUN                                     #
-###############################################################################
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
