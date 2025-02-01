@@ -1,7 +1,7 @@
 import os
 import random
 import time
-from flask import Flask, request, jsonify, render_template_string, send_from_directory, redirect, url_for
+from flask import Flask, request, jsonify, render_template_string, send_from_directory
 
 app = Flask(__name__)
 
@@ -9,7 +9,7 @@ app = Flask(__name__)
 #       GLOBAL GAME STATE       #
 #################################
 
-# Currently, we only support "headsup"
+# Currently only "headsup" mode is supported.
 game_mode = None
 current_game = None
 
@@ -32,7 +32,7 @@ class Deck:
         for s in suits:
             for r in ranks:
                 self.cards.append(Card(s, r))
-        # Ensure the 5 of Hearts is included.
+        # Ensure 5 of Hearts is in the deck.
         if not any(str(c) == "5 of Hearts" for c in self.cards):
             self.cards.append(Card("Hearts", "5"))
         self.shuffle()
@@ -46,10 +46,10 @@ class Deck:
 class Player:
     def __init__(self, name):
         self.name = name
-        self.hand = []       # List of Card objects
+        self.hand = []         # List of Card objects
         self.score = 0
         self.tricks_won = 0
-        self.trick_pile = [] # Collected cards from won tricks
+        self.trick_pile = []   # Collected cards from won tricks
     def add_to_hand(self, cards):
         self.hand.extend(cards)
     def get_hand_strings(self):
@@ -61,7 +61,7 @@ class Player:
 
 class Game:
     def __init__(self, mode):
-        self.mode = mode  # Only "headsup" implemented.
+        self.mode = mode  # Only "headsup" is implemented.
         self.players = self.initialize_players(mode)
         self.deck = Deck()
         self.kitty = []         # 3 cards set aside
@@ -73,7 +73,7 @@ class Game:
         self.trick_log_text = ""
         self.current_lead_suit = None
         self.starting_scores = {p.name: p.score for p in self.players}
-        self.trick_history = []  # List of dictionaries, one per trick
+        self.trick_history = []  # List of dicts, one per trick
     def initialize_players(self, mode):
         if mode == "headsup":
             return [Player("You"), Player("Computer")]
@@ -101,14 +101,13 @@ class Game:
         self.trump_suit = suit
         return [str(card) for card in self.kitty]
     def discard_phase(self, bidder_index, discards):
-        # Remove manually selected discard cards (list of card strings) from bidder's hand.
+        # Remove manually selected discard cards (list of strings) from bidder's hand.
         bidder = self.players[bidder_index]
         initial = len(bidder.hand)
         bidder.hand = [card for card in bidder.hand if str(card) not in discards]
         discarded = initial - len(bidder.hand)
         return {"player_hand": self.get_player_hand(), "discard_count": discarded}
     def attach_kitty(self, player_index, keep_list):
-        # Add selected kitty cards (by their string) to the bidder's hand.
         bidder = self.players[player_index]
         for card_str in keep_list:
             for c in self.kitty:
@@ -243,15 +242,15 @@ def landing():
       <button class="mode-btn" onclick="setMode('headsup')">Heads Up</button>
       <script>
         async function setMode(mode) {
-          const response = await fetch('/set_mode', {
+          const res = await fetch('/set_mode', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ mode: mode })
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({mode: mode})
           });
-          if(response.ok){
+          if(res.ok){
             window.location.href = '/game';
           } else {
-            alert('Error setting game mode.');
+            alert("Error setting mode.");
           }
         }
       </script>
@@ -392,7 +391,7 @@ def game_ui():
           const parts = card.split(" of ");
           if (parts.length !== 2) return "";
           let [rank, suit] = parts;
-          let rank_code = rank === "10" ? "0" : (["J", "Q", "K", "A"].includes(rank) ? rank : rank);
+          let rank_code = rank === "10" ? "0" : (["J","Q","K","A"].includes(rank) ? rank : rank);
           let suit_code = suit[0].toUpperCase();
           return `https://deckofcardsapi.com/static/img/${rank_code}${suit_code}.png`;
         }
@@ -558,7 +557,6 @@ def game_ui():
             } else {
               updateTrumpDisplay(result.trump_suit);
               computerLeads = true;
-              // Automatic discard for computer bidder.
               const discResp = await sendRequest("/discard_and_draw", {});
               if (discResp.error) {
                 document.getElementById("bidError").innerText = discResp.error;
@@ -606,7 +604,6 @@ def game_ui():
             }
             renderHand("playerHand", resp.player_hand, true);
             hideSection("kittySection");
-            // Render player's hand in discard area.
             renderHand("discardHand", resp.player_hand, true);
             document.getElementById("discardMessage").innerText = "Select cards to discard (0-4):";
             updateDiscardCount();
@@ -669,7 +666,7 @@ def game_ui():
 #################################
 
 @app.route("/set_mode", methods=["POST"])
-def set_mode_endpoint():
+def set_mode_route():
     global game_mode, current_game
     data = request.get_json()
     mode = data.get("mode", "headsup")
@@ -678,7 +675,7 @@ def set_mode_endpoint():
     return jsonify({"mode": mode})
 
 @app.route("/deal_cards", methods=["POST"])
-def deal_cards_route():
+def deal_cards():
     global current_game
     if current_game is None:
         return jsonify({"error": "Game mode not set. Please select a game mode."}), 400
@@ -754,7 +751,7 @@ def submit_bid():
         return jsonify({"error": str(e)}), 500
 
 @app.route("/select_trump", methods=["POST"])
-def select_trump_route():
+def select_trump():
     data = request.get_json()
     suit = data.get("trump_suit", "Hearts")
     kitty = current_game.confirm_trump(suit)
@@ -771,7 +768,7 @@ def discard_and_draw():
     return jsonify(result)
 
 @app.route("/attach_kitty", methods=["POST"])
-def attach_kitty_route():
+def attach_kitty():
     data = request.get_json()
     keep_cards = data.get("keep_cards", [])
     bidder = current_game.players[current_game.bid_winner]
@@ -783,7 +780,7 @@ def attach_kitty_route():
     return jsonify({"player_hand": current_game.get_player_hand()})
 
 @app.route("/play_trick", methods=["POST"])
-def play_trick_route():
+def play_trick():
     data = request.get_json()
     played_card = data.get("played_card")
     result_obj, hand_scores = current_game.play_trick(played_card)
