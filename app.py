@@ -287,7 +287,7 @@ class Game:
             else:
                 self.trick_log_text += "Computer has no card to play. "
             current_trick_cards = [str(card) for card, _ in self.played_cards_log]
-            // --- NEW: If player's card is trump and computer's card is not trump, player wins automatically.
+            # --- NEW: If player's card is trump and computer's card is not trump, player wins automatically.
             if player_card.suit == self.trump_suit and (comp_card is None or comp_card.suit != self.trump_suit):
                 winner = 0
             else:
