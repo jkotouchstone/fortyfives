@@ -7,10 +7,11 @@ app = Flask(__name__)
 #        GAME LOGIC        #
 ############################
 
+# Global game state and dealer toggle.
 current_game = None
-current_dealer = "Player"  # toggles each round
+current_dealer = "Player"  # toggles each hand
 
-# Basic ranking table for non-trump (and trump Hearts)
+# Basic ranking table for non-trump (and for trump Hearts)
 RANK_PRIORITY = {
     "5 of Hearts": 200,
     "J of Hearts": 199,
@@ -25,16 +26,16 @@ RANK_PRIORITY = {
     "Q_black": 110, "K_black": 111, "A_black": 112
 }
 
+# --- Bid and hand bonus constants ---
+HAND_TOTAL_POINTS = 30   # Total points available per hand
+BONUS_POINTS = 5         # Bonus for highest card in the hand
+
 def get_card_rank(card_str, trump=None):
     """
     Returns a numeric rank for a card.
-    If trump is one of Diamonds, Clubs, or Spades then a trump ranking dictionary is used:
-      - Example: if trump is Spades:
-            "5 of Spades": 200,
-            "J of Spades": 199,
-            "A of Hearts": 198, (treated as trump, third highest)
-            then the remaining Spade cards follow.
-    Otherwise, if trump is Hearts or not provided, fall back to RANK_PRIORITY.
+    If trump is one of Diamonds, Clubs, or Spades then a trump ranking dictionary is used.
+    (For example, if trump is Spades: "5 of Spades": 200, "J of Spades": 199, "A of Hearts": 198, etc.)
+    Otherwise (if trump is Hearts or not provided) fallback to RANK_PRIORITY.
     """
     if trump is not None and trump in ["Diamonds", "Clubs", "Spades"]:
         if trump == "Diamonds":
@@ -98,11 +99,11 @@ def get_card_rank(card_str, trump=None):
     else:
         return RANK_PRIORITY.get(f"{rank}_black", 50)
 
-# --- Card Image Functions using Deck of Cards API ---
+# --- Image Functions (using Deck of Cards API) ---
 def getCardImageUrl(card):
     """
     Converts a card string (e.g., "J of Hearts") to the Deck of Cards API URL.
-    For "10", use "0".
+    For "10", uses "0".
     """
     parts = card.split(" of ")
     if len(parts) != 2:
@@ -145,7 +146,20 @@ class Player:
     def add_to_hand(self, cards):
         self.hand.extend(cards)
     def discard_cards(self, discards):
+        # Prevent discarding trump cards unless there are more than 5 trump cards in hand.
+        if self.trump_count() <= 5:
+            for card in discards:
+                if card.split(" of ")[0] != "" and card.split(" of ")[1] == current_game.trump_suit:
+                    # Disallow discarding trump if not in excess.
+                    continue
         self.hand = [card for card in self.hand if str(card) not in discards]
+    def trump_count(self):
+        count = 0
+        if current_game and current_game.trump_suit:
+            for card in self.hand:
+                if card.suit == current_game.trump_suit:
+                    count += 1
+        return count
 
 class Game:
     def __init__(self):
@@ -154,6 +168,7 @@ class Game:
         self.kitty = []
         self.trump_suit = None
         self.bid_winner = None  # 0 = player, 1 = computer
+        self.bid = 0            # Stores the bid of the winning bidder
         self.leading_player = None  # Set to bid winner initially
         self.trick_count = 0
         self.played_cards_log = []  # List of tuples: (card, player_index)
@@ -161,6 +176,7 @@ class Game:
         self.current_lead_suit = None
         self.player_trick_pile = []  # Collected trick cards for player
         self.dealer_trick_pile = []  # Collected trick cards for dealer
+        self.starting_scores = [0, 0]  # To record scores at start of hand
     def deal_hands(self):
         self.deck.shuffle()
         self.kitty = self.deck.deal(3)
@@ -173,16 +189,21 @@ class Game:
         self.dealer_trick_pile = []
         self.trick_log_text = ""
         self.trick_count = 0
+        self.starting_scores = [self.players[0].score, self.players[1].score]
     def confirm_trump(self, suit):
         self.trump_suit = suit
         return [str(card) for card in self.kitty]
     def discard_and_draw(self, player_index, discards):
+        # Player discards the excess cards (hand size - 5) if allowed.
         p = self.players[player_index]
         excess = len(p.hand) - 5
         if len(discards) != excess:
             return {"error": f"Please discard exactly {excess} card(s)."}
+        # Here, we assume the player is not discarding trump cards unless they have more than 5.
+        for card in discards:
+            if card.split(" of ")[1] == self.trump_suit and p.trump_count() <= 5:
+                return {"error": "You cannot discard trump cards unless you have extra trump cards."}, 400
         p.discard_cards(discards)
-        # In this game, no extra cards are drawn; the final hand is exactly 5 cards.
         return {"player_hand": [str(c) for c in p.hand]}
     def attach_kitty(self, player_index, keep_list):
         p = self.players[player_index]
@@ -195,12 +216,13 @@ class Game:
     def play_trick(self, played_card=None):
         """
         Trick Phase with Follow Suit & Reneging.
-          - If computer wins the bid (leading_player == 1), then the computer leads the first trick.
-          - In the "player leads" branch, if the player's card is trump and the computer's card is not trump, then the player wins automatically.
-          - All played cards are collected into a "current trick" array and then added to the appropriate trick pile.
+          - If the computer (bidder) leads, it automatically plays its card and returns it (for image display).
+          - Then the player responds by selecting a card from their hand.
+          - If the player plays a trump card while the computer does not (or plays an off‑suit), the player's card wins automatically.
+          - The played cards are displayed in a "current trick" area and then added to the appropriate trick pile.
           - Each trick win awards 5 points.
-          - After 5 tricks or if the hand is empty, the highest card played in that hand receives a bonus of 5 points.
-          - The running score continues across hands until one player reaches 120.
+          - After 5 tricks (or if the hand is empty), the best card played in that hand is awarded a bonus of 5 points.
+          - Finally, if the bidding winner fails to meet their bid, they receive a penalty equal to their bid, and the opponent receives the remainder of the 30-point pot.
         """
         def is_renegable(card_str, trump):
             if card_str == f"5 of {trump}" or card_str == f"J of {trump}":
@@ -209,7 +231,7 @@ class Game:
                 return True
             return False
 
-        # --- Computer leads (when computer lost bid, it leads first) ---
+        # --- Computer leads ---
         if self.leading_player == 1:
             if played_card is None:
                 if len(self.players[1].hand) == 0:
@@ -217,26 +239,28 @@ class Game:
                 comp_card = self.players[1].hand.pop(0)
                 self.current_lead_suit = comp_card.suit
                 self.played_cards_log.append((comp_card, 1))
-                self.trick_log_text += f"Computer leads with {comp_card}. "
+                self.trick_log_text = f"Computer leads with {comp_card}. "
                 return {"trick_result": "", "computer_card": str(comp_card), "current_trick_cards": [str(comp_card)]}, None
             else:
                 if played_card not in [str(c) for c in self.players[0].hand]:
                     return {"trick_result": "Invalid card."}, None
-                player_card = next(c for c in self.players[0].hand if str(c)==played_card)
-                # Enforce follow-suit if available
+                player_card = next(c for c in self.players[0].hand if str(c) == played_card)
                 if any(c.suit == self.current_lead_suit for c in self.players[0].hand):
                     if player_card.suit != self.current_lead_suit:
                         if not (player_card.suit == self.trump_suit and is_renegable(str(player_card), self.trump_suit)):
                             return {"trick_result": f"You must follow suit ({self.current_lead_suit})."}, None
                 self.players[0].hand.remove(player_card)
                 self.played_cards_log.append((player_card, 0))
-                self.trick_log_text += f"You played {player_card}. "
+                self.trick_log_text = f"You played {player_card}. "
                 current_trick_cards = [str(card) for card, _ in self.played_cards_log]
                 comp_card, _ = self.played_cards_log[0]
-                # Compare normally
                 rank_player = get_card_rank(str(player_card), trump=self.trump_suit)
                 rank_comp = get_card_rank(str(comp_card), trump=self.trump_suit)
-                winner = 0 if rank_player > rank_comp else 1
+                # If player's card is trump and computer's card is off-suit, player wins automatically.
+                if player_card.suit == self.trump_suit and (comp_card.suit != self.trump_suit):
+                    winner = 0
+                else:
+                    winner = 0 if rank_player > rank_comp else 1
                 if winner == 0:
                     self.trick_log_text += "You win the trick! "
                     self.player_trick_pile.extend(current_trick_cards)
@@ -249,15 +273,6 @@ class Game:
                 self.trick_count += 1
                 self.played_cards_log = []
                 self.current_lead_suit = None
-                # End of hand: award bonus and check for game end.
-                if self.trick_count >= 5 or len(self.players[0].hand) == 0:
-                    best_card, best_player = self.get_highest_card()
-                    self.players[best_player].score += 5  # Bonus is 5 points now.
-                    self.trick_log_text += f"Round over! Highest card was {best_card}. Scores: You {self.players[0].score} | Computer {self.players[1].score}."
-                    round_winner = "You" if self.players[0].score > self.players[1].score else "Computer"
-                    return {"trick_result": self.trick_log_text, "current_trick_cards": current_trick_cards}, round_winner
-                return {"trick_result": self.trick_log_text, "current_trick_cards": current_trick_cards}, None
-
         # --- Player leads ---
         else:
             if played_card is None:
@@ -268,7 +283,7 @@ class Game:
             self.players[0].hand.remove(player_card)
             self.current_lead_suit = player_card.suit
             self.played_cards_log.append((player_card, 0))
-            self.trick_log_text += f"You lead with {player_card}. "
+            self.trick_log_text = f"You lead with {player_card}. "
             comp_hand = self.players[1].hand
             comp_follow = [c for c in comp_hand if c.suit == self.current_lead_suit]
             if comp_follow:
@@ -287,7 +302,7 @@ class Game:
             else:
                 self.trick_log_text += "Computer has no card to play. "
             current_trick_cards = [str(card) for card, _ in self.played_cards_log]
-            # --- NEW: If player's card is trump and computer's card is not trump, player wins automatically.
+            # NEW: if player's card is trump and computer did not play trump, player wins automatically.
             if player_card.suit == self.trump_suit and (comp_card is None or comp_card.suit != self.trump_suit):
                 winner = 0
             else:
@@ -309,13 +324,29 @@ class Game:
                 self.dealer_trick_pile.extend(current_trick_cards)
             self.played_cards_log = []
             self.current_lead_suit = None
-            if self.trick_count >= 5 or len(self.players[0].hand)==0:
-                best_card, best_player = self.get_highest_card()
-                self.players[best_player].score += 5  # Bonus of 5 points.
-                self.trick_log_text += f"Round over! Highest card was {best_card}. Scores: You {self.players[0].score} | Computer {self.players[1].score}."
-                round_winner = "You" if self.players[0].score > self.players[1].score else "Computer"
-                return {"trick_result": self.trick_log_text, "current_trick_cards": current_trick_cards}, round_winner
-            return {"trick_result": self.trick_log_text, "current_trick_cards": current_trick_cards}, None
+
+        # --- End of Hand Processing ---
+        # If 5 tricks have been played or the player's hand is empty, the hand is over.
+        if self.trick_count >= 5 or len(self.players[0].hand) == 0:
+            # Calculate points earned in this hand (hand_points = current score - starting_scores).
+            hand_points = [self.players[i].score - self.starting_scores[i] for i in [0,1]]
+            # Apply bonus: award an extra 5 points to the player who played the highest card in this hand.
+            best_card, best_player = self.get_highest_card()
+            if best_card:
+                hand_points[best_player] += BONUS_POINTS
+                self.players[best_player].score += BONUS_POINTS
+                self.trick_log_text += f"Highest card was {best_card}. Bonus {BONUS_POINTS} points to {'You' if best_player==0 else 'Computer'}. "
+            # Now adjust based on the bid.
+            # Assume that current_game.bid stores the winning bid.
+            bidder = self.bid_winner  # 0 = player, 1 = computer
+            if hand_points[bidder] < self.bid:
+                # Bidder fails: bidder's hand score becomes negative of bid, opponent gets remainder from 30.
+                hand_points[bidder] = -self.bid
+                hand_points[1-bidder] = HAND_TOTAL_POINTS - (self.players[bidder].score - self.starting_scores[bidder])
+                self.trick_log_text += f"Bid not met. Bidder loses {self.bid} points. "
+            # Return final hand results.
+            return {"trick_result": self.trick_log_text, "current_trick_cards": current_trick_cards}, "You" if hand_points[0] > hand_points[1] else "Computer"
+        return {"trick_result": self.trick_log_text, "current_trick_cards": current_trick_cards}, None
 
     def get_highest_card(self):
         best_card, best_player = None, None
@@ -334,6 +365,8 @@ class Game:
 
 @app.route("/", methods=["GET"])
 def home():
+    # The template below defines sections for dealing, bidding, trump selection, kitty reveal,
+    # discard/draw phase, trick phase (with a "table" layout), and trick piles for collected tricks.
     return render_template_string("""
 <!DOCTYPE html>
 <html lang="en">
@@ -464,7 +497,7 @@ def home():
       const parts = card.split(" of ");
       if (parts.length !== 2) return "";
       let [rank, suit] = parts;
-      const rank_code = rank === "10" ? "0" : (["J", "Q", "K", "A"].includes(rank) ? rank : rank);
+      const rank_code = rank === "10" ? "0" : (["J","Q","K","A"].includes(rank) ? rank : rank);
       const suit_code = suit[0].toUpperCase();
       return `https://deckofcardsapi.com/static/img/${rank_code}${suit_code}.png`;
     }
@@ -538,7 +571,6 @@ def home():
       const pile = document.getElementById(pileId);
       trickCards.forEach(card => {
         const img = document.createElement("img");
-        // Show the card face in a smaller size:
         img.src = getCardImageUrl(card);
         img.alt = card;
         img.className = "card-image";
@@ -603,6 +635,7 @@ def home():
         document.getElementById("computerBid").textContent = `Computer's bid: ${result.computer_bid}`;
         hideSection("biddingSection");
         if (result.bid_winner === "Player") {
+          // Store player's bid in a global variable via the server (current_game.bid)
           showSection("trumpSelectionSection");
         } else {
           updateTrumpDisplay(result.trump_suit);
@@ -629,7 +662,7 @@ def home():
       });
     });
 
-    // 4. Submit Kitty Selection – Reveal kitty cards and merge into hand.
+    // 4. Submit Kitty Selection – Reveal kitty and merge into hand.
     document.getElementById("submitKittyButton").addEventListener("click", async () => {
       const kittyImgs = document.getElementById("kittyCards").querySelectorAll("img");
       kittyImgs.forEach(img => {
@@ -691,7 +724,6 @@ def home():
       if (resp.hand_winner) {
         addTrickToPile(resp.current_trick_cards || [], resp.hand_winner);
         alert(`Round over. Winner: ${resp.hand_winner}`);
-        // If neither has reached 120, instruct to deal a new hand.
         if (resp.player_score < 120 && resp.computer_score < 120) {
           alert("Click 'Deal Cards' to start a new hand.");
         } else {
@@ -705,7 +737,7 @@ def home():
     """)
 
 ############################
-#         SERVER ROUTES     #
+#         ROUTES           #
 ############################
 
 @app.route("/attach_kitty", methods=["POST"])
@@ -725,6 +757,8 @@ def deal_cards():
     global current_game, current_dealer
     current_game = Game()
     current_game.deal_hands()
+    # Store the starting scores for the hand.
+    current_game.starting_scores = [current_game.players[0].score, current_game.players[1].score]
     old_dealer = current_dealer
     current_dealer = "Computer" if current_dealer == "Player" else "Player"
     p_hand = [str(c) for c in current_game.players[0].hand]
@@ -743,16 +777,19 @@ def submit_bid():
         data = request.json
         player_bid = data.get("player_bid", 0)
         comp_bid = data.get("computer_bid", 0)
+        # Store the bid for later evaluation.
         if player_bid == 0:
             comp_bid = random.choice([15, 20, 25, 30])
         if comp_bid > player_bid:
             trump_suit = random.choice(["Hearts", "Diamonds", "Clubs", "Spades"])
             kitty = current_game.confirm_trump(trump_suit)
             current_game.bid_winner = 1
+            current_game.bid = comp_bid
             current_game.leading_player = 1
             return jsonify({"computer_bid": comp_bid, "bid_winner": "Computer", "trump_suit": trump_suit, "kitty_cards": kitty})
         else:
             current_game.bid_winner = 0
+            current_game.bid = player_bid
             current_game.leading_player = 0
             return jsonify({"computer_bid": comp_bid, "bid_winner": "Player"})
     except Exception as e:
