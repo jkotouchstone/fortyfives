@@ -49,13 +49,12 @@ class Player:
         self.hand = []       # List of Card objects
         self.score = 0
         self.tricks_won = 0
-        self.trick_pile = [] # Collected cards from winning tricks
+        self.trick_pile = [] # Collected cards from won tricks
     def add_to_hand(self, cards):
         self.hand.extend(cards)
     def get_hand_strings(self):
         return [str(card) for card in self.hand]
     def discard_auto(self, trump):
-        # Automatically keep trump cards only.
         before = len(self.hand)
         self.hand = [card for card in self.hand if card.suit == trump]
         return before - len(self.hand)
@@ -65,8 +64,8 @@ class Game:
         self.mode = mode  # Only "headsup" implemented.
         self.players = self.initialize_players(mode)
         self.deck = Deck()
-        self.kitty = []         # 3 cards dealt aside
-        self.trump_suit = None  # To be chosen after bidding
+        self.kitty = []         # 3 cards set aside
+        self.trump_suit = None  # To be chosen during trump selection
         self.bid_winner = None  # 0 = human (dealer), 1 = computer
         self.bid = 0            # Winning bid amount
         self.leading_player = None  # Which player leads the trick: 0 or 1
@@ -74,7 +73,7 @@ class Game:
         self.trick_log_text = ""
         self.current_lead_suit = None
         self.starting_scores = {p.name: p.score for p in self.players}
-        self.trick_history = []  # List of dicts, one per trick
+        self.trick_history = []  # List of dictionaries, one per trick
     def initialize_players(self, mode):
         if mode == "headsup":
             return [Player("You"), Player("Computer")]
@@ -96,13 +95,13 @@ class Game:
     def get_player_hand(self):
         return self.players[0].get_hand_strings()
     def get_dealer(self):
-        # For this demo, the human ("You") is always the dealer.
+        # In this demo, the human ("You") is always the dealer.
         return self.players[0].name
     def confirm_trump(self, suit):
         self.trump_suit = suit
         return [str(card) for card in self.kitty]
     def discard_phase(self, bidder_index, discards):
-        # Remove manually selected discards (list of card strings) from bidder's hand.
+        # Remove manually selected discard cards (list of card strings) from bidder's hand.
         bidder = self.players[bidder_index]
         initial = len(bidder.hand)
         bidder.hand = [card for card in bidder.hand if str(card) not in discards]
@@ -146,7 +145,6 @@ class Game:
             }
             comp_card = played.get(1)
             human_card = played.get(0)
-            # Determine trick winner.
             if human_card and human_card.suit == self.trump_suit and (not comp_card or comp_card.suit != self.trump_suit):
                 winner = "You"
             else:
@@ -197,7 +195,6 @@ class Game:
             self.trick_history.append(trick_info)
             self.leading_player = 0 if winner=="You" else 1
         self.trick_count += 1
-        # If hand complete (5 tricks or no cards in player's hand), return summary.
         if self.trick_count >= 5 or len(self.players[0].hand) == 0:
             best_card = None
             best_player = None
@@ -246,15 +243,15 @@ def landing():
       <button class="mode-btn" onclick="setMode('headsup')">Heads Up</button>
       <script>
         async function setMode(mode) {
-          const res = await fetch('/set_mode', {
+          const response = await fetch('/set_mode', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ mode: mode })
           });
-          if(res.ok){
+          if(response.ok){
             window.location.href = '/game';
           } else {
-            alert("Error setting mode.");
+            alert('Error setting game mode.');
           }
         }
       </script>
@@ -395,7 +392,7 @@ def game_ui():
           const parts = card.split(" of ");
           if (parts.length !== 2) return "";
           let [rank, suit] = parts;
-          let rank_code = rank === "10" ? "0" : (["J","Q","K","A"].includes(rank) ? rank : rank);
+          let rank_code = rank === "10" ? "0" : (["J", "Q", "K", "A"].includes(rank) ? rank : rank);
           let suit_code = suit[0].toUpperCase();
           return `https://deckofcardsapi.com/static/img/${rank_code}${suit_code}.png`;
         }
@@ -415,13 +412,11 @@ def game_ui():
             if (selectable) {
               img.addEventListener("click", () => {
                 if (containerId === "discardHand") {
-                  // Allow multiple selection in discard area.
                   img.classList.toggle("selected-card");
                   updateDiscardCount();
                 } else {
-                  // For player's hand, allow single selection.
                   [...container.querySelectorAll(".selected-card")].forEach(i => {
-                    if (i !== img) i.classList.remove("selected-card");
+                    if(i !== img) i.classList.remove("selected-card");
                   });
                   img.classList.toggle("selected-card");
                 }
@@ -497,14 +492,14 @@ def game_ui():
 
         // --- Event Handlers ---
 
-        // 1. Deal Cards.
+        // Deal Cards.
         document.getElementById("dealCardsButton").addEventListener("click", async () => {
           const result = await sendRequest("/deal_cards", {});
           if (result.error) {
             alert(result.error);
             return;
           }
-          // Clear previous trump and trick history.
+          // Clear previous UI sections.
           document.getElementById("trumpDisplay").innerHTML = "";
           document.getElementById("dealerTrickPile").innerHTML = "<h3>Dealer's Tricks</h3>";
           document.getElementById("playerTrickPile").innerHTML = "<h3>Your Tricks</h3>";
@@ -520,7 +515,7 @@ def game_ui():
           document.getElementById("dealer").innerText = result.dealer;
           renderHand("playerHand", result.player_hand, true);
           showSection("playerHandSection");
-          // For demo, get computer bid.
+          // Get computer bid.
           const compBidResp = await sendRequest("/computer_first_bid", {});
           if (compBidResp && !compBidResp.error) {
             document.getElementById("computerBid").innerText = `Computer's bid: ${compBidResp.computer_bid}`;
@@ -544,7 +539,7 @@ def game_ui():
           showSection("biddingSection");
         });
 
-        // 2. Bidding.
+        // Bidding.
         document.querySelectorAll(".bidButton").forEach(btn => {
           btn.addEventListener("click", async () => {
             btn.classList.add("selected-card");
@@ -563,7 +558,7 @@ def game_ui():
             } else {
               updateTrumpDisplay(result.trump_suit);
               computerLeads = true;
-              // For computer bidder, perform automatic discard.
+              // Automatic discard for computer bidder.
               const discResp = await sendRequest("/discard_and_draw", {});
               if (discResp.error) {
                 document.getElementById("bidError").innerText = discResp.error;
@@ -576,7 +571,7 @@ def game_ui():
           });
         });
 
-        // 3. Trump Selection.
+        // Trump Selection.
         document.querySelectorAll(".trumpButton").forEach(btn => {
           btn.addEventListener("click", async () => {
             const suit = btn.dataset.suit;
@@ -592,7 +587,7 @@ def game_ui():
           });
         });
 
-        // 4. Kitty Selection.
+        // Kitty Selection.
         document.getElementById("revealKittyButton").addEventListener("click", () => {
             const kittyImgs = document.getElementById("kittyCards").querySelectorAll("img");
             kittyImgs.forEach(img => {
@@ -611,14 +606,14 @@ def game_ui():
             }
             renderHand("playerHand", resp.player_hand, true);
             hideSection("kittySection");
-            // Render player's hand in discard area for manual discard selection.
+            // Render player's hand in discard area.
             renderHand("discardHand", resp.player_hand, true);
             document.getElementById("discardMessage").innerText = "Select cards to discard (0-4):";
             updateDiscardCount();
             showSection("discardSection");
         });
 
-        // 4b. Discard Phase – Submit Discards.
+        // Discard Phase – Submit Discards.
         document.getElementById("skipDiscardButton").addEventListener("click", async () => {
             const selected = [...document.querySelectorAll("#discardHand .selected-card")].map(img => img.alt);
             const resp = await sendRequest("/discard_and_draw", { discarded_cards: selected });
@@ -632,7 +627,7 @@ def game_ui():
             if (computerLeads) startTrickIfComputerLeads();
         });
 
-        // 5. Trick Phase – Play a card.
+        // Trick Phase – Play a card.
         document.getElementById("playTrickButton").addEventListener("click", async () => {
             const selected = document.querySelector("#playerHand .selected-card");
             let cardStr = selected ? selected.alt : null;
@@ -651,7 +646,6 @@ def game_ui():
                 div.innerHTML = `<h4>${key}</h4><img src="${getCardImageUrl(resp.current_trick_cards[key])}" alt="${resp.current_trick_cards[key]}" class="card-image">`;
                 container.appendChild(div);
               }
-              // Delay 1.5 seconds to simulate gathering of trick.
               setTimeout(() => {
                 addTrickToPile(Object.values(resp.current_trick_cards), resp.trick_winner);
                 document.getElementById("currentTrick").innerHTML = "";
@@ -715,7 +709,6 @@ def submit_bid():
         comp_bid = data.get("computer_bid", None)
         if comp_bid is None:
             return jsonify({"error": "Computer bid missing."}), 400
-        # If computer bids 30, bidding stops.
         if comp_bid == 30:
             trump_suit = random.choice(["Hearts", "Diamonds", "Clubs", "Spades"])
             kitty = current_game.confirm_trump(trump_suit)
@@ -728,7 +721,6 @@ def submit_bid():
                 "trump_suit": trump_suit,
                 "kitty_cards": kitty
             })
-        # If computer passes (bid 0), dealer must bid 15.
         if comp_bid == 0:
             if player_bid != 15:
                 return jsonify({"error": "Invalid bid. When opponent passes, you must bid 15."}), 400
@@ -737,7 +729,6 @@ def submit_bid():
                 current_game.bid = 15
                 current_game.leading_player = 0
                 return jsonify({"computer_bid": comp_bid, "bid_winner": "Player"})
-        # Otherwise, valid dealer bid is comp_bid+5 or pass.
         let_bid = comp_bid + 5
         if player_bid == 0:
             current_game.bid_winner = 1
