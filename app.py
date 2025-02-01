@@ -10,7 +10,7 @@ app = Flask(__name__)
 current_game = None
 current_dealer = "Player"  # toggles each round
 
-# Basic ranking table for non-trump (and for trump Hearts)
+# Basic ranking table for non-trump (and trump Hearts)
 RANK_PRIORITY = {
     "5 of Hearts": 200,
     "J of Hearts": 199,
@@ -28,13 +28,13 @@ RANK_PRIORITY = {
 def get_card_rank(card_str, trump=None):
     """
     Returns a numeric rank for a card.
-    If trump is Diamonds, Clubs, or Spades then a trump ranking dictionary is used:
+    If trump is one of Diamonds, Clubs, or Spades then a trump dictionary is used:
       - For example, if trump is Diamonds:
             "5 of Diamonds": 200,
             "J of Diamonds": 199,
-            "A of Hearts": 198 (the Ace of Hearts is treated as trump, third highest),
+            "A of Hearts": 198 (third highest),
             then the remaining Diamond cards follow.
-    Otherwise (if trump is Hearts or not provided), fallback to RANK_PRIORITY.
+    Otherwise, if trump is Hearts or not provided, fallback to RANK_PRIORITY.
     """
     if trump is not None and trump in ["Diamonds", "Clubs", "Spades"]:
         if trump == "Diamonds":
@@ -102,7 +102,7 @@ def get_card_rank(card_str, trump=None):
 def getCardImageUrl(card):
     """
     Converts a card string (e.g., "J of Hearts") to the Deck of Cards API URL.
-    For "10" it uses "0".
+    For "10", it uses "0".
     """
     parts = card.split(" of ")
     if len(parts) != 2:
@@ -158,9 +158,8 @@ class Game:
         self.played_cards_log = []  # List of tuples: (card, player_index)
         self.trick_log_text = ""
         self.current_lead_suit = None
-        # We'll maintain trick piles as lists of card strings (for display)
-        self.player_trick_pile = []
-        self.dealer_trick_pile = []
+        self.player_trick_pile = []  # Collected tricks for player
+        self.dealer_trick_pile = []  # Collected tricks for computer
     def deal_hands(self):
         self.deck.shuffle()
         self.kitty = self.deck.deal(3)
@@ -169,7 +168,6 @@ class Game:
             p.tricks_won = 0
         self.players[0].add_to_hand(self.deck.deal(5))
         self.players[1].add_to_hand(self.deck.deal(5))
-        # Clear trick piles and log for a new hand.
         self.player_trick_pile = []
         self.dealer_trick_pile = []
         self.trick_log_text = ""
@@ -193,15 +191,13 @@ class Game:
         return [str(c) for c in p.hand]
     def play_trick(self, played_card=None):
         """
-        Trick Phase with Follow Suit & Reneging:
-         - If computer leads (bid winner is Computer) and no played_card is provided,
-           it automatically plays its lead card and returns it (for image display).
-         - Then the player selects a card from their hand.
-         - If the player has any card in the lead suit, they must follow suit (unless playing a renegable trump).
-         - If the player leads, the computer attempts to follow suit.
-         - Each trick win gives 5 points; after 5 tricks or if hand is empty, bonus 10 points is awarded for the highest‑ranking card.
-         - The two cards played in the trick are returned (so the UI can display them as “on the table”)
-         - The winning trick’s cards are then added to the winner’s trick pile.
+        Trick Phase with Follow Suit & Reneging.
+         - If computer wins the bid (leading_player==1) then the computer leads the first trick.
+         - The computer’s lead card is returned (for image display).
+         - Then the player responds by selecting a card.
+         - The played cards are shown “on the table” (current trick area) and then added to the winning side’s pile.
+         - Each trick win gives 5 points; after 5 tricks (or if hand is empty), bonus 10 points is awarded for the highest‑ranking card.
+         - A cumulative trick log is maintained.
         """
         def is_renegable(card_str, trump):
             if card_str == f"5 of {trump}" or card_str == f"J of {trump}":
@@ -219,12 +215,13 @@ class Game:
                 self.current_lead_suit = comp_card.suit
                 self.played_cards_log.append((comp_card, 1))
                 self.trick_log_text += f"Computer leads with {comp_card}. "
-                # Return computer's card for image display (and wait for player's response).
+                # Return the computer's lead card for display.
                 return {"trick_result": "", "computer_card": str(comp_card), "current_trick_cards": [str(comp_card)]}, None
             else:
+                # Player responds
                 if played_card not in [str(c) for c in self.players[0].hand]:
                     return {"trick_result": "Invalid card."}, None
-                player_card = next(c for c in self.players[0].hand if str(c) == played_card)
+                player_card = next(c for c in self.players[0].hand if str(c)==played_card)
                 if any(c.suit == self.current_lead_suit for c in self.players[0].hand):
                     if player_card.suit != self.current_lead_suit:
                         if not (player_card.suit == self.trump_suit and is_renegable(str(player_card), self.trump_suit)):
@@ -232,7 +229,6 @@ class Game:
                 self.players[0].hand.remove(player_card)
                 self.played_cards_log.append((player_card, 0))
                 self.trick_log_text += f"You played {player_card}. "
-                # Now both cards are in played_cards_log.
                 current_trick_cards = [str(card) for card, _ in self.played_cards_log]
                 comp_card, _ = self.played_cards_log[0]
                 rank_player = get_card_rank(str(player_card), trump=self.trump_suit)
@@ -297,7 +293,7 @@ class Game:
             self.players[winner].tricks_won += 1
             self.leading_player = winner
             self.trick_count += 1
-            if winner == 0:
+            if winner == 0) :
                 self.trick_log_text += "You win the trick! "
                 self.player_trick_pile.extend(current_trick_cards)
             else:
@@ -330,13 +326,6 @@ class Game:
 
 @app.route("/", methods=["GET"])
 def home():
-    # The HTML template includes sections for:
-    # - The player's hand
-    # - Bidding (with buttons)
-    # - Trump selection
-    # - Kitty reveal
-    # - Discard/Draw phase
-    # - Trick Phase with a simulated table including trick piles.
     return render_template_string("""
 <!DOCTYPE html>
 <html lang="en">
@@ -421,7 +410,7 @@ def home():
       <p id="playPrompt"></p>
       <button id="playTrickButton">Play Selected Card</button>
     </div>
-    <!-- Trick Piles (Collected Tricks) -->
+    <!-- Trick Piles -->
     <div id="trickPiles">
       <div id="dealerTrickPile">
         <h3>Dealer's Collected Tricks</h3>
@@ -433,6 +422,7 @@ def home():
   </div>
   <footer>&copy; O'Donohue Software</footer>
   <script>
+    // Global variable for current scores.
     let currentScore = { player: 0, computer: 0 };
 
     function updateScoreBoard(p, c) {
@@ -465,7 +455,7 @@ def home():
       const parts = card.split(" of ");
       if (parts.length !== 2) return "";
       let [rank, suit] = parts;
-      const rank_code = rank === "10" ? "0" : (["J", "Q", "K", "A"].includes(rank) ? rank : rank);
+      const rank_code = rank === "10" ? "0" : (["J","Q","K","A"].includes(rank) ? rank : rank);
       const suit_code = suit[0].toUpperCase();
       return `https://deckofcardsapi.com/static/img/${rank_code}${suit_code}.png`;
     }
@@ -524,8 +514,9 @@ def home():
     }
 
     function updateTrumpDisplay(suit) {
+      const suitSymbols = { "Hearts": "♥", "Diamonds": "♦", "Clubs": "♣", "Spades": "♠" };
       const trumpDiv = document.getElementById("trumpDisplay");
-      trumpDiv.innerHTML = `<span>Trump: </span><img src="${getCardImageUrl('5 of ' + suit)}" alt="5 of ${suit}" />`;
+      trumpDiv.innerHTML = `<span>Trump: <span style="font-size:48px;">${suitSymbols[suit]}</span></span>`;
     }
 
     function appendTrickLog(text) {
@@ -533,7 +524,6 @@ def home():
       logElem.innerHTML += text + "<br/>";
     }
 
-    // After a trick is complete, add the current trick cards to the appropriate pile.
     function addTrickToPile(trickCards, winner) {
       const pileId = winner === "You" ? "playerTrickPile" : "dealerTrickPile";
       const pile = document.getElementById(pileId);
@@ -544,16 +534,13 @@ def home():
         img.className = "card-image";
         pile.appendChild(img);
       });
-      // Also clear the current trick display.
       document.getElementById("currentTrick").innerHTML = "";
     }
 
-    // When computer leads, fetch its lead card.
     async function startTrickIfComputerLeads() {
       const leadResp = await sendRequest("/play_trick", { played_card: null });
       if (leadResp) {
         if (leadResp.computer_card) {
-          // Show computer's card in a dedicated "current trick" area.
           document.getElementById("currentTrick").innerHTML = "";
           renderHand("currentTrick", [leadResp.computer_card], false);
           document.getElementById("trickResult").textContent = "";
@@ -575,7 +562,6 @@ def home():
         const compBidResp = await sendRequest("/computer_first_bid");
         if (compBidResp) {
           document.getElementById("computerBid").textContent = `Computer's bid: ${compBidResp.computer_bid}`;
-          // If computer's bid is 30, auto-submit (player does not bid)
           if (parseInt(compBidResp.computer_bid) === 30) {
             const autoResp = await sendRequest("/submit_bid", { player_bid: 0, computer_bid: 30 });
             if (autoResp) {
@@ -623,7 +609,6 @@ def home():
         updateTrumpDisplay(suit);
         alert(`Trump suit set to ${suit}`);
         hideSection("trumpSelectionSection");
-        // Show kitty cards as card backs.
         renderKittyCards("kittyCards", resp.kitty_cards);
         showSection("kittySection");
       });
@@ -631,7 +616,6 @@ def home():
 
     // 4. Submit Kitty Selection – reveal kitty and merge into hand.
     document.getElementById("submitKittyButton").addEventListener("click", async () => {
-      // Reveal kitty cards: change card back images to face images.
       const kittyImgs = document.getElementById("kittyCards").querySelectorAll("img");
       kittyImgs.forEach(img => {
         let cardVal = img.alt;
@@ -642,7 +626,6 @@ def home():
       if (!resp) return;
       renderHand("playerHand", resp.player_hand, true);
       hideSection("kittySection");
-      // Force discard/draw phase for player bid wins.
       renderHand("discardHand", resp.player_hand, true);
       showSection("discardSection");
     });
@@ -679,21 +662,17 @@ def home():
       let cardStr = selected ? selected.alt : null;
       const resp = await sendRequest("/play_trick", { played_card: cardStr });
       if (!resp) return;
-      // Display the current trick's result in the central "currentTrick" area.
       if (resp.current_trick_cards) {
+        // Display current trick cards on the table.
         renderHand("currentTrick", resp.current_trick_cards, false);
       }
       document.getElementById("trickResult").textContent = resp.trick_result;
       renderHand("playerHand", resp.player_hand, true);
       updateScoreBoard(resp.player_score, resp.computer_score);
       appendTrickLog(resp.trick_result);
-      // If a trick was completed and a winner determined, add the trick cards to the appropriate trick pile.
-      if (resp.hand_winner && resp.current_trick_cards) {
-        addTrickToPile(resp.current_trick_cards, resp.hand_winner);
-        // Clear the "currentTrick" area for the next trick.
-        document.getElementById("currentTrick").innerHTML = "";
-      }
       if (resp.hand_winner) {
+        // Add the trick cards to the winning side’s pile.
+        addTrickToPile(resp.current_trick_cards || [], resp.hand_winner);
         alert(`Round over. Winner: ${resp.hand_winner}`);
       }
     });
@@ -778,7 +757,6 @@ def play_trick():
     played_card = data.get("played_card")
     result_obj, hand_winner = current_game.play_trick(played_card)
     p_hand = [str(c) for c in current_game.players[0].hand]
-    # Return the current trick cards if available.
     resp = {
         "trick_result": result_obj.get("trick_result", ""),
         "player_hand": p_hand,
