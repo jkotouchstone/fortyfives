@@ -7,7 +7,6 @@ app = Flask(__name__)
 ###############################################################################
 #                          CARD RANK LOOKUPS                                  #
 ###############################################################################
-
 TRUMP_DIAMONDS = {
     "5 of Diamonds": 200, "J of Diamonds": 199, "A of Hearts": 198, "A of Diamonds": 197,
     "K of Diamonds": 196, "Q of Diamonds": 195, "10 of Diamonds": 194, "9 of Diamonds": 193,
@@ -34,7 +33,6 @@ TRUMP_SPADES = {
     "6 of Spades": 191, "7 of Spades": 190, "8 of Spades": 189,
     "9 of Spades": 188, "10 of Spades": 187
 }
-
 OFFSUIT_DIAMONDS = {
     "K of Diamonds": 200, "Q of Diamonds": 199, "J of Diamonds": 198, "10 of Diamonds": 197,
     "9 of Diamonds": 196, "8 of Diamonds": 195, "7 of Diamonds": 194, "6 of Diamonds": 193,
@@ -60,9 +58,6 @@ OFFSUIT_SPADES = {
 }
 
 def get_card_rank(card_str: str, trump_suit: str) -> int:
-    """
-    Return a numeric rank for card_str under the given trump_suit.
-    """
     if trump_suit == "Diamonds":
         if card_str in TRUMP_DIAMONDS:
             return TRUMP_DIAMONDS[card_str]
@@ -194,7 +189,7 @@ class Game:
         for p in self.players:
             p.hand.clear()
         self.kitty.clear()
-        # 3 each, kitty(3), 2 each
+
         first_bidder=0 if self.dealer==1 else 1
         self.players[first_bidder].add_to_hand(self.deck.deal(3))
         self.players[self.dealer].add_to_hand(self.deck.deal(3))
@@ -203,83 +198,82 @@ class Game:
         self.players[self.dealer].add_to_hand(self.deck.deal(2))
 
     def user_bid(self,bid_val):
-        """
-        If user is first => user picks from [0,15,20,25,30]. 
-          If user picks 30 => user instantly wins the bid.
-          Otherwise, the computer tries to outbid if possible.
-        If user is second => computer picks random. user tries to beat or pass.
-        If both pass => dealer forced 15.
-        Returns a string message to show in the progress log.
-        """
         if self.bidding_done:
             return "Bidding is done."
         first_bidder=0 if self.dealer==1 else 1
 
+        # The logic below also triggers an immediate "computer picks trump" if the computer wins the bid
+        message=""
         if first_bidder==0:
             # user is first
             if bid_val==30:
                 self.bid_winner=0
                 self.bid=30
                 self.bidding_done=True
-                return "You bid 30, you immediately win the bid."
+                message="You bid 30, you immediately win the bid."
             else:
-                # user picks pass(0),15,20,25
                 if bid_val>0:
                     comp_options=[c for c in [15,20,25,30] if c>bid_val]
                 else:
                     comp_options=[0,15,20,25,30]
                 if not comp_options:
-                    # comp can't outbid => user wins
                     self.bid_winner=0
                     self.bid=bid_val if bid_val>0 else 15
                     self.bidding_done=True
-                    return f"You bid {bid_val}, computer passed. You win the bid."
+                    message=f"You bid {bid_val}, computer passed. You win the bid."
                 else:
                     comp_choice=random.choice(comp_options)
                     if comp_choice>0:
                         self.bid_winner=1
                         self.bid=comp_choice
                         self.bidding_done=True
-                        return f"Computer outbid you with {comp_choice}. Computer wins the bid."
+                        message=f"Computer outbid you with {comp_choice}. Computer wins the bid."
                     else:
                         self.bid_winner=self.dealer
                         self.bid=15
                         self.bidding_done=True
                         if self.dealer==1:
-                            return "Both passed, Computer is dealer => forced 15 to Computer"
+                            message="Both passed, Computer is dealer => forced 15 to Computer"
                         else:
-                            return "Both passed, You are dealer => forced 15 to You"
+                            message="Both passed, You are dealer => forced 15 to You"
         else:
-            # user is second => comp first
+            # user second => comp first
             comp_first=random.choice([0,15,20,25,30])
             if comp_first==30:
                 self.bid_winner=0
                 self.bid=30
                 self.bidding_done=True
-                return "Computer bids 30, instantly wins the bid."
+                message="Computer bids 30, instantly wins the bid."
             else:
                 if bid_val>comp_first:
                     self.bid_winner=1
                     self.bid=bid_val
                     self.bidding_done=True
-                    return f"Computer bid {comp_first}, you outbid with {bid_val}, you win."
+                    message=f"Computer bid {comp_first}, you outbid with {bid_val}, you win."
                 elif bid_val==comp_first and comp_first>0:
                     self.bid_winner=1
                     self.bid=bid_val
                     self.bidding_done=True
-                    return f"Computer bid {comp_first}, you matched => you win the bid."
+                    message=f"Computer bid {comp_first}, you matched => you win the bid."
                 else:
                     self.bid_winner=0
                     self.bid=comp_first if comp_first>0 else 15
                     self.bidding_done=True
                     if comp_first>0:
-                        return f"Computer bid {comp_first}, you didn't beat it => Computer wins."
+                        message=f"Computer bid {comp_first}, you didn't beat it => Computer wins."
                     else:
-                        return "Computer passed, you also didn't bid => forced 15 to Computer."
+                        message="Computer passed, you also didn't bid => forced 15 to Computer."
+        # if comp is winner => comp picks trump + kitty right away
+        if self.bidding_done and self.bid_winner==1:
+            # the computer is the winner => pick trump + attach kitty
+            self.set_trump(None)
+            self.attach_kitty()
+
+        return message
 
     def set_trump(self, suit=None):
-        # if comp is dealer and bidder => picks auto
         if self.bid_winner==1 and self.dealer==1:
+            # comp picks
             comp_hand=self.players[1].hand
             sc={"Hearts":0,"Diamonds":0,"Clubs":0,"Spades":0}
             for c in comp_hand:
@@ -303,7 +297,6 @@ class Game:
 
     def finalize_kitty_selection(self, keepArr, discardArr):
         user=self.players[0]
-        # discardArr from user hand
         user.hand=[c for c in user.hand if str(c) not in discardArr]
         kitty_keep=[]
         leftover=[]
@@ -322,7 +315,6 @@ class Game:
         new_cards=self.deck.deal(len(discards))
         user.hand.extend(new_cards)
 
-        # remove kitty images
         self.kitty.clear()
         return {"discarded":discards,"drawn":[str(c) for c in new_cards]}
 
@@ -393,10 +385,6 @@ class Game:
         return win_pid
 
     def finalize_hand(self):
-        """
-        30 points: 5 per trick +5 for highest card. 
-        If bidder doesn't meet their bid => subtract from them.
-        """
         if self.highest_card_owner is not None:
             self.players[self.highest_card_owner].score+=5
 
@@ -417,16 +405,14 @@ class Game:
           "scores": [self.players[0].score,self.players[1].score]
         }
 
-###############################################################################
-#                              FLASK ROUTES                                  #
-###############################################################################
 current_game=None
 tricks_this_hand=0
 
 @app.route("/")
 def index():
     """
-    Single-page HTML with the entire game UI.
+    Single-page UI with overlapping kitty, discards & deck, progress log top-right,
+    plus immediate auto-trump for computer if it wins the bid.
     """
     return """
 <!DOCTYPE html>
@@ -454,7 +440,8 @@ def index():
       bottom:20px; text-align:center;
     }
     #kittyArea {
-      position:absolute; left:20px; bottom:200px; width:160px; height:120px;
+      position:absolute; left:20px; top:200px; /* moved to top so it doesn't overlap bidding/trump */
+      width:160px; height:120px;
       text-align:left;
     }
     #kittyStack {
@@ -492,9 +479,6 @@ def index():
     .selected { outline:2px solid yellow; }
     button { margin:5px; padding:5px 10px; border:none; border-radius:4px; background:#555; color:white; cursor:pointer; }
     button:hover { background:#666; }
-    #logArea {
-      display:none; /* replaced by #progressLog */
-    }
     footer {
       position:absolute; bottom:0; right:0; color:#aaa; font-size:0.8em; padding:5px;
     }
@@ -560,7 +544,7 @@ def index():
 <script>
 let gameState = {};
 let selectedKitty = [];
-let discardSelection = []; // user can pick up to 4 discards from their hand
+let discardSelection = [];
 
 function log(msg){
   const plog=document.getElementById('progressLog');
@@ -618,7 +602,7 @@ function updateDealer(dealerName){
 }
 
 function updateComputerHand(count, backUrl){
-  const ch=document.getElementById('computerHand');
+  let ch=document.getElementById('computerHand');
   ch.innerHTML="";
   for(let i=0;i<count;i++){
     let img=document.createElement('img');
@@ -629,7 +613,7 @@ function updateComputerHand(count, backUrl){
 }
 
 function updatePlayerHand(cards){
-  const ph=document.getElementById('playerHand');
+  let ph=document.getElementById('playerHand');
   ph.innerHTML="";
   discardSelection=discardSelection.filter(x=> cards.map(c=>c.name).includes(x));
   cards.forEach(c=>{
@@ -637,8 +621,6 @@ function updatePlayerHand(cards){
     img.src=c.img;
     img.className="card";
     img.onclick=()=>{
-      // if bidding/trump done => trick phase => play
-      // else user can discard
       if(gameState.trump_set && gameState.bidding_done){
         playCard(c.name);
       } else {
@@ -666,13 +648,12 @@ function toggleDiscard(cardName){
 }
 
 function updateKitty(d){
-  const kStack=document.getElementById('kittyStack');
+  let kStack=document.getElementById('kittyStack');
   kStack.innerHTML="";
   document.getElementById('confirmKittyBtn').style.display= d.show_kitty_confirm?"inline-block":"none";
   selectedKitty=selectedKitty.filter(x=> d.kitty.map(kk=>kk.name).includes(x));
 
   if(d.kitty_revealed){
-    // show overlapping
     d.kitty.forEach((kcard,index)=>{
       let img=document.createElement('img');
       img.src=kcard.img;
@@ -681,12 +662,12 @@ function updateKitty(d){
       img.style.left=(index*20)+"px";
       img.onclick=()=>{
         if(selectedKitty.includes(kcard.name)){
-          selectedKitty=selectedKitty.filter(x=>x!==kcard.name);
+          selectedKitty=selectedKitty.filter(x=> x!==kcard.name);
         } else {
           if(selectedKitty.length<3){
             selectedKitty.push(kcard.name);
           } else {
-            log("Kitty selection up to 3, we won't block more but typically you can't keep all if you have 5 in hand.");
+            log("Kitty selection typically up to 3. We'll let you pick more but it's unusual.");
           }
         }
         updateKitty(d);
@@ -725,7 +706,6 @@ function confirmKitty(){
 function updateDeck(d){
   const dk=document.getElementById('deckImg');
   dk.src=d.card_back;
-  // highlight deck if user can still discard
   if(!d.trump_set || !d.bidding_done){
     dk.classList.add('deckClick');
   } else {
@@ -735,7 +715,7 @@ function updateDeck(d){
 }
 
 function clickDeck(){
-  // if user is discarding => finalize discards
+  // if user discarding => finalize discards
   if(!gameState.trump_set || !gameState.bidding_done){
     if(discardSelection.length>0){
       fetch('/user_draw',{
@@ -753,12 +733,12 @@ function clickDeck(){
       log("No cards selected to discard.");
     }
   } else {
-    log("Deck is not clickable at this stage (already in trick phase).");
+    log("Deck not clickable at this stage (trick phase).");
   }
 }
 
 function updateTrick(trickData){
-  const t=document.getElementById('trickArea');
+  let t=document.getElementById('trickArea');
   t.innerHTML="";
   if(trickData && trickData.length>0){
     trickData.forEach(item=>{
@@ -772,7 +752,7 @@ function updateTrick(trickData){
 }
 
 function updateScores(d){
-  const s=document.getElementById('scoreInfo');
+  let s=document.getElementById('scoreInfo');
   s.innerHTML="Trick Pts - You:"+ d.round_score_your +", Comp:"+ d.round_score_comp
     +"<br>Total: You "+ d.total_your +", Comp "+ d.total_comp;
 }
@@ -784,7 +764,6 @@ function updateBiddingUI(d){
   tdiv.style.display=d.trump_set?"none":"none";
 
   if(!d.bidding_done){
-    // user picks from pass(0),15,20,25,30
     let bids=[0,15,20,25,30];
     bids.forEach(bv=>{
       let label=(bv===0)?"Pass":"Bid "+bv;
@@ -838,8 +817,6 @@ function playCard(name){
 
 window.onload=()=>showState();
 </script>
-</body>
-</html>
 """
 
 @app.route("/new_hand", methods=["POST"])
@@ -901,9 +878,6 @@ def play_card_user():
 
 @app.route("/user_draw", methods=["POST"])
 def user_draw():
-    """
-    If user discards up to 4 cards, then clicks deck to draw the same number.
-    """
     global current_game
     data=request.get_json() or {}
     discList=data.get("discards",[])
