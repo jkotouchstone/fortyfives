@@ -5,7 +5,7 @@ from flask import Flask, request, jsonify
 app = Flask(__name__)
 
 ###############################################################################
-#                          CARD RANK LOGIC                                    #
+#                          CARD RANK LOOKUPS                                  #
 ###############################################################################
 TRUMP_DIAMONDS = {
     "5 of Diamonds": 200, "J of Diamonds": 199, "A of Hearts": 198, "A of Diamonds": 197,
@@ -58,18 +58,80 @@ OFFSUIT_SPADES = {
 }
 
 def get_card_rank(card_str: str, trump_suit: str) -> int:
-    """(Same logic as before, with increments by the relevant dictionaries...)"""
+    """Lookup numeric rank. If no trump_suit set, return 0."""
     if not trump_suit:
         return 0
-    # Implement the same logic, skipping for brevity
-    ...
+    if trump_suit == "Diamonds":
+        if card_str in TRUMP_DIAMONDS:
+            return TRUMP_DIAMONDS[card_str]
+        else:
+            if card_str.endswith("Hearts"):
+                return OFFSUIT_HEARTS.get(card_str, 0)
+            elif card_str.endswith("Clubs"):
+                return OFFSUIT_CLUBS.get(card_str, 0)
+            elif card_str.endswith("Spades"):
+                return OFFSUIT_SPADES.get(card_str, 0)
+            else:
+                return 0
+    elif trump_suit == "Hearts":
+        if card_str in TRUMP_HEARTS:
+            return TRUMP_HEARTS[card_str]
+        else:
+            if card_str.endswith("Diamonds"):
+                return OFFSUIT_DIAMONDS.get(card_str, 0)
+            elif card_str.endswith("Clubs"):
+                return OFFSUIT_CLUBS.get(card_str, 0)
+            elif card_str.endswith("Spades"):
+                return OFFSUIT_SPADES.get(card_str, 0)
+            else:
+                return 0
+    elif trump_suit == "Clubs":
+        if card_str in TRUMP_CLUBS:
+            return TRUMP_CLUBS[card_str]
+        else:
+            if card_str.endswith("Diamonds"):
+                return OFFSUIT_DIAMONDS.get(card_str, 0)
+            elif card_str.endswith("Hearts"):
+                return OFFSUIT_HEARTS.get(card_str, 0)
+            elif card_str.endswith("Spades"):
+                return OFFSUIT_SPADES.get(card_str, 0)
+            else:
+                return 0
+    elif trump_suit == "Spades":
+        if card_str in TRUMP_SPADES:
+            return TRUMP_SPADES[card_str]
+        else:
+            if card_str.endswith("Diamonds"):
+                return OFFSUIT_DIAMONDS.get(card_str, 0)
+            elif card_str.endswith("Hearts"):
+                return OFFSUIT_HEARTS.get(card_str, 0)
+            elif card_str.endswith("Clubs"):
+                return OFFSUIT_CLUBS.get(card_str, 0)
+            else:
+                return 0
+    return 0
 
 def card_back_url():
     return "https://deckofcardsapi.com/static/img/back.png"
 
 def card_to_image_url(card_str):
-    # ...
-    ...
+    """ 
+    Properly map ranks so '10' => '0', 
+    ensuring '10 of Hearts' => '0H.png' 
+    """
+    parts = card_str.split(" of ")
+    if len(parts)!=2:
+        return card_back_url()
+    rank, suit = parts
+    rank_map = {
+        "2":"2","3":"3","4":"4","5":"5","6":"6","7":"7","8":"8","9":"9",
+        "10":"0","J":"J","Q":"Q","K":"K","A":"A"
+    }
+    if rank not in rank_map:
+        return card_back_url()
+    rank_code = rank_map[rank]  # e.g. "0" for "10"
+    suit_code = suit[0].upper() # e.g. 'H','D','C','S'
+    return f"https://deckofcardsapi.com/static/img/{rank_code}{suit_code}.png"
 
 class Card:
     def __init__(self, suit, rank):
@@ -100,9 +162,6 @@ class Player:
     def add_to_hand(self,cards):
         self.hand.extend(cards)
 
-###############################################################################
-#                           Main Game Class                                   #
-###############################################################################
 class Game:
     def __init__(self):
         self.players=[Player("You"), Player("Computer")]
@@ -153,47 +212,177 @@ class Game:
         self.players[self.dealer].add_to_hand(self.deck.deal(2))
 
     def user_bid(self,bid_val):
-        # same logic as before, but with +5 increments for outbids
-        ...
+        if self.bidding_done or self.game_over:
+            return "Bidding not possible now."
+        first_bidder=0 if self.dealer==1 else 1
+        msg=""
+
+        # We'll do the +5 logic
+        if first_bidder==0:
+            # user first
+            if bid_val==30:
+                self.bid_winner=0
+                self.bid=30
+                self.bidding_done=True
+                msg="You bid 30, you immediately win the bid."
+            else:
+                # If user=15 => comp can do 20 or pass(0)
+                # If user=20 => comp can do 25 or pass
+                # If user=25 => comp=30 or pass
+                # If user=0 => comp=15 or pass
+                comp_options=[]
+                if bid_val==0:
+                    comp_options=[0,15]
+                elif bid_val==15:
+                    comp_options=[0,20]
+                elif bid_val==20:
+                    comp_options=[0,25]
+                elif bid_val==25:
+                    comp_options=[0,30]
+
+                if not comp_options:
+                    # user overcame logic => user wins with 'bid_val'
+                    self.bid_winner=0
+                    self.bid= bid_val if bid_val>0 else 15
+                    self.bidding_done=True
+                    msg=f"You bid {bid_val}, computer passed. You win the bid."
+                else:
+                    comp_choice=random.choice(comp_options)
+                    if comp_choice> bid_val:
+                        self.bid_winner=1
+                        self.bid= comp_choice
+                        self.bidding_done=True
+                        msg=f"Computer outbid you with {comp_choice}. Computer wins the bid."
+                    else:
+                        # both pass => forced 15
+                        self.bid_winner=self.dealer
+                        self.bid=15
+                        self.bidding_done=True
+                        if self.dealer==1:
+                            msg="Both passed, Computer is dealer => forced 15 to Computer."
+                        else:
+                            msg="Both passed, You are dealer => forced 15 to You."
+        else:
+            # user second => comp picks random from [0,15,20,25,30]
+            comp_first= random.choice([0,15,20,25,30])
+            if comp_first==30:
+                self.bid_winner=0
+                self.bid=30
+                self.bidding_done=True
+                msg="Computer bids 30, instantly wins the bid."
+            else:
+                # user tries to outbid or pass
+                # If comp_first=15 => user can do 20 or 0
+                # If comp_first=20 => user can do 25 or 0
+                # If comp_first=25 => user can do 30 or 0
+                # if comp_first=0 => user can do 15 or pass => forced 15?
+                if bid_val> comp_first:
+                    self.bid_winner=1
+                    self.bid= bid_val
+                    self.bidding_done=True
+                    msg=f"Computer bid {comp_first}, you outbid with {bid_val}, you win."
+                elif bid_val==comp_first and comp_first>0:
+                    self.bid_winner=1
+                    self.bid= bid_val
+                    self.bidding_done=True
+                    msg=f"Computer bid {comp_first}, you matched => you win."
+                else:
+                    self.bid_winner=0
+                    self.bid= comp_first if comp_first>0 else 15
+                    self.bidding_done=True
+                    if comp_first>0:
+                        msg=f"Computer bid {comp_first}, you didn't beat it => Computer wins."
+                    else:
+                        msg="Computer passed, you also didn't bid => forced 15 to Computer."
+
+        # if comp is bidder => pick trump & kitty
+        if self.bidding_done and self.bid_winner==1:
+            self.set_trump(None)
+            self.attach_kitty()
+        return msg
 
     def set_trump(self, suit=None):
-        ...
+        if self.bid_winner==1 and self.dealer==1:
+            # comp picks
+            comp_hand=self.players[1].hand
+            sc={"Hearts":0,"Diamonds":0,"Clubs":0,"Spades":0}
+            for c in comp_hand:
+                sc[c.suit]+=1
+            self.trump_suit=max(sc, key=sc.get)
+        else:
+            self.trump_suit=suit
 
     def attach_kitty(self):
-        ...
+        if self.bid_winner==1:
+            # comp
+            comp=self.players[1]
+            comp.hand.extend(self.kitty)
+            self.kitty.clear()
+            def keepTest(x):
+                return x.suit==self.trump_suit or (x.suit=="Hearts" and x.rank=="A")
+            comp.hand.sort(key=lambda x:(keepTest(x), get_card_rank(str(x), self.trump_suit)), reverse=True)
+            while len(comp.hand)>5:
+                comp.hand.pop()
+        else:
+            self.kitty_revealed=True
 
     def finalize_kitty_selection(self, keepArr, discardArr):
-        # same as before
-        ...
+        if self.game_over:
+            return {"discarded":[],"drawn":[]}
+        user=self.players[0]
+        # remove discards
+        user.hand=[c for c in user.hand if str(c) not in discardArr]
+        kitty_keep=[]
+        leftover=[]
+        for c in self.kitty:
+            if str(c) in keepArr:
+                kitty_keep.append(c)
+            else:
+                leftover.append(c)
+        user.hand.extend(kitty_keep)
+        self.kitty=leftover
+        self.kitty_revealed=False
+        discards=[]
+        while len(user.hand)>5:
+            discards.append(str(user.hand.pop()))
+        new_cards=self.deck.deal(len(discards))
+        user.hand.extend(new_cards)
+        self.kitty.clear()
+        return {"discarded":discards,"drawn":[str(c) for c in new_cards]}
 
     def record_high_card(self, card_obj, player_idx):
-        ...
+        rank_val=get_card_rank(str(card_obj), self.trump_suit)
+        if self.highest_card_played is None:
+            self.highest_card_played=str(card_obj)
+            self.highest_card_owner=player_idx
+        else:
+            existing_val=get_card_rank(self.highest_card_played,self.trump_suit)
+            if rank_val>existing_val:
+                self.highest_card_played=str(card_obj)
+                self.highest_card_owner=player_idx
 
     def play_trick_user(self, card_str):
-        """
-        Called each time the user clicks a card. If after playing we have 5 tricks, we auto finalize the hand
-        and if no one at >=120, we deal next hand
-        """
         if self.game_over:
-            return "Game already over. No more play."
+            return "Game is over, no more play."
         user=self.players[0]
-        if card_str not in [str(x) for x in user.hand]:
+        if card_str not in [str(c) for c in user.hand]:
             return "Error: Card not in your hand."
+
         cobj=next(x for x in user.hand if str(x)==card_str)
         user.hand.remove(cobj)
-
-        self.last_played_cards=[(user.name,str(cobj),card_to_image_url(str(cobj)))]
+        self.last_played_cards=[(user.name, str(cobj), card_to_image_url(str(cobj)))]
         self.record_high_card(cobj,0)
 
+        # if leading_player=0 => comp follows
+        # else comp leads
+        comp=self.players[1]
         if self.leading_player==0:
-            comp=self.players[1]
             follow=self.computer_follow(comp, cobj.suit)
             comp.hand.remove(follow)
-            self.last_played_cards.append((comp.name,str(follow),card_to_image_url(str(follow))))
+            self.last_played_cards.append((comp.name, str(follow), card_to_image_url(str(follow))))
             self.record_high_card(follow,1)
             winner=self.evaluate_trick([(0,cobj),(1,follow)])
         else:
-            comp=self.players[1]
             lead=self.computer_lead(comp.hand)
             comp.hand.remove(lead)
             self.last_played_cards=[
@@ -206,21 +395,17 @@ class Game:
         self.players[winner].tricks_won+=1
         self.leading_player=winner
 
-        # check if 5 tricks done => finalize automatically
-        total_tricks = sum([p.tricks_won for p in self.players])
-        if total_tricks >=5:
-            # finalize
+        # check if 5 total tricks => finalize
+        total_tricks=sum(p.tricks_won for p in self.players)
+        if total_tricks>=5:
             self.auto_finalize()
         return f"Trick played. Winner: {self.players[winner].name}"
 
     def auto_finalize(self):
-        """
-        Called automatically when 5 tricks are done. We finalize the hand, see if anyone hits 120, else new hand
-        """
-        # 5 points per trick => 25 total +5 for highest
+        # highest card +5
         if self.highest_card_owner is not None:
             self.players[self.highest_card_owner].score+=5
-
+        # check bidder
         if self.bid_winner is not None:
             bidderP=self.players[self.bid_winner]
             p_earned=bidderP.tricks_won*5
@@ -228,62 +413,65 @@ class Game:
                 p_earned+=5
             if p_earned<self.bid:
                 bidderP.score-=self.bid
-
-        # check if someone >=120
+        # check 120
         if self.players[0].score>=120 or self.players[1].score>=120:
             self.game_over=True
-            return  # do not deal a new hand
-        # else rotate & new hand
-        self.rotate_dealer()
-        self.reset_hand()
-        self.deal_hands()
+        else:
+            # new hand
+            self.rotate_dealer()
+            self.reset_hand()
+            self.deal_hands()
 
     def computer_lead(self,hand):
-        ...
+        hand.sort(key=lambda c:get_card_rank(str(c), self.trump_suit), reverse=True)
+        return hand[0] if hand else None
 
     def computer_follow(self,comp,lead_suit):
-        ...
+        valid=[c for c in comp.hand if c.suit==lead_suit]
+        if valid:
+            valid.sort(key=lambda x:get_card_rank(str(x), self.trump_suit))
+            return valid[0]
+        else:
+            comp.hand.sort(key=lambda x:get_card_rank(str(x), self.trump_suit))
+            return comp.hand[0]
 
     def evaluate_trick(self,plays):
-        ...
+        lead_suit=plays[0][1].suit
+        trumps=[(pid,c) for(pid,c) in plays if get_card_rank(str(c),self.trump_suit)>=100]
+        if trumps:
+            (win_pid, win_card)=max(trumps, key=lambda x:get_card_rank(str(x[1]),self.trump_suit))
+        else:
+            same=[(pid,c) for(pid,c) in plays if c.suit==lead_suit]
+            (win_pid, win_card)=max(same,key=lambda x:get_card_rank(str(x[1]),self.trump_suit))
+        return win_pid
 
 ###############################################################################
-#                         GLOBALS & FLASK ROUTES                              #
+#                          GLOBALS & FLASK ROUTES                             #
 ###############################################################################
 current_game=None
+
 @app.route("/")
 def index():
-    """
-    On first load, if no game or game finished, auto-deal a new hand. Then display the UI.
-    """
     global current_game
-    if not current_game:
+    if not current_game or current_game.game_over:
         current_game=Game()
         current_game.deal_hands()
-    elif current_game.game_over:
-        # if game over, do nothing, user can see final state
-        pass
     return main_html()
 
 def main_html():
     """
-    Return the single-page UI with no 'New Hand' or 'Finalize Hand' button; 
-    the game auto-deals a hand on first visit or after finishing the old hand.
-    The rest is the same layout but removing those two buttons from the HTML.
+    Single-page UI with no 'New Hand' or 'Finalize Hand' buttons, 
+    auto finalize after 5 tricks, auto new hand unless someone >=120.
+    Card images are fixed via card_to_image_url with rank_map.
     """
     return """
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Forty-Fives Automatic Flow</title>
+  <title>Forty-Fives - AutoFlow + CardImages</title>
   <style>
-    /* Similar styling. We'll remove "New Hand" & "Finalize Hand" from #controls. */
     body { margin:0; padding:0; background:darkgreen; font-family:sans-serif; color:white; }
     #table { position:relative; width:100%; height:100vh; }
-    #controls {
-      position:absolute; top:0; left:0; width:100%; text-align:center;
-      background:rgba(0,0,0,0.5); padding:10px;
-    }
     #progressLog {
       position:absolute; top:0; right:0; width:250px; max-height:200px; overflow-y:auto;
       background:rgba(0,0,0,0.3); padding:8px; font-size:0.9em;
@@ -297,7 +485,7 @@ def main_html():
       bottom:20px; text-align:center;
     }
     #kittyArea {
-      position:absolute; left:20px; top:200px; 
+      position:absolute; left:20px; top:200px;
       width:160px; height:120px; text-align:left;
     }
     #kittyStack {
@@ -342,9 +530,6 @@ def main_html():
 </head>
 <body>
 <div id="table">
-  <div id="controls">
-    <span id="dealerLabel"></span>
-  </div>
   <div id="progressLog"></div>
 
   <div id="computerArea">
@@ -396,9 +581,6 @@ def main_html():
 </div>
 
 <script>
-/* The exact same JavaScript logic as your final flow,
-   except no "New Hand" or "Finalize Hand" calls because it's all auto. */
-
 let gameState = {};
 let selectedKitty = [];
 let discardSelection = [];
@@ -420,7 +602,6 @@ function showState(){
        return;
      }
      gameState=d;
-     updateDealer(d.dealer);
      updateComputerHand(d.computer_count, d.card_back);
      updatePlayerHand(d.your_cards);
      updateKitty(d);
@@ -436,14 +617,10 @@ function showState(){
    });
 }
 
-function updateDealer(dealerName){
-  document.getElementById('dealerLabel').textContent = "Dealer: " + dealerName;
-}
-
 function updateComputerHand(count, backUrl){
   let ch=document.getElementById('computerHand');
   ch.innerHTML="";
-  for(let i=0;i<count;i++){
+  for(let i=0; i<count; i++){
     let img=document.createElement('img');
     img.src=backUrl;
     img.className="card";
@@ -457,10 +634,14 @@ function updatePlayerHand(cards){
   discardSelection=discardSelection.filter(x=> cards.map(c=>c.name).includes(x));
   cards.forEach(c=>{
     let img=document.createElement('img');
-    img.src=c.img;
+    img.src=c.img; // this uses the corrected rank_map approach
     img.className="card";
     img.onclick=()=>{
-      if(gameState.trump_set && gameState.bidding_done && !gameState.game_over){
+      if(gameState.game_over){
+        log("Game is over. No more plays.");
+        return;
+      }
+      if(gameState.trump_set && gameState.bidding_done){
         playCard(c.name);
       } else {
         toggleDiscard(c.name);
@@ -475,23 +656,23 @@ function updatePlayerHand(cards){
 
 function toggleDiscard(cardName){
   if(discardSelection.includes(cardName)){
-    discardSelection=discardSelection.filter(x=> x!==cardName);
+    discardSelection=discardSelection.filter(x=> x!== cardName);
   } else {
     if(discardSelection.length<4){
       discardSelection.push(cardName);
     } else {
-      log("You can only discard up to 4 cards.");
+      log("You can discard up to 4 cards.");
     }
   }
   showState();
 }
 
 function updateKitty(d){
-  let kStack=document.getElementById('kittyStack');
-  kStack.innerHTML="";
-  document.getElementById('confirmKittyBtn').style.display= d.show_kitty_confirm?"inline-block":"none";
-  selectedKitty=selectedKitty.filter(x=> d.kitty.map(kk=>kk.name).includes(x));
+  let kittyDiv=document.getElementById('kittyStack');
+  kittyDiv.innerHTML="";
+  selectedKitty=selectedKitty.filter(x=> d.kitty.map(k=>k.name).includes(x));
 
+  document.getElementById('confirmKittyBtn').style.display=d.show_kitty_confirm?"inline-block":"none";
   if(d.kitty_revealed){
     d.kitty.forEach((kcard,index)=>{
       let img=document.createElement('img');
@@ -506,7 +687,7 @@ function updateKitty(d){
           if(selectedKitty.length<3){
             selectedKitty.push(kcard.name);
           } else {
-            log("Kitty selection typically up to 3. We'll let you pick more if you want.");
+            log("Kitty selection typically up to 3. We won't block more if you want though.");
           }
         }
         updateKitty(d);
@@ -514,25 +695,109 @@ function updateKitty(d){
       if(selectedKitty.includes(kcard.name)){
         img.classList.add('selected');
       }
-      kStack.appendChild(img);
+      kittyDiv.appendChild(img);
     });
   } else {
-    d.kitty.forEach((_,index)=>{
+    d.kitty.forEach((_, idx)=>{
       let img=document.createElement('img');
       img.src=d.card_back;
       img.className="card";
-      img.style.zIndex=index;
-      img.style.left=(index*20)+"px";
-      kStack.appendChild(img);
+      img.style.zIndex=idx;
+      img.style.left=(idx*20)+"px";
+      kittyDiv.appendChild(img);
     });
   }
+}
+
+function updateDeck(d){
+  let dk=document.getElementById('deckImg');
+  dk.src=d.card_back;
+  if(!d.trump_set || !d.bidding_done){
+    dk.classList.add('deckClick');
+  } else {
+    dk.classList.remove('deckClick');
+  }
+  document.getElementById('deckCount').textContent="Remaining: "+d.deck_count;
+}
+
+function updateTrick(trickData){
+  let t=document.getElementById('trickArea');
+  t.innerHTML="";
+  if(trickData && trickData.length>0){
+    trickData.forEach(item=>{
+      let [pname, cardStr, cardImg] = item;
+      let img=document.createElement('img');
+      img.src=cardImg;
+      img.className="card";
+      t.appendChild(img);
+    });
+  }
+}
+
+function updateScores(d){
+  let scoreBox=document.getElementById('scoreInfo');
+  scoreBox.innerHTML= "Trick Pts - You:"+ d.round_score_your +", Computer:"+ d.round_score_comp
+    + "<br>Total: You "+ d.total_your +", Computer "+ d.total_comp
+    + (d.game_over? "<br>GAME OVER!":"");
+}
+
+function updateBiddingUI(d){
+  let bidDiv=document.getElementById('bidButtons');
+  bidDiv.innerHTML="";
+  let trumpDiv=document.getElementById('trumpButtons');
+  trumpDiv.style.display=d.trump_set?"none":"none";
+
+  if(d.game_over){
+    return;
+  }
+  if(!d.bidding_done){
+    let bids=[0,15,20,25,30];
+    bids.forEach(bv=>{
+      let label=(bv===0)?"Pass":"Bid "+bv;
+      let btn=document.createElement('button');
+      btn.textContent=label;
+      btn.onclick=()=>{
+        if(d.game_over){
+          log("Game over. No bidding.");
+          return;
+        }
+        fetch('/user_bid',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({bid_val:bv})
+        })
+         .then(r=>r.json())
+         .then(resp=>{
+           log(resp.message);
+           showState();
+         });
+      };
+      bidDiv.appendChild(btn);
+    });
+  } else {
+    if(d.bidder=="You" && !d.trump_set){
+      trumpDiv.style.display="block";
+    }
+  }
+}
+
+function updateTrumpIcon(suit){
+  let tIcon=document.getElementById('trumpIcon');
+  tIcon.textContent="";
+  if(!suit) return;
+  let icon="";
+  if(suit=="Hearts") icon="♥";
+  else if(suit=="Diamonds") icon="♦";
+  else if(suit=="Clubs") icon="♣";
+  else if(suit=="Spades") icon="♠";
+  tIcon.textContent=icon;
 }
 
 function confirmKitty(){
   fetch('/finalize_kitty',{
     method:'POST',
     headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ keep:selectedKitty, discard:[] })
+    body: JSON.stringify({keep:selectedKitty, discard:[]})
   })
    .then(r=>r.json())
    .then(resp=>{
@@ -542,20 +807,9 @@ function confirmKitty(){
    });
 }
 
-function updateDeck(d){
-  const dk=document.getElementById('deckImg');
-  dk.src=d.card_back;
-  if(!d.trump_set || !d.bidding_done){
-    dk.classList.add('deckClick');
-  } else {
-    dk.classList.remove('deckClick');
-  }
-  document.getElementById('deckCount').textContent="Remaining: "+ d.deck_count;
-}
-
 function clickDeck(){
   if(gameState.game_over){
-    log("Game is over. No more draws.");
+    log("Game is over, no further actions.");
     return;
   }
   if(!gameState.trump_set || !gameState.bidding_done){
@@ -575,108 +829,85 @@ function clickDeck(){
       log("No cards selected to discard.");
     }
   } else {
-    log("Deck not clickable at this stage (trick phase).");
+    log("Deck not clickable now (trick phase).");
   }
-}
-
-function updateTrick(trickData){
-  let t=document.getElementById('trickArea');
-  t.innerHTML="";
-  if(trickData && trickData.length>0){
-    trickData.forEach(item=>{
-      let [pname, cardName, cardImg] = item;
-      let img=document.createElement('img');
-      img.src=cardImg;
-      img.className="card";
-      t.appendChild(img);
-    });
-  }
-}
-
-function updateScores(d){
-  let s=document.getElementById('scoreInfo');
-  s.innerHTML="Trick Pts - You:"+ d.round_score_your +", Comp:"+ d.round_score_comp
-    +"<br>Total: You "+ d.total_your +", Comp "+ d.total_comp;
-  if(d.game_over){
-    s.innerHTML+="<br>GAME OVER!";
-  }
-}
-
-function updateBiddingUI(d){
-  let bdiv=document.getElementById('bidButtons');
-  bdiv.innerHTML="";
-  let tdiv=document.getElementById('trumpButtons');
-  tdiv.style.display=d.trump_set?"none":"none";
-
-  if(d.game_over){
-    return; // no bidding if game over
-  }
-  if(!d.bidding_done){
-    let bids=[0,15,20,25,30];
-    bids.forEach(bv=>{
-      let label=(bv===0)?"Pass":"Bid "+bv;
-      let btn=document.createElement('button');
-      btn.textContent=label;
-      btn.onclick=()=>{
-        fetch('/user_bid',{
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({bid_val:bv})
-        })
-         .then(r=>r.json())
-         .then(resp=>{
-           log(resp.message);
-           showState();
-         });
-      };
-      bdiv.appendChild(btn);
-    });
-  } else {
-    if(d.bidder=="You" && !d.trump_set){
-      tdiv.style.display="block";
-    }
-  }
-}
-
-function updateTrumpIcon(suit){
-  let tIcon=document.getElementById('trumpIcon');
-  tIcon.innerHTML="";
-  if(!suit) return;
-  let iconChar="";
-  if(suit=="Hearts") iconChar="♥";
-  else if(suit=="Diamonds") iconChar="♦";
-  else if(suit=="Clubs") iconChar="♣";
-  else if(suit=="Spades") iconChar="♠";
-  tIcon.textContent= iconChar;
 }
 
 function playCard(name){
+  if(gameState.game_over){
+    log("Game is over, no more plays.");
+    return;
+  }
   fetch('/play_card_user',{
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body: JSON.stringify({card_name:name})
   })
    .then(r=>r.json())
-   .then(d=>{
-     log(d.message);
+   .then(resp=>{
+     log(resp.message);
      showState();
    });
 }
 
-window.onload=()=>{
-  showState();
-};
+window.onload=()=>showState();
 </script>
-</body>
-</html>
 """
+
+@app.route("/show_state", methods=["GET"])
+def show_state_api():
+    global current_game
+    if not current_game:
+        return jsonify({"error":"No game in progress"}),400
+
+    user=current_game.players[0]
+    comp=current_game.players[1]
+
+    # build your hand with corrected image URLs
+    your_cards = [{"name":str(c), "img": card_to_image_url(str(c))} for c in user.hand]
+    kitty_data = [{"name":str(c), "img": card_to_image_url(str(c))} for c in current_game.kitty]
+
+    # check if game_over
+    if user.score>=120 or comp.score>=120:
+        current_game.game_over=True
+
+    bidderName=None
+    if current_game.bid_winner is not None:
+        bidderName=current_game.players[current_game.bid_winner].name
+
+    # count how many total tricks in the current hand
+    round_score_your = user.tricks_won*5
+    round_score_comp = comp.tricks_won*5
+
+    state = {
+      "computer_count": len(comp.hand),
+      "your_cards": your_cards,
+      "kitty": kitty_data,
+      "kitty_revealed": current_game.kitty_revealed,
+      "card_back": card_back_url(),
+      "deck_count": len(current_game.deck.cards),
+      "last_trick": current_game.last_played_cards,
+      "round_score_your": round_score_your,
+      "round_score_comp": round_score_comp,
+      "total_your": user.score,
+      "total_comp": comp.score,
+      "bidder": bidderName,
+      "bid_submitted": (current_game.bid_winner is not None),
+      "bidding_done": current_game.bidding_done,
+      "trump_suit": current_game.trump_suit,
+      "trump_set": (current_game.trump_suit is not None),
+      "show_kitty_confirm": (current_game.bid_winner==0 and current_game.kitty_revealed),
+      "game_over": current_game.game_over,
+      "dealer": current_game.players[current_game.dealer].name
+    }
+    return jsonify(state)
 
 @app.route("/user_draw", methods=["POST"])
 def user_draw():
     global current_game
-    data=request.get_json() or {}
-    discList=data.get("discards",[])
-    user=current_game.players[0]
+    data = request.get_json() or {}
+    discList = data.get("discards",[])
+    user = current_game.players[0]
     removed=[]
     for d in discList:
         for c in user.hand:
@@ -689,65 +920,19 @@ def user_draw():
     user.hand.extend(new_cards)
     return jsonify({"message":f"Discarded {len(removed)} card(s), drew {len(new_cards)}."})
 
-@app.route("/show_state", methods=["GET"])
-def show_state_api():
-    global current_game
-    if not current_game:
-        return jsonify({"error":"No game in progress"}),400
-
-    user=current_game.players[0]
-    comp=current_game.players[1]
-    your_cards=[{"name":str(c),"img":card_to_image_url(str(c))} for c in user.hand]
-    kitty_data=[{"name":str(c),"img":card_to_image_url(str(c))} for c in current_game.kitty]
-
-    # check if game is over (someone >=120)
-    game_over=False
-    winner=None
-    if user.score>=120 or comp.score>=120:
-        game_over=True
-        winner="You" if user.score>=120 else "Computer"
-
-    bidderName=None
-    if current_game.bid_winner is not None:
-        bidderName=current_game.players[current_game.bid_winner].name
-
-    st={
-      "dealer": current_game.players[current_game.dealer].name,
-      "computer_count": len(comp.hand),
-      "your_cards": your_cards,
-      "kitty": kitty_data,
-      "kitty_revealed": current_game.kitty_revealed,
-      "card_back": card_back_url(),
-      "deck_count": len(current_game.deck.cards),
-      "last_trick": current_game.last_played_cards,
-      "round_score_your": user.tricks_won*5,
-      "round_score_comp": comp.tricks_won*5,
-      "total_your": user.score,
-      "total_comp": comp.score,
-      "bidder": bidderName,
-      "bid_submitted": (current_game.bid_winner is not None),
-      "bidding_done": current_game.bidding_done,
-      "trump_suit": current_game.trump_suit,
-      "trump_set": (current_game.trump_suit is not None),
-      "show_kitty_confirm": (current_game.bid_winner==0 and current_game.kitty_revealed),
-      "game_over": game_over
-    }
-    return jsonify(st)
-
 @app.route("/user_bid", methods=["POST"])
 def user_bid_route():
-    # same logic
     global current_game
-    data=request.get_json() or {}
-    val=data.get("bid_val",0)
-    msg=current_game.user_bid(val)
+    data = request.get_json() or {}
+    val = data.get("bid_val",0)
+    msg = current_game.user_bid(val)
     return jsonify({"message":msg})
 
 @app.route("/pick_trump", methods=["POST"])
 def pick_trump():
     global current_game
-    data=request.get_json() or {}
-    suit=data.get("suit","Hearts")
+    data = request.get_json() or {}
+    suit = data.get("suit","Hearts")
     current_game.set_trump(suit)
     current_game.attach_kitty()
     return jsonify({"message":f"Trump suit set to {current_game.trump_suit}"})
@@ -772,5 +957,5 @@ def play_card_user():
     return jsonify({"message":out})
 
 if __name__=="__main__":
-    port=int(os.environ.get("PORT",5000))
+    port = int(os.environ.get("PORT",5000))
     app.run(host="0.0.0.0", port=port)
