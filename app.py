@@ -9,7 +9,7 @@ app = Flask(__name__)
 #       GLOBAL GAME STATE       #
 #################################
 
-# We support only 45's Heads Up in this version.
+# We support only the 45's Heads Up game in this version.
 game_mode = None
 current_game = None
 
@@ -64,11 +64,11 @@ class Player:
 class Game:
     def __init__(self, mode):
         self.mode = mode  # Only "headsup" is supported.
-        # In Heads Up, we have two players: the human ("You") and the computer.
+        # In Heads Up, we have two players: human ("You") and computer.
         self.players = [Player("You"), Player("Computer")]
         self.deck = Deck()
         self.kitty = []         # 3 cards set aside
-        self.trump_suit = None  # Chosen later during trump selection
+        self.trump_suit = None  # To be chosen during trump selection
         self.bid_winner = None  # 0 = human (dealer), 1 = computer
         self.bid = 0            # Winning bid amount
         self.leading_player = None  # Which player leads the trick: 0 or 1
@@ -100,12 +100,14 @@ class Game:
         self.trump_suit = suit
         return [str(card) for card in self.kitty]
     def discard_phase(self, bidder_index, discards):
+        # Remove selected discard cards (list of strings) from bidder's hand.
         bidder = self.players[bidder_index]
         initial = len(bidder.hand)
         bidder.hand = [card for card in bidder.hand if str(card) not in discards]
         discarded = initial - len(bidder.hand)
         return {"player_hand": self.get_player_hand(), "discard_count": discarded}
     def attach_kitty(self, player_index, keep_list):
+        # Add selected kitty cards (by their string) to the bidder's hand.
         bidder = self.players[player_index]
         for card_str in keep_list:
             for c in self.kitty:
@@ -268,15 +270,14 @@ def api_set_mode():
     current_game = Game(mode)
     return jsonify({"mode": mode})
 
-# Main game UI. (Automatically deals a new hand on load.)
+# Main game UI. (Auto-deals a new hand on page load.)
 @app.route("/game", methods=["GET"])
 def api_game_ui():
-    # Auto-deal a new hand when the page loads.
     if current_game is None:
         return "Game mode not set.", 400
     current_game.deal_hands()
     dealer = current_game.get_dealer()
-    # Render the full game UI (with sections hidden as needed).
+    print("Dealt a new hand. Dealer:", dealer)
     game_html = f"""
     <!DOCTYPE html>
     <html lang="en">
@@ -311,192 +312,55 @@ def api_game_ui():
           <h2>Your Hand</h2>
           <div id="playerHand" class="card-row"></div>
         </div>
-        <!-- The additional game flow sections (bidding, trump selection, kitty, discard, trick) -->
-        <div id="biddingSection" class="section">
-          <h2>Bidding</h2>
-          <p id="computerBid"></p>
-          <div id="bidButtons">
-            <button class="btn bidButton" data-bid="0">Pass</button>
-            <button class="btn bidButton" data-bid="15">15</button>
-            <button class="btn bidButton" data-bid="20">20</button>
-            <button class="btn bidButton" data-bid="25">25</button>
-            <button class="btn bidButton" data-bid="30">30</button>
-          </div>
-          <p id="bidError"></p>
-        </div>
-        <div id="trumpSelectionSection" class="section">
-          <h2>Select Trump Suit</h2>
-          <div style="display: flex; justify-content: center; gap: 20px;">
-            <button class="btn trumpButton" data-suit="Hearts" style="background-color:#e74c3c;">♥</button>
-            <button class="btn trumpButton" data-suit="Diamonds" style="background-color:#f1c40f;">♦</button>
-            <button class="btn trumpButton" data-suit="Clubs" style="background-color:#27ae60;">♣</button>
-            <button class="btn trumpButton" data-suit="Spades" style="background-color:#2980b9;">♠</button>
-          </div>
-        </div>
-        <div id="kittySection" class="section">
-          <h2>Kitty Cards</h2>
-          <p id="kittyPrompt">Click "Reveal Kitty" to see the kitty.</p>
-          <div id="kittyCards" class="card-row"></div>
-          <button class="btn" id="revealKittyButton">Reveal Kitty</button>
-          <button class="btn" id="submitKittyButton" style="display:none;">Submit Kitty Selection</button>
-        </div>
-        <div id="discardSection" class="section">
-          <h2>Discard Phase</h2>
-          <p id="discardMessage">Select cards to discard (0-4):</p>
-          <div id="discardHand" class="card-row"></div>
-          <p id="discardCount">Discarding 0 card(s)</p>
-          <button class="btn" id="skipDiscardButton">Submit Discards</button>
-          <p id="computerDiscardInfo"></p>
-        </div>
-        <div id="trickSection" class="section">
-          <h2>Trick Phase</h2>
-          <div id="currentTrick" class="card-row"></div>
-          <p id="playPrompt"></p>
-          <button class="btn" id="playTrickButton">Play Selected Card</button>
-        </div>
-        <div id="trickPiles" style="display: flex; justify-content: space-around; margin-top:20px;">
-          <div id="dealerTrickPile" class="pile">
-            <h3>Dealer's Tricks</h3>
-          </div>
-          <div id="playerTrickPile" class="pile">
-            <h3>Your Tricks</h3>
-          </div>
-        </div>
+        <!-- Additional game flow sections (bidding, trump selection, kitty, discard, trick play) would be inserted here -->
       </div>
       <footer style="text-align: center; margin-top: 20px;">&copy; O'Donohue Software</footer>
       <script>
-        // --- Utility Functions ---
-        async function sendRequest(url, data = {}) {
-          try {
-            const res = await fetch(url, {
+        async function sendRequest(url, data = {}) {{
+          try {{
+            const res = await fetch(url, {{
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+              headers: {{ "Content-Type": "application/json" }},
               body: JSON.stringify(data)
-            });
-            if (!res.ok) {
+            }});
+            if (!res.ok) {{
               const err = await res.json();
-              return { error: err.error || "Error" };
-            }
+              return {{ error: err.error || "Error" }};
+            }}
             return await res.json();
-          } catch (err) {
+          }} catch (err) {{
             console.error("Network error:", err);
-            return { error: err.message };
-          }
-        }
-        function getCardImageUrl(card) {
+            return {{ error: err.message }};
+          }}
+        }}
+        function getCardImageUrl(card) {{
           const parts = card.split(" of ");
           if(parts.length !== 2) return "";
           let [rank, suit] = parts;
           let rank_code = rank === "10" ? "0" : (["J","Q","K","A"].includes(rank) ? rank : rank);
           let suit_code = suit[0].toUpperCase();
-          return `https://deckofcardsapi.com/static/img/${rank_code}${suit_code}.png`;
-        }
-        function getCardBackUrl() {
-          return "https://deckofcardsapi.com/static/img/back.png";
-        }
-        function renderHand(containerId, hand, selectable=false) {
+          return `https://deckofcardsapi.com/static/img/${{rank_code}}${{suit_code}}.png`;
+        }}
+        function renderHand(containerId, hand) {{
           const container = document.getElementById(containerId);
           container.innerHTML = "";
-          hand.forEach(card => {
+          hand.forEach(card => {{
             const img = document.createElement("img");
             img.src = getCardImageUrl(card);
             img.alt = card;
             img.className = "card-image";
-            if (selectable) {
-              img.addEventListener("click", () => {
-                if (containerId === "discardHand") {
-                  img.classList.toggle("selected-card");
-                  updateDiscardCount();
-                } else {
-                  [...container.querySelectorAll(".selected-card")].forEach(i => {
-                    if(i !== img) i.classList.remove("selected-card");
-                  });
-                  img.classList.toggle("selected-card");
-                }
-              });
-            }
             container.appendChild(img);
-          });
-        }
-        function renderKittyCards(containerId, kitty_list) {
-          const container = document.getElementById(containerId);
-          container.innerHTML = "";
-          kitty_list.forEach(card => {
-            const img = document.createElement("img");
-            img.src = getCardBackUrl();
-            img.alt = card;
-            img.className = "card-image";
-            img.addEventListener("click", () => {
-              img.classList.toggle("selected-card");
-            });
-            container.appendChild(img);
-          });
-        }
-        function showSection(id) {
-          document.getElementById(id).style.display = "block";
-        }
-        function hideSection(id) {
-          document.getElementById(id).style.display = "none";
-        }
-        function updateTrumpDisplay(suit) {
-          const suitSymbols = { "Hearts": "♥", "Diamonds": "♦", "Clubs": "♣", "Spades": "♠" };
-          document.getElementById("trumpDisplay").innerHTML = `<span>Trump: <span style="font-size:48px;">${suitSymbols[suit]}</span></span>`;
-        }
-        function updateDiscardCount() {
-          const count = document.querySelectorAll("#discardHand .selected-card").length;
-          document.getElementById("discardCount").innerText = "Discarding " + count + " card(s)";
-        }
-        function addTrickToPile(trickCards, winner) {
-          const pileId = winner === "You" ? "playerTrickPile" : "dealerTrickPile";
-          const pile = document.getElementById(pileId);
-          trickCards.forEach(card => {
-            const img = document.createElement("img");
-            img.src = getCardImageUrl(card);
-            img.alt = card;
-            img.className = "card-image";
-            img.style.width = "40px";
-            pile.appendChild(img);
-          });
-        }
-        // --- End Utility Functions ---
-
-        // (The following event handlers for bidding, trump selection, kitty, discard, trick play are included here.
-        // For brevity, they are not auto-triggered in this version, but you can reinstate them as needed.)
-
+          }});
+        }}
+        // Auto-render player's hand on page load.
+        window.addEventListener("load", () => {{
+          renderHand("playerHand", {current_game.get_player_hand()});
+        }});
       </script>
     </body>
     </html>
     """
     return render_template_string(game_html)
-
-#################################
-#           API ROUTES          #
-#################################
-
-@app.route("/set_mode", methods=["POST"])
-def api_set_mode():
-    global game_mode, current_game
-    data = request.get_json()
-    mode = data.get("mode", "headsup")
-    game_mode = mode
-    current_game = Game(mode)
-    return jsonify({"mode": mode})
-
-@app.route("/deal_cards", methods=["POST"])
-def api_deal_cards():
-    global current_game
-    if current_game is None:
-        return jsonify({"error": "Game mode not set. Please select a game mode."}), 400
-    current_game.deal_hands()
-    dealer = current_game.get_dealer()
-    print("Dealt a new hand. Dealer:", dealer)
-    return jsonify({
-        "player_hand": current_game.get_player_hand(),
-        "dealer": dealer,
-        "mode": game_mode
-    })
-
-# (Other API routes for bidding, trump selection, kitty, discard, trick play would be reinserted here when needed.)
 
 @app.route("/<path:filename>")
 def serve_static(filename):
