@@ -32,7 +32,7 @@ class Deck:
         for s in suits:
             for r in ranks:
                 self.cards.append(Card(s, r))
-        # Ensure 5 of Hearts is included.
+        # Ensure the special 5 of Hearts is included.
         if not any(str(c) == "5 of Hearts" for c in self.cards):
             self.cards.append(Card("Hearts", "5"))
         self.shuffle()
@@ -61,11 +61,11 @@ class Player:
 
 class Game:
     def __init__(self, mode):
-        self.mode = mode  # Only "headsup" implemented.
+        self.mode = mode  # Only "headsup" mode is implemented.
         self.players = self.initialize_players(mode)
         self.deck = Deck()
         self.kitty = []         # 3 cards set aside
-        self.trump_suit = None  # To be chosen during trump selection
+        self.trump_suit = None  # Chosen later in trump selection
         self.bid_winner = None  # 0 = human (dealer), 1 = computer
         self.bid = 0            # Winning bid amount
         self.leading_player = None  # Which player leads the trick: 0 or 1
@@ -101,7 +101,7 @@ class Game:
         self.trump_suit = suit
         return [str(card) for card in self.kitty]
     def discard_phase(self, bidder_index, discards):
-        # Remove manually selected discard cards (list of strings) from bidder's hand.
+        # Remove selected discard cards (list of strings) from bidder's hand.
         bidder = self.players[bidder_index]
         initial = len(bidder.hand)
         bidder.hand = [card for card in bidder.hand if str(card) not in discards]
@@ -196,6 +196,7 @@ class Game:
             self.leading_player = 0 if winner=="You" else 1
         self.trick_count += 1
         if self.trick_count >= 5 or len(self.players[0].hand) == 0:
+            # Bonus logic: (for demonstration)
             best_card = None
             best_player = None
             best_val = -1
@@ -245,10 +246,10 @@ def landing():
         async function setMode(mode) {
           const res = await fetch('/set_mode', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ mode: mode })
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({mode: mode})
           });
-          if (res.ok){
+          if(res.ok){
             window.location.href = '/game';
           } else {
             alert("Error setting mode.");
@@ -272,7 +273,7 @@ def set_mode_route():
 
 # Main game UI.
 @app.route("/game", methods=["GET"])
-def game_ui_route():
+def game_ui():
     game_html = """
     <!DOCTYPE html>
     <html lang="en">
@@ -667,7 +668,7 @@ def game_ui_route():
 #################################
 
 @app.route("/set_mode", methods=["POST"])
-def set_mode():
+def api_set_mode():
     global game_mode, current_game
     data = request.get_json()
     mode = data.get("mode", "headsup")
@@ -676,7 +677,7 @@ def set_mode():
     return jsonify({"mode": mode})
 
 @app.route("/deal_cards", methods=["POST"])
-def deal_cards():
+def api_deal_cards():
     global current_game
     if current_game is None:
         return jsonify({"error": "Game mode not set. Please select a game mode."}), 400
@@ -693,12 +694,12 @@ def deal_cards():
     })
 
 @app.route("/computer_first_bid", methods=["POST"])
-def computer_first_bid():
+def api_computer_first_bid():
     comp_bid = random.choice([15, 20, 25, 30])
     return jsonify({"computer_bid": comp_bid})
 
 @app.route("/submit_bid", methods=["POST"])
-def submit_bid():
+def api_submit_bid():
     try:
         if current_game is None:
             return jsonify({"error": "No game in progress. Set a game mode and deal cards first."}), 400
@@ -752,14 +753,14 @@ def submit_bid():
         return jsonify({"error": str(e)}), 500
 
 @app.route("/select_trump", methods=["POST"])
-def select_trump():
+def api_select_trump():
     data = request.get_json()
     suit = data.get("trump_suit", "Hearts")
     kitty = current_game.confirm_trump(suit)
     return jsonify({"kitty_cards": kitty, "trump_suit": suit})
 
 @app.route("/discard_and_draw", methods=["POST"])
-def discard_and_draw():
+def api_discard_and_draw():
     data = request.get_json()
     discards = data.get("discarded_cards", None)
     result = current_game.discard_phase(current_game.bid_winner, discards)
@@ -769,7 +770,7 @@ def discard_and_draw():
     return jsonify(result)
 
 @app.route("/attach_kitty", methods=["POST"])
-def attach_kitty():
+def api_attach_kitty():
     data = request.get_json()
     keep_cards = data.get("keep_cards", [])
     bidder = current_game.players[current_game.bid_winner]
@@ -781,7 +782,7 @@ def attach_kitty():
     return jsonify({"player_hand": current_game.get_player_hand()})
 
 @app.route("/play_trick", methods=["POST"])
-def play_trick():
+def api_play_trick():
     data = request.get_json()
     played_card = data.get("played_card")
     result_obj, hand_scores = current_game.play_trick(played_card)
