@@ -1,3 +1,4 @@
+import os
 from flask import Flask, request, jsonify, render_template_string, send_from_directory
 import random, math
 
@@ -15,7 +16,8 @@ current_game = None
 #         GAME CLASSES          #
 #################################
 
-# --- Utility: A standard deck of cards (or multiple decks if needed) ---
+# --- Utility: Card, Deck, and Player classes ---
+
 class Card:
     def __init__(self, suit, rank):
         self.suit = suit  # e.g., "Hearts"
@@ -23,7 +25,7 @@ class Card:
     def __str__(self):
         return f"{self.rank} of {self.suit}"
 
-# We'll use one deck for up to 5 players.
+# For up to 5 players we use one deck. (You may expand this later if needed.)
 class Deck:
     def __init__(self, num_decks=1):
         suits = ["Hearts", "Diamonds", "Clubs", "Spades"]
@@ -31,15 +33,14 @@ class Deck:
         self.cards = []
         for _ in range(num_decks):
             self.cards.extend([Card(s, r) for s in suits for r in ranks])
-            # Ensure the 5 of Hearts is in the deck
+            # Ensure the 5 of Hearts is included.
             if not any(str(c) == "5 of Hearts" for c in self.cards):
                 self.cards.append(Card("Hearts", "5"))
         self.shuffle()
     def shuffle(self):
         random.shuffle(self.cards)
     def deal(self, num_cards):
-        dealt = [self.cards.pop(0) for _ in range(num_cards)]
-        return dealt
+        return [self.cards.pop(0) for _ in range(num_cards)]
 
 # --- Scoring and ranking constants ---
 RANK_PRIORITY = {
@@ -53,14 +54,14 @@ RANK_PRIORITY = {
     "7_black": 105, "8_black": 106, "9_black": 107, "10_black": 108,
     "Q_black": 110, "K_black": 111, "A_black": 112
 }
-HAND_TOTAL_POINTS = 30
-BONUS_POINTS = 5
+HAND_TOTAL_POINTS = 30   # Total points available per hand (from tricks)
+BONUS_POINTS = 5         # Bonus points for highest card in the hand
 
 def get_card_rank(card_str, trump=None):
     """
     Returns a numeric rank for a card.
-    If trump is one of "Diamonds", "Clubs", or "Spades", a trump dictionary is used.
-    Otherwise, RANK_PRIORITY is used.
+    If trump is one of "Diamonds", "Clubs", or "Spades" then a trump ranking dictionary is used.
+    Otherwise, fallback to RANK_PRIORITY.
     """
     if trump is not None and trump in ["Diamonds", "Clubs", "Spades"]:
         if trump == "Diamonds":
@@ -124,59 +125,65 @@ def get_card_rank(card_str, trump=None):
     else:
         return RANK_PRIORITY.get(f"{rank}_black", 50)
 
-# --- Image URL functions using Deck of Cards API ---
+# --- Image URL Functions using Deck of Cards API ---
 def getCardImageUrl(card):
+    """
+    Converts a card string (e.g., "J of Hearts") into the Deck of Cards API URL.
+    For "10", uses "0".
+    """
     parts = card.split(" of ")
     if len(parts) != 2:
         return ""
     rank, suit = parts
-    rank_code = "0" if rank == "10" else (rank if rank in ["J","Q","K","A"] else rank)
+    rank_code = "0" if rank == "10" else (rank if rank in ["J", "Q", "K", "A"] else rank)
     suit_code = suit[0].upper()
     return f"https://deckofcardsapi.com/static/img/{rank_code}{suit_code}.png"
 
 def getCardBackUrl():
     return "https://deckofcardsapi.com/static/img/back.png"
 
-# --- Player class ---
+# --- Extended Player class ---
 class Player:
     def __init__(self, name):
         self.name = name
         self.hand = []
         self.score = 0
         self.tricks_won = 0
-        self.trick_pile = []  # Cards collected from tricks
+        self.trick_pile = []  # Collected cards from tricks
     def add_to_hand(self, cards):
         self.hand.extend(cards)
     def trump_count(self, trump):
         return sum(1 for card in self.hand if card.suit == trump)
     def discard_auto(self, trump):
-        # Automatically keep all trump cards.
+        """
+        Automatically discard all non-trump cards.
+        If trump cards exceed 5, keep the highest 5.
+        """
         trump_cards = [card for card in self.hand if card.suit == trump]
         non_trump = [card for card in self.hand if card.suit != trump]
-        # In our simplified rule, player discards all non-trump cards.
-        self.hand = trump_cards  # In case trump_cards > 5, later we trim to 5.
-        # Then, if hand still > 5, keep highest-ranking trump cards.
+        # Discard all non-trump cards.
+        self.hand = trump_cards
         if len(self.hand) > 5:
             self.hand.sort(key=lambda card: get_card_rank(str(card), trump), reverse=True)
             self.hand = self.hand[:5]
-        return  # Discards are determined automatically.
-    
-# --- Game class ---
+        return  # Automatic process; no manual selection.
+
+# --- Extended Game class ---
 class Game:
     def __init__(self, mode):
         self.mode = mode  # "headsup", "cutthroat", "partners", "5way"
         self.players = self.initialize_players(mode)
         self.num_players = len(self.players)
-        # For all modes we deal 5 cards per player and 3 kitty cards.
         self.deck = Deck(num_decks=1)
         self.kitty = []
         self.trump_suit = None
-        self.bid_winner = None  # index of the player who won the bid
-        self.bid = 0            # Winning bid value
+        self.bid_winner = None  # index of player who won the bid
+        self.bid = 0            # winning bid value
         self.leading_player = None  # index of the player who leads the trick
         self.trick_count = 0
-        self.played_cards_log = []  # list of tuples: (card, player_index) for current trick
-        self.hand_log = []  # for recording this hand’s trick-by-trick results (optional)
+        self.played_cards_log = []  # List of tuples: (card, player_index)
+        self.trick_log_text = ""
+        self.current_lead_suit = None
         self.starting_scores = {p.name: p.score for p in self.players}
     def initialize_players(self, mode):
         if mode == "headsup":
@@ -184,7 +191,7 @@ class Game:
         elif mode == "cutthroat":
             return [Player("You"), Player("Computer A"), Player("Computer B")]
         elif mode == "partners":
-            # Team 1: You, Partner; Team 2: Opponent A, Opponent B
+            # Two teams: [You, Partner] vs. [Opponent A, Opponent B]
             return [Player("You"), Player("Partner"), Player("Opponent A"), Player("Opponent B")]
         elif mode == "5way":
             return [Player("You"), Player("Computer A"), Player("Computer B"), Player("Computer C"), Player("Computer D")]
@@ -206,48 +213,49 @@ class Game:
         self.trump_suit = suit
         return [str(card) for card in self.kitty]
     def discard_phase(self, bidder_index):
-        # For the winning bidder, automatically discard all non-trump cards.
-        # (In a real game the player might choose, but here we simulate automatic discarding.)
+        """
+        For the winning bidder, automatically discard non-trump cards.
+        In this simplified version, the bidder keeps all trump cards and discards the rest.
+        """
         bidder = self.players[bidder_index]
         bidder.discard_auto(self.trump_suit)
         return {"player_hand": [str(c) for c in bidder.hand]}
+    def attach_kitty(self, player_index, keep_list):
+        bidder = self.players[player_index]
+        for card_str in keep_list:
+            for c in self.kitty:
+                if str(c) == card_str:
+                    bidder.hand.append(c)
+        self.kitty = [c for c in self.kitty if str(c) not in keep_list]
+        return {"player_hand": [str(c) for c in self.players[0].hand]}
     def play_trick(self, played_card=None):
         """
-        For a multiplayer trick:
-         - The trick proceeds in order starting from the current lead index.
-         - Each player (including computer players) plays one card.
-         - For computer players, a card is chosen automatically from valid options.
-         - The winner is determined by:
-            * If one or more trump cards are played, the highest trump wins.
-            * Otherwise, the highest card in the lead suit wins.
-         - Award 5 points to the winner.
-         - Append the played cards to that player's trick pile.
-         - Advance the lead to the winner.
-         - Increase trick count.
-         - When 5 tricks have been played (or players run out of cards), end the hand.
+        Multiplayer trick phase:
+         - Turn order is determined by the current leading player.
+         - For the human (assumed to be index 0), played_card is provided.
+         - For computer players, cards are auto-selected.
+         - Winner is determined: if any trump cards are played, highest trump wins; otherwise, highest card in lead suit wins.
+         - Each trick awards 5 points.
+         - Played cards are added to the winner’s trick pile.
+         - After 5 tricks (or if any hand is empty), the highest card gets a bonus of 5 points.
         """
         num = self.num_players
-        # Determine the turn order based on self.leading_player (an index)
         order = [(self.leading_player + i) % num for i in range(num)]
-        played = {}  # mapping player index -> card played (as string)
-        # For the human player (assumed to be index 0), if played_card is provided, use it.
-        # For computer players, auto-select a card.
+        played = {}  # mapping index -> card object
+        # For each player in turn:
         for idx in order:
             p = self.players[idx]
             if idx == 0:
                 # Human player:
                 if played_card is None:
                     return {"trick_result": "Awaiting your play.", "current_trick_cards": []}, None
-                # Validate that the human's card is in their hand.
                 if played_card not in [str(c) for c in p.hand]:
                     return {"trick_result": "Invalid card.", "current_trick_cards": []}, None
-                card_obj = next(c for c in p.hand if str(c)==played_card)
+                card_obj = next(c for c in p.hand if str(c) == played_card)
                 p.hand.remove(card_obj)
                 played[idx] = card_obj
             else:
-                # Computer: auto-select a valid card.
-                valid = [card for card in p.hand if card.suit == self.players[order[0]].hand[0].suit] if p.hand else []
-                # For simplicity, if they have any card, pick a random one.
+                # For computer players, simply pick a random valid card.
                 if p.hand:
                     card_obj = random.choice(p.hand)
                     p.hand.remove(card_obj)
@@ -256,22 +264,21 @@ class Game:
                     played[idx] = None
         # Determine lead suit from the first card played.
         lead_suit = played[order[0]].suit if played[order[0]] else None
-        # Determine winning card:
+        # Determine winner:
         winning_idx = None
         winning_rank = -1
         for idx, card in played.items():
-            if not card: continue
-            # If card is trump, treat its rank from trump dictionary; otherwise if it follows lead suit use normal rank.
+            if not card:
+                continue
             if card.suit == self.trump_suit:
                 rank_val = get_card_rank(str(card), trump=self.trump_suit)
             elif card.suit == lead_suit:
                 rank_val = get_card_rank(str(card))
             else:
-                rank_val = -1  # not eligible unless no card followed suit
+                rank_val = -1
             if rank_val > winning_rank:
                 winning_rank = rank_val
                 winning_idx = idx
-        # Award trick:
         trick_cards = [str(card) for card in played.values() if card is not None]
         if winning_idx is not None:
             self.players[winning_idx].score += 5
@@ -282,13 +289,12 @@ class Game:
         else:
             result_text = "No winner determined for the trick."
         self.trick_count += 1
-        # End-of-hand processing: if 5 tricks have been played (or hands empty), end hand.
+        # End-of-hand: if 5 tricks have been played or any hand is empty.
         if self.trick_count >= 5 or any(len(p.hand)==0 for p in self.players):
-            # Determine bonus for highest card played this hand.
             best_card = None
             best_player = None
             best_val = -1
-            # Look over all played cards in this hand (we could store them in a log)
+            # Look through each player's trick pile.
             for p in self.players:
                 for card in p.trick_pile:
                     val = get_card_rank(card, trump=self.trump_suit)
@@ -304,10 +310,14 @@ class Game:
                         bonus_text = f" Highest card was {best_card}. Bonus {BONUS_POINTS} points to {best_player}."
                         break
             result_text += bonus_text
-            # (Bid adjustments could be applied here if desired.)
-            # Hand over: return hand results.
+            # Record hand scores.
             hand_scores = {p.name: p.score - self.starting_scores[p.name] for p in self.players}
-            result_text += " Hand scores: " + ", ".join([f"{name} {score}" for name, score in hand_scores.items()])
+            # Bid adjustment (if bidder fails to meet bid, subtract bid points).
+            bidder = self.bid_winner
+            if hand_scores[self.players[bidder].name] < self.bid:
+                hand_scores[self.players[bidder].name] = -self.bid
+                hand_scores[self.players[(bidder+1)%num].name] = HAND_TOTAL_POINTS - (self.players[bidder].score - self.starting_scores[self.players[bidder].name])
+                result_text += f" Bid not met. {self.players[bidder].name} loses {self.bid} points."
             return {"trick_result": result_text, "current_trick_cards": trick_cards}, hand_scores
         else:
             return {"trick_result": result_text, "current_trick_cards": trick_cards}, None
@@ -322,24 +332,23 @@ def set_mode():
     data = request.json
     mode = data.get("mode", "headsup")
     game_mode = mode
-    # Initialize a new Game with the chosen mode.
     current_game = Game(mode)
     return jsonify({"mode": mode})
 
 @app.route("/deal_cards", methods=["POST"])
 def deal_cards():
-    global current_game, current_dealer
+    global current_game
     if current_game is None:
         return jsonify({"error": "Game mode not set. Please select a game mode."}), 400
     current_game.deal_hands()
     current_game.starting_scores = {p.name: p.score for p in current_game.players}
-    # For simplicity, assign dealer: alternate between modes (or choose randomly)
-    current_dealer = current_game.players[0].name  # In multiplayer, you might decide dealer differently.
-    return jsonify({"player_hand": [str(c) for c in current_game.players[0].hand], "dealer": current_dealer, "mode": game_mode})
+    # For simplicity, set the dealer to the human player (or adjust per game mode)
+    dealer = current_game.players[0].name
+    return jsonify({"player_hand": [str(c) for c in current_game.players[0].hand],
+                    "dealer": dealer, "mode": game_mode})
 
 @app.route("/computer_first_bid", methods=["POST"])
 def computer_first_bid():
-    # For simplicity, generate one random bid for the computers (even if there are more than one).
     comp_bid = random.choice([15, 20, 25, 30])
     return jsonify({"computer_bid": comp_bid})
 
@@ -356,12 +365,12 @@ def submit_bid():
         if comp_bid > player_bid:
             trump_suit = random.choice(["Hearts", "Diamonds", "Clubs", "Spades"])
             kitty = current_game.confirm_trump(trump_suit)
-            current_game.bid_winner = 1  # Computer wins bid
+            current_game.bid_winner = 1
             current_game.bid = comp_bid
-            current_game.leading_player = 1  # For now, assume computer (first computer) leads.
+            current_game.leading_player = 1
             return jsonify({"computer_bid": comp_bid, "bid_winner": "Computer", "trump_suit": trump_suit, "kitty_cards": kitty})
         else:
-            current_game.bid_winner = 0  # Human wins bid
+            current_game.bid_winner = 0
             current_game.bid = player_bid
             current_game.leading_player = 0
             return jsonify({"computer_bid": comp_bid, "bid_winner": "Player"})
@@ -378,7 +387,8 @@ def select_trump():
 
 @app.route("/discard_and_draw", methods=["POST"])
 def discard_and_draw():
-    # In the new (automatic) discard phase, the winning bidder's hand is trimmed automatically.
+    data = request.json
+    # In our automatic discard process, we ignore manual discards.
     result = current_game.discard_phase(current_game.bid_winner)
     return jsonify(result)
 
@@ -386,7 +396,6 @@ def discard_and_draw():
 def attach_kitty():
     data = request.json
     keep_cards = data.get("keep_cards", [])
-    # In a manual kitty phase, the winning bidder selects which kitty cards to add.
     bidder = current_game.players[current_game.bid_winner]
     for card_str in keep_cards:
         for c in current_game.kitty:
@@ -394,7 +403,7 @@ def attach_kitty():
                 bidder.hand.append(c)
     current_game.kitty = [c for c in current_game.kitty if str(c) not in keep_cards]
     return jsonify({"player_hand": [str(c) for c in current_game.players[0].hand]})
-    
+
 @app.route("/play_trick", methods=["POST"])
 def play_trick():
     data = request.json
