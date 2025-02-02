@@ -2,9 +2,12 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Forty-Fives</title>
+  <title>Forty-Fives Splitted Architecture</title>
   <style>
-    /* your CSS */
+    body { margin:0; padding:0; background:darkgreen; font-family:sans-serif; color:white; }
+    #table { position:relative; width:100%; height:100vh; }
+    #progressLog { position:absolute; top:0; right:0; width:250px; max-height:200px; overflow-y:auto; background:rgba(0,0,0,0.3); }
+    /* etc styling for your layout, scoreboard, deck, kitty, etc. */
   </style>
 </head>
 <body>
@@ -13,11 +16,12 @@
     <button onclick="newGame()">New Game</button>
   </div>
   <div id="progressLog"></div>
-  <!-- etc. layout for computerArea, playerArea, kittyArea, scoreboard ... -->
+  <!-- your layout for scoreboard, computer hand, user hand, etc. -->
 </div>
+
 <script>
 function newGame(){
-  if(confirm("Are you sure?")){
+  if(confirm("Are you sure you want to start a new game?")){
     fetch('/reset_game',{method:'POST'})
       .then(r=>r.json())
       .then(d=>{
@@ -26,15 +30,31 @@ function newGame(){
       });
   }
 }
+
 function showState(){
   fetch('/show_state')
-    .then(r=>r.json())
-    .then(d=>{
-      // update UI
-    });
+   .then(r=>r.json())
+   .then(d=>{
+     console.log(d);
+     // update the UI: show computer hand count, your hand with images, kitty if revealed, etc.
+   });
 }
-// plus your other JS logic for bidding, discarding, etc.
-window.onload=()=>showState();
+
+function userBid(bidVal){
+  fetch('/user_bid',{
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({bid_val: bidVal})
+  })
+  .then(r=>r.json())
+  .then(resp=>{
+    console.log(resp.message);
+    showState();
+  });
+}
+
+// etc. for discarding, picking trump, playing a card, etc.
+
+window.onload=()=>{ showState(); };
 </script>
 </body>
 </html>
