@@ -12,15 +12,15 @@ def new_game():
     """Starts a new game and deals hands to both players."""
     global current_game
     current_game = Game()  # Reset the game
-    current_game.deal_hands()  # Deal cards to players and kitty
-    print("DEBUG: New game started with hands dealt.")  # Log for debugging
+    current_game.deal_hands()  # Deal cards to players and the kitty
+    print("DEBUG: New game started with hands dealt.")  # Debug log
     return jsonify({"message": "New game started successfully!"})
 
 @fortyfives_bp.route("/show_state", methods=["GET"])
 def show_state():
     """Returns the current game state to the frontend."""
     game_state = current_game.get_state()
-    print("DEBUG: Game state returned:", game_state)  # Log for debugging
+    print("DEBUG: Game state returned:", game_state)  # Debug log
     return jsonify(game_state)
 
 @fortyfives_bp.route("/play_card", methods=["POST"])
@@ -46,10 +46,10 @@ def bid():
 def computer_turn():
     """Handles the computer's turn during bidding or trick play."""
     if current_game.is_bidding_active():
-        result = current_game.process_bid("computer", 20)  # Example computer bid
+        result = current_game.process_bid("computer", 20)  # Example computer bid logic
     elif current_game.is_card_play_allowed():
         result = current_game.play_card("computer", str(current_game.players["computer"]["hand"][0]))
     else:
         result = {"message": "No valid action for computer."}
-    
+
     return jsonify(result)
