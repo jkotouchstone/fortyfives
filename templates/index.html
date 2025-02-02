@@ -13,24 +13,25 @@
       align-items: center;
       justify-content: center;
       height: 100vh;
-      overflow: hidden;
       margin: 0;
     }
 
     #gameTable {
-      width: 80%;
-      height: 90%;
+      width: 90%;
+      height: 70%;
       border: 5px solid #333;
       border-radius: 15px;
       background-color: #004d00;
       display: grid;
       grid-template-areas:
-        "computer-hand"
-        "trick-area"
-        "player-hand";
+        "scoreboard computer-hand log"
+        "scoreboard trick-area log"
+        "scoreboard player-hand log";
+      grid-template-columns: 1fr 4fr 1fr;
       grid-template-rows: 1fr 1fr 1fr;
       padding: 15px;
       box-sizing: border-box;
+      gap: 10px;
     }
 
     #playerHand, #compHand, #trickArea {
@@ -57,6 +58,22 @@
       padding: 10px;
     }
 
+    #scoreboard {
+      grid-area: scoreboard;
+      border: 2px solid white;
+      border-radius: 10px;
+      padding: 10px;
+    }
+
+    #gameLog {
+      grid-area: log;
+      border: 2px solid white;
+      border-radius: 10px;
+      padding: 10px;
+      overflow-y: auto;
+      height: 100%;
+    }
+
     .card {
       width: 90px;
       height: auto;
@@ -73,7 +90,7 @@
 
     button {
       padding: 10px 15px;
-      margin-top: 10px;
+      margin: 5px;
       border: none;
       background-color: #ffcc00;
       color: #000;
@@ -98,23 +115,34 @@
       line-height: 70px;
       box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
       position: absolute;
-      top: 10px;
-      right: 10px;
+    }
+
+    #biddingSection {
+      margin-top: 20px;
     }
   </style>
 </head>
 <body>
   <h1>Forty-Fives Card Game</h1>
   <div id="gameTable">
+    <div id="scoreboard">
+      <h3>Scoreboard</h3>
+      <p id="playerScore">Player: 0</p>
+      <p id="computerScore">Computer: 0</p>
+    </div>
+
     <div id="compHand">Computer's Hand</div>
     <div id="trickArea">
       <p id="trickPrompt">Waiting for the trick...</p>
     </div>
     <div id="playerHand">Player's Hand</div>
+    <div id="gameLog">
+      <h3>Game Log</h3>
+      <ul id="logEntries"></ul>
+    </div>
   </div>
 
-  <button id="startGameBtn">Start New Game</button>
-  <div id="biddingSection" style="margin-top: 20px;">
+  <div id="biddingSection">
     <button onclick="placeBid(15)">Bid 15</button>
     <button onclick="placeBid(20)">Bid 20</button>
     <button onclick="placeBid(25)">Bid 25</button>
@@ -129,6 +157,10 @@
 
     function log(msg) {
       console.log(msg);
+      const logEntries = document.getElementById("logEntries");
+      const li = document.createElement("li");
+      li.textContent = msg;
+      logEntries.appendChild(li);
     }
 
     function startGame() {
@@ -142,7 +174,7 @@
         .then(res => res.json())
         .then(data => {
           console.log("DEBUG: Game State:", data);
-          gameState = data;  // Store the game state globally
+          gameState = data;
 
           // Update player's hand
           const playerHand = document.getElementById("playerHand");
@@ -166,14 +198,12 @@
             compHand.appendChild(img);
           }
 
-          // Update trick information
-          const trickPrompt = document.getElementById("trickPrompt");
-          trickPrompt.textContent = data.trick_play_active
-            ? "Play your card in the trick!"
-            : "Waiting for next trick...";
-
-          // Show the dealer
+          // Update dealer button
           updateDealer(data.leading_player);
+
+          // Update scoreboard
+          document.getElementById("playerScore").textContent = `Player: ${data.total_your}`;
+          document.getElementById("computerScore").textContent = `Computer: ${data.total_comp}`;
         })
         .catch(err => console.error("Error fetching game state:", err));
     }
@@ -186,7 +216,7 @@
       })
         .then(res => res.json())
         .then(data => {
-          console.log("Card played:", data);
+          log(data.message);
           showState();
         })
         .catch(err => console.error("Error playing card:", err));
@@ -200,7 +230,7 @@
       })
         .then(res => res.json())
         .then(data => {
-          console.log("Bid response:", data);
+          log(data.message);
           showState();
         })
         .catch(err => console.error("Error placing bid:", err));
@@ -208,14 +238,16 @@
 
     function updateDealer(leadingPlayer) {
       const dealerButton = document.getElementById("dealerButton");
-      dealerButton.textContent = leadingPlayer === "player" ? "PLAYER DEALER" : "COMPUTER DEALER";
+      if (leadingPlayer === "player") {
+        dealerButton.style.top = "auto";
+        dealerButton.style.bottom = "20px";
+      } else {
+        dealerButton.style.top = "20px";
+        dealerButton.style.bottom = "auto";
+      }
     }
 
-    // Attach event to start game button
-    document.getElementById("startGameBtn").onclick = startGame;
-
-    // Show initial game state when page loads
-    window.onload = showState;
+    window.onload = startGame;
   </script>
 </body>
 </html>
