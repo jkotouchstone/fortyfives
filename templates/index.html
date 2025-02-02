@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Forty‑Fives Game</title>
+  <title>Forty‑Fives Game (Heads‑Up)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     /* Basic styling – adjust later as needed */
@@ -45,17 +45,12 @@
       font-size: 16px;
       cursor: pointer;
     }
-    /* Display current trump suit */
-    #trump-display {
-      font-weight: bold;
-      margin-bottom: 10px;
-    }
-    /* Dealer indicator */
-    #dealer-info {
-      font-weight: bold;
-      margin-bottom: 10px;
-      color: #007;
-    }
+    /* Display current trump suit and dealer info */
+    #trump-display { font-weight: bold; margin-bottom: 10px; }
+    #dealer-info { font-weight: bold; margin-bottom: 10px; color: #007; }
+    /* Persistent Hand Display */
+    #persistent-hand-section { margin-bottom: 20px; }
+    #persistent-hand { border: 1px dashed #666; padding: 10px; }
     /* Trick log area */
     #trick-log {
       margin-top: 10px;
@@ -76,10 +71,7 @@
       padding-top: 10px;
     }
     /* Draw Phase instructions */
-    #draw-phase-instructions {
-      margin-top: 10px;
-      font-style: italic;
-    }
+    #draw-phase-instructions { margin-top: 10px; font-style: italic; }
   </style>
 </head>
 <body>
@@ -88,10 +80,16 @@
     <div id="dealer-info"></div>
     <div id="trump-display"></div>
     
+    <!-- Persistent Hand Display: Always shows your current hand -->
+    <div id="persistent-hand-section">
+      <h3>Your Current Hand:</h3>
+      <div id="persistent-hand" class="cards-container"></div>
+    </div>
+    
     <!-- Bidding Phase -->
     <div id="bidding-section" class="section">
       <h2>Bidding Phase</h2>
-      <div>Your Hand:</div>
+      <div>Your Hand (Deal):</div>
       <div id="player-hand-bidding" class="cards-container"></div>
       <div>
         <button onclick="placeBid(0)">Pass</button>
@@ -147,7 +145,7 @@
       <div id="trick-log"></div>
     </div>
     
-    <!-- Result Section (only shown when a player reaches 120+) -->
+    <!-- Result Section (shown when a player reaches 120+ points) -->
     <div id="result-section" class="section hidden">
       <h2>Game Over</h2>
       <div id="result-message"></div>
@@ -187,8 +185,7 @@
     let handNumber = 0;
     let handLogMessages = [];
     
-    // Dealer flag – you are either the dealer or not.
-    // For the first hand, determined randomly; then rotate.
+    // Dealer flag – for the first hand, determined randomly; then rotates.
     let isPlayerDealer = undefined;
     
     const suits = ['♠', '♥', '♦', '♣'];
@@ -228,47 +225,44 @@
       const handLogDiv = document.getElementById('hand-log');
       handLogDiv.innerHTML = handLogMessages.map(msg => "<div>" + msg + "</div>").join("");
     }
+    // Persistent Hand: always display player's current hand.
+    function updatePersistentHand() {
+      const container = document.getElementById('persistent-hand');
+      container.innerHTML = "";
+      playerHand.forEach(card => {
+        const div = document.createElement('div');
+        div.className = 'card';
+        div.textContent = card.rank + card.suit;
+        container.appendChild(div);
+      });
+    }
     
     /***** Bonus Ranking Function *****/
     function getCardBonusRank(card) {
-      // For trump cards – note: A♥ is always trump.
-      let isTrump = (card.suit === trumpSuit) || (card.suit === "♥" && card.rank === "A");
-      if (isTrump) {
-        let order;
-        if (trumpSuit === "♥") {
-          order = ["5", "J", "A", "K", "Q", "10", "9", "8", "7", "6", "4", "3", "2"];
-        } else {
-          order = ["5", "J", "A", "K", "Q", "2", "3", "4", "6", "7", "8", "9", "10"];
-        }
-        let index = order.indexOf(card.rank);
-        if (index === -1) index = order.length;
-        return order.length - index;
+      // Determine if the card is trump.
+      let isTrump;
+      if (trumpSuit === "♥") {
+        isTrump = (card.suit === "♥");
       } else {
-        if (card.suit === "♠" || card.suit === "♣") {
-          let order = ["K", "Q", "J", "A", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
-          let index = order.indexOf(card.rank);
-          if (index === -1) index = order.length;
-          return order.length - index;
-        } else if (card.suit === "♥") {
-          let order = ["K", "Q", "J", "10", "9", "8", "7", "6", "5", "4", "3", "2"];
-          let index = order.indexOf(card.rank);
-          if (index === -1) index = order.length;
-          return order.length - index;
-        } else if (card.suit === "♦") {
-          let order = ["K", "Q", "J", "10", "9", "8", "7", "6", "5", "4", "3", "2", "A"];
-          let index = order.indexOf(card.rank);
-          if (index === -1) index = order.length;
-          return order.length - index;
-        }
+        isTrump = (card.suit === trumpSuit) || (card.suit === "♥" && card.rank === "A");
       }
-      return 0;
+      if (!isTrump) return -1; // Only consider trump cards for bonus.
+      let order;
+      if (trumpSuit === "♥") {
+        order = ["5", "J", "A", "K", "Q", "10", "9", "8", "7", "6", "4", "3", "2"];
+      } else {
+        order = ["5", "J", "A", "K", "Q", "2", "3", "4", "6", "7", "8", "9", "10"];
+      }
+      let index = order.indexOf(card.rank);
+      if (index === -1) index = order.length;
+      return order.length - index; // Higher number means higher rank.
     }
     
     /***** Initial Deal (on page load) *****/
     function dealCards() {
       deck = createDeck();
       shuffle(deck);
-      // For the first hand, randomly assign dealer; then rotate.
+      // For the first hand, assign dealer randomly; then rotate.
       if (typeof isPlayerDealer === 'undefined') {
         isPlayerDealer = Math.random() < 0.5;
       }
@@ -281,6 +275,7 @@
       // Kitty gets 3 cards.
       kitty = deck.splice(0, 3);
       updateBiddingUI();
+      updatePersistentHand();
     }
     function updateBiddingUI() {
       const container = document.getElementById('player-hand-bidding');
@@ -343,12 +338,12 @@
       const randomSuit = suits[Math.floor(Math.random() * suits.length)];
       trumpSuit = randomSuit;
       updateTrumpDisplay();
-      // Competitor (winning bid) adds kitty to its hand and discards extras to keep 5.
+      // Competitor (winning bid) adds kitty to its hand and discards extras.
       competitorHand = competitorHand.concat(kitty);
       while (competitorHand.length > 5) {
         competitorHand.splice(Math.floor(Math.random() * competitorHand.length), 1);
       }
-      // Before trick play, let the losing bidder (you) have a chance to draw cards.
+      // Then, before trick play, let you (losing bidder) have a chance to discard/draw.
       gamePhase = "draw";
       updateSections();
       updateDrawPhase();
@@ -391,8 +386,9 @@
         alert("You can keep at most 5 cards.");
         return;
       }
-      // Instead of auto-drawing here, transition to the draw phase.
+      // Transition to draw phase.
       playerHand = selectedCards;
+      updatePersistentHand();
       gamePhase = "draw";
       updateSections();
       updateDrawPhase();
@@ -405,22 +401,21 @@
       const container = document.getElementById('draw-hand');
       container.innerHTML = "";
       if (bidWinner === "player") {
-        // For player win: simply display the kept cards (no discarding allowed)
+        // For player win, just show the kept cards.
         playerHand.forEach((card) => {
           const div = document.createElement('div');
           div.className = 'card';
           div.textContent = card.rank + card.suit;
           container.appendChild(div);
         });
-        // Disable selection for player win.
         container.style.pointerEvents = "none";
         const instructions = document.getElementById('draw-phase-instructions');
         let needToDraw = 5 - playerHand.length;
         instructions.textContent = needToDraw > 0 
           ? "You have kept " + playerHand.length + " cards. You need to draw " + needToDraw + " cards. Click 'Draw Cards' to draw them."
-          : "You have a full 5-card hand. Click 'Draw Cards' to continue.";
+          : "You have a full 5‑card hand. Click 'Draw Cards' to continue.";
       } else {
-        // For competitor win: allow discarding from your hand.
+        // For competitor win, allow discarding.
         container.style.pointerEvents = "auto";
         playerHand.forEach((card, index) => {
           const div = document.createElement('div');
@@ -432,7 +427,7 @@
               div.classList.remove('selected');
             } else {
               const selected = container.querySelectorAll('.selected');
-              if (selected.length < 4) {
+              if (selected.length < 4) { // up to 4 cards
                 div.classList.add('selected');
               }
             }
@@ -444,16 +439,15 @@
     }
     function confirmDraw() {
       if (bidWinner === "player") {
-        // For player win, automatically draw the required number of cards.
         let required = 5 - playerHand.length;
         for (let i = 0; i < required; i++) {
           if (deck.length > 0) {
             playerHand.push(deck.pop());
           }
         }
+        updatePersistentHand();
         startTrickPlay();
       } else {
-        // For competitor win, allow player to discard selected cards.
         const container = document.getElementById('draw-hand');
         const selectedDivs = container.querySelectorAll('.selected');
         let discardIndices = [];
@@ -467,6 +461,7 @@
         while (playerHand.length < 5 && deck.length > 0) {
           playerHand.push(deck.pop());
         }
+        updatePersistentHand();
         startTrickPlay();
       }
     }
@@ -474,13 +469,13 @@
     /***** Trick Play Phase *****/
     function startTrickPlay() {
       gamePhase = "trick";
+      // Clear trick-phase state.
       trickCards = [];
       handPlayedCards = [];
       trickNumber = 1;
       // Set the lead for the first trick to the bid winner.
-      // (So if you won the bid, you lead; if competitor won, computer leads.)
       trickTurn = bidWinner;
-      // If the computer is to lead, trigger its play.
+      // (Thus, if you win the bid, you lead; if competitor wins, computer leads.)
       if (trickTurn === "competitor") {
         setTimeout(competitorPlayCard, 1000);
       }
@@ -563,6 +558,7 @@
       appendTrickLog(trickMessage);
       trickCards = [];
       trickNumber++;
+      // The winner of the trick leads the next trick.
       trickTurn = winning.player;
       if (playerHand.length === 0 && competitorHand.length === 0) {
         endHand();
@@ -581,17 +577,17 @@
     function endHand() {
       gamePhase = "finished";
       document.getElementById('trick-section').classList.add('hidden');
-      // Determine bonus: highest ranking card among all played cards gets +5 points.
-      let bonusCard = null;
-      let bonusValue = -Infinity;
-      handPlayedCards.forEach(entry => {
-        let rankVal = getCardBonusRank(entry.card);
-        if (rankVal > bonusValue) {
-          bonusValue = rankVal;
-          bonusCard = entry;
-        }
-      });
-      let bonusWinner = bonusCard ? bonusCard.player : null;
+      // Determine bonus: among all played cards, award +5 to the side that played the highest-ranking trump.
+      let trumpCards = handPlayedCards.filter(entry => getCardBonusRank(entry.card) > -1);
+      let bonusWinner = null;
+      if (trumpCards.length > 0) {
+        let bonusCard = trumpCards.reduce((acc, curr) => (getCardBonusRank(curr.card) > getCardBonusRank(acc.card)) ? curr : acc);
+        bonusWinner = bonusCard.player;
+      } else {
+        // Fallback: highest overall card.
+        let bonusCard = handPlayedCards.reduce((acc, curr) => (curr.card.value > acc.card.value) ? curr : acc);
+        bonusWinner = bonusCard.player;
+      }
       let roundPlayerPoints = playerTricks * 5 + (bonusWinner === "player" ? 5 : 0);
       let roundCompetitorPoints = competitorTricks * 5 + (bonusWinner === "competitor" ? 5 : 0);
       cumulativePlayerScore += roundPlayerPoints;
@@ -604,7 +600,7 @@
       handLogMessages.push(handResult);
       updateScoreboard();
       
-      // Check if either player has reached 120 points.
+      // Check if either side has reached 120 points.
       if (cumulativePlayerScore >= 120 || cumulativeCompetitorScore >= 120) {
         let winner = cumulativePlayerScore >= 120 ? "You" : "Computer";
         document.getElementById('result-message').textContent = "Game Over! " + winner + " win the game.\n" + handResult;
