@@ -1,15 +1,10 @@
-from flask import Blueprint, request, jsonify, render_template
+from flask import Blueprint, jsonify, request
 from game_logic import Game
 
-# Define the blueprint
 fortyfives_bp = Blueprint('fortyfives', __name__)
 current_game = Game()
 
-@fortyfives_bp.route("/")
-def index():
-    return render_template("index.html")
-
-@fortyfives_bp.route("/show_state")
+@fortyfives_bp.route("/show_state", methods=["GET"])
 def show_state():
     game_state = current_game.get_state()
     return jsonify(game_state)
@@ -32,8 +27,8 @@ def user_bid():
     response_message = current_game.process_bid("player", bid_val)
     return jsonify({"message": response_message, "state": current_game.get_state()})
 
-@fortyfives_bp.route("/play_card_user_lead", methods=["POST"])
-def play_card_user_lead():
+@fortyfives_bp.route("/play_card", methods=["POST"])
+def play_card():
     data = request.json
     card_name = data.get("card_name")
 
