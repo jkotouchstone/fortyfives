@@ -8,7 +8,6 @@ class Card:
     def __str__(self):
         return f"{self.rank} of {self.suit}"
 
-
 class Deck:
     def __init__(self):
         suits = ["Hearts", "Diamonds", "Clubs", "Spades"]
@@ -18,7 +17,6 @@ class Deck:
 
     def deal(self, num_cards):
         return [self.cards.pop() for _ in range(num_cards)]
-
 
 class Game:
     def __init__(self):
@@ -44,7 +42,7 @@ class Game:
 
     def get_state(self):
         """Returns the current game state."""
-        state = {
+        return {
             "your_cards": [{"name": str(card), "img": self.get_card_image(card)} for card in self.players["player"]["hand"]],
             "computer_count": len(self.players["computer"]["hand"]),
             "kitty_count": len(self.kitty),
@@ -57,18 +55,11 @@ class Game:
             "card_back": "https://deckofcardsapi.com/static/img/back.png"
         }
 
-        print("DEBUG: Game State:", state)  # Debugging output
-        return state
-
     def get_card_image(self, card):
-        """Generates the URL for a card's image based on its rank and suit."""
+        """Generates the URL for a card's image."""
         rank_code = "0" if card.rank == "10" else card.rank[0]
         suit_code = card.suit[0].upper()
         return f"https://deckofcardsapi.com/static/img/{rank_code}{suit_code}.png"
-
-    def is_bidding_active(self):
-        """Checks if the bidding phase is still active."""
-        return self.bidding_active
 
     def process_bid(self, player, bid_val):
         """Processes a player's bid."""
@@ -98,10 +89,6 @@ class Game:
         """Allows the computer to select a trump suit."""
         self.trump_suit = random.choice(["Hearts", "Diamonds", "Clubs", "Spades"])
         print(f"Computer selected {self.trump_suit} as trump.")
-
-    def is_card_play_allowed(self):
-        """Checks if it's valid to play a card during trick play."""
-        return not self.bidding_active and self.trick_play_active
 
     def play_card(self, player, card_name):
         """Handles a player playing a card."""
