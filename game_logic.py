@@ -33,12 +33,17 @@ class Game:
         self.trick_play_active = False
         self.kitty = []
         self.current_trick = []
+        self.discard_phase_active = False
 
     def deal_hands(self):
         """Deals hands to both players and the kitty."""
         self.players["player"]["hand"] = self.deck.deal(5)
         self.players["computer"]["hand"] = self.deck.deal(5)
         self.kitty = self.deck.deal(3)
+        self.bidding_active = True
+        self.trick_play_active = False
+        self.discard_phase_active = False
+        self.trump_suit = None
 
     def get_state(self):
         """Returns the current game state."""
@@ -49,9 +54,10 @@ class Game:
             "total_your": self.players["player"]["score"],
             "total_comp": self.players["computer"]["score"],
             "trump_suit": self.trump_suit,
-            "leading_player": self.leading_player,
+            "dealer": self.dealer,
             "bidding_active": self.bidding_active,
             "trick_play_active": self.trick_play_active,
+            "discard_phase_active": self.discard_phase_active,
             "card_back": "https://deckofcardsapi.com/static/img/back.png"
         }
 
@@ -62,75 +68,9 @@ class Game:
         return f"https://deckofcardsapi.com/static/img/{rank_code}{suit_code}.png"
 
     def process_bid(self, player, bid_val):
-        """Processes a player's bid."""
-        if self.bidding_active:
-            if player == "player":
-                if bid_val == 0:
-                    self.bidding_active = False
-                    self.leading_player = "computer"
-                    self.computer_selects_trump()
-                    return "You passed. Computer wins the bid."
-                else:
-                    self.current_bid = bid_val
-                    self.leading_player = "player"
-                    return f"You bid {bid_val}. Waiting for computer's response."
-            elif player == "computer":
-                if bid_val <= 20:
-                    self.bidding_active = False
-                    self.leading_player = "computer"
-                    self.computer_selects_trump()
-                    return f"Computer bids {bid_val} and wins the bid."
-                else:
-                    self.bidding_active = False
-                    return "Computer passes. You win the bid."
-        return "Bidding phase has ended."
+        """Processes a player's or computer's bid."""
+        if not self.bidding_active:
+            return "Bidding is not active."
 
-    def computer_selects_trump(self):
-        """Allows the computer to select a trump suit."""
-        self.trump_suit = random.choice(["Hearts", "Diamonds", "Clubs", "Spades"])
-        print(f"Computer selected {self.trump_suit} as trump.")
-
-    def play_card(self, player, card_name):
-        """Handles a player playing a card."""
-        if not self.trick_play_active:
-            return {"message": "Trick play is not active."}
-
-        player_hand = self.players[player]["hand"]
-        card = next((c for c in player_hand if str(c) == card_name), None)
-        if not card:
-            return {"message": "Invalid card."}
-
-        player_hand.remove(card)
-        self.current_trick.append({"player": player, "card": card})
-
-        if len(self.current_trick) == 2:
-            winner = self.determine_trick_winner()
-            self.players[winner]["tricks"].append(self.current_trick)
-            self.current_trick = []
-            return {"message": f"{winner.capitalize()} wins the trick."}
-        else:
-            return {"message": f"{player.capitalize()} played {card}."}
-
-    def determine_trick_winner(self):
-        """Determines the winner of the current trick."""
-        player_card = next((entry for entry in self.current_trick if entry["player"] == "player"), None)
-        computer_card = next((entry for entry in self.current_trick if entry["player"] == "computer"), None)
-
-        if player_card and computer_card:
-            player_rank = self.get_rank_value(player_card["card"])
-            computer_rank = self.get_rank_value(computer_card["card"])
-
-            if player_card["card"].suit == self.trump_suit and computer_card["card"].suit != self.trump_suit:
-                return "player"
-            if computer_card["card"].suit == self.trump_suit and player_card["card"].suit != self.trump_suit:
-                return "computer"
-
-            return "player" if player_rank > computer_rank else "computer"
-
-        return "player"
-
-    def get_rank_value(self, card):
-        """Returns the rank value of a card."""
-        rank_order = {"2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "8": 8, "9": 9,
-                      "10": 10, "J": 11, "Q": 12, "K": 13, "A": 14}
-        return rank_order.get(card.rank, 0)
+        if player == "player":
+            if self.curren
