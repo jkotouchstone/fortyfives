@@ -31,13 +31,14 @@ class Game:
         self.trump_suit = None
         self.current_bid = None
         self.leading_player = None
-        # Replace booleans with a single phase state.
-        self.phase = "bidding"  # possible values: bidding, trump_selection, discard, trick_play, game_over
+        # Use a single state variable to manage phases: bidding, trump_selection, discard, trick_play, etc.
+        self.phase = "bidding"
         self.kitty = []
         self.current_trick = []
 
     def deal_hands(self):
-        """Deals hands to both players and the kitty."""
+        # Reset deck for a new game
+        self.deck = Deck()
         self.players["player"]["hand"] = self.deck.deal(5)
         self.players["computer"]["hand"] = self.deck.deal(5)
         self.kitty = self.deck.deal(3)
@@ -45,12 +46,10 @@ class Game:
         self.trump_suit = None
         self.current_bid = None
         self.current_trick = []
-        # Optionally reset scores or tricks if starting a new round
 
     def get_state(self):
-        """Returns the current game state."""
         return {
-            "your_cards": [{"name": str(card), "img": self.get_card_image(card)}
+            "your_cards": [{"name": str(card), "img": self.get_card_image(card)} 
                            for card in self.players["player"]["hand"]],
             "computer_count": len(self.players["computer"]["hand"]),
             "kitty_count": len(self.kitty),
@@ -63,34 +62,31 @@ class Game:
         }
 
     def get_card_image(self, card):
-        """Generates the URL for a card's image."""
         rank_code = "0" if card.rank == "10" else card.rank[0]
         suit_code = card.suit[0].upper()
         return f"https://deckofcardsapi.com/static/img/{rank_code}{suit_code}.png"
 
     def find_card_in_hand(self, hand, card_name):
-        """Finds a card in a hand by its string representation."""
         return next((c for c in hand if str(c) == card_name), None)
 
     def process_bid(self, player, bid_val):
-        """Processes bidding and moves to the next phase once bidding concludes."""
+        print(f"Received bid from {player}: {bid_val}")
         if self.phase != "bidding":
             return "Bidding is not active."
 
         if player == "player":
             if bid_val == 0:
-                # Player passes; computer wins the bid.
+                # Player passes; computer wins the bid and will select trump.
                 self.phase = "trump_selection"
                 self.leading_player = "computer"
                 return self.computer_selects_trump()
             elif self.current_bid is None or bid_val > self.current_bid:
                 self.current_bid = bid_val
-                # Optionally, simulate a delay and then let the computer respond.
+                # Optionally, you could trigger a computer response here.
                 return f"You bid {bid_val}. Waiting for computer's response."
             else:
                 return "You cannot bid lower than the current bid."
         elif player == "computer":
-            # Basic logic: computer will always bid 20 if the bid is too low.
             if self.current_bid is None or self.current_bid < 20:
                 self.current_bid = 20
                 self.phase = "discard"
@@ -101,17 +97,11 @@ class Game:
                 return "Computer passes. You win the bid. Please select a trump suit."
 
     def computer_selects_trump(self):
-        """Computer chooses a trump suit when it wins the bid."""
         self.trump_suit = random.choice(["Hearts", "Diamonds", "Clubs", "Spades"])
         self.phase = "discard"
         return f"Computer wins the bid and selects {self.trump_suit} as trump. Moving to discard phase."
 
-    def start_discard_phase(self):
-        """Begins the discard phase after bidding/trump selection."""
-        self.phase = "discard"
-
     def discard_cards(self, player, cards_to_discard):
-        """Handles the discard and draw phase for a player."""
         if self.phase != "discard":
             return {"message": "Discard phase is not active."}
 
@@ -126,15 +116,13 @@ class Game:
         new_cards = self.deck.deal(len(cards_to_discard))
         player_hand.extend(new_cards)
 
-        # If both players now have 5 cards, move to trick play.
-        if (len(self.players["player"]["hand"]) == 5 and 
-            len(self.players["computer"]["hand"]) == 5):
+        # When both players have 5 cards, move to trick play.
+        if len(self.players["player"]["hand"]) == 5 and len(self.players["computer"]["hand"]) == 5:
             self.phase = "trick_play"
 
         return {"message": f"{player.capitalize()} discarded and drew {len(cards_to_discard)} cards."}
 
     def play_card(self, player, card_name):
-        """Handles playing a card during a trick."""
         if self.phase != "trick_play":
             return {"message": "Trick play is not active."}
 
@@ -148,26 +136,24 @@ class Game:
         msg = f"{player.capitalize()} played {card}."
 
         if len(self.current_trick) == 1 and player == "player":
-            # After player plays, simulate computer's move.
+            # Simulate the computer's move after the player plays.
             self.computer_play_card()
 
         if len(self.current_trick) == 2:
             winner = self.determine_trick_winner()
             self.players[winner]["tricks"].append(self.current_trick)
-            # Optionally update score here based on bid or trick value.
             self.current_trick = []
             msg += f" {winner.capitalize()} wins the trick."
         return {"message": msg}
 
     def computer_play_card(self):
-        """Simulate the computer playing a card."""
         if self.players["computer"]["hand"]:
-            # For simplicity, choose a random card.
             card = random.choice(self.players["computer"]["hand"])
-            self.play_card("computer", str(card))
+            # Call play_card for computer. (Make sure to avoid recursive loops.)
+            if self.phase == "trick_play":
+                self.play_card("computer", str(card))
 
     def determine_trick_winner(self):
-        """Determines the winner of the current trick."""
         player_entry = next((entry for entry in self.current_trick if entry["player"] == "player"), None)
         computer_entry = next((entry for entry in self.current_trick if entry["player"] == "computer"), None)
 
@@ -175,24 +161,23 @@ class Game:
             player_card = player_entry["card"]
             computer_card = computer_entry["card"]
 
-            # Check trump suit first.
+            # Check if trump was played.
             if player_card.suit == self.trump_suit and computer_card.suit != self.trump_suit:
                 return "player"
             if computer_card.suit == self.trump_suit and player_card.suit != self.trump_suit:
                 return "computer"
 
-            # If both cards are of the same suit, higher rank wins.
+            # If both cards have the same suit, the higher rank wins.
             if player_card.suit == computer_card.suit:
                 player_rank = self.get_rank_value(player_card)
                 computer_rank = self.get_rank_value(computer_card)
                 return "player" if player_rank > computer_rank else "computer"
             else:
-                # If suits differ and no trump was played, you could decide based on leading player or default.
-                return "player"  # or implement a rule for off-suit cards.
-        return "player"  # Default fallback.
+                # Default rule for off-suit cards; adjust as needed.
+                return "player"
+        return "player"
 
     def get_rank_value(self, card):
-        """Returns the rank value of a card."""
         rank_order = {"2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "8": 8, "9": 9,
                       "10": 10, "J": 11, "Q": 12, "K": 13, "A": 14}
         return rank_order.get(card.rank, 0)
