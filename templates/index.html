@@ -1,187 +1,279 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Forty-Fives Game</title>
+  <meta charset="UTF-8">
+  <title>Forty-Fives – The Ultimate Card Game Experience</title>
   <style>
+    /* Background simulating a wooden table */
     body {
       margin: 0;
       padding: 0;
-      background: darkgreen;
-      font-family: sans-serif;
-      color: white;
+      background: url('https://i.imgur.com/8fKQZ2Y.jpg') center center / cover no-repeat; /* Replace with a wood texture image URL */
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      color: #fff;
     }
     #table {
-      max-width: 900px;
-      margin: auto;
+      width: 100%;
+      height: 100vh;
+      position: relative;
+      display: grid;
+      grid-template-areas:
+        "score score score"
+        "comp comp comp"
+        "left center right"
+        "player player player";
+      grid-template-rows: auto 150px 1fr 200px;
+      grid-template-columns: 1fr 2fr 1fr;
       padding: 20px;
+      box-sizing: border-box;
     }
-    #progressLog {
-      background: rgba(0,0,0,0.3);
-      padding: 10px;
-      max-height: 150px;
-      overflow-y: auto;
-      margin-bottom: 20px;
+    /* Scoreboard at top-left */
+    #scoreboard {
+      grid-area: score;
+      background: rgba(0,0,0,0.6);
+      padding: 10px 15px;
+      border-radius: 8px;
+      font-size: 1.1em;
+      align-self: start;
     }
-    #playerHand, #compHand, #kittyArea {
-      margin-bottom: 20px;
+    /* Computer's hand area at the top */
+    #compArea {
+      grid-area: comp;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+      position: relative;
+      height: 150px;
     }
+    /* Center area for the current trick */
+    #centerArea {
+      grid-area: center;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+    }
+    /* Trick piles */
+    #leftPile, #rightPile {
+      background: rgba(0,0,0,0.5);
+      border: 2px solid #ccc;
+      border-radius: 8px;
+      padding: 5px;
+      min-height: 100px;
+      min-width: 80px;
+    }
+    #leftPile {
+      grid-area: left;
+      align-self: center;
+    }
+    #rightPile {
+      grid-area: right;
+      align-self: center;
+      justify-self: end;
+    }
+    /* Player's hand area at the bottom */
+    #playerArea {
+      grid-area: player;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+      position: relative;
+    }
+    /* Bidding controls overlay */
+    #biddingControls {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 8px;
+      border-radius: 8px;
+    }
+    /* Card images styling */
     .card {
       width: 80px;
-      margin: 5px;
+      transition: transform 0.2s;
       cursor: pointer;
       border-radius: 5px;
     }
-    .selected {
-      outline: 2px solid yellow;
+    .card:hover {
+      transform: scale(1.1);
     }
-    button {
-      margin: 5px;
-      padding: 5px 10px;
-      border: none;
-      border-radius: 4px;
-      background: #555;
-      color: white;
-      cursor: pointer;
+    /* Trick area cards */
+    #trickArea {
+      display: flex;
+      gap: 20px;
     }
-    button:hover {
-      background: #666;
+    /* Trump suit icon */
+    #trumpIcon {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -150%);
+      font-size: 3em;
+      color: gold;
+      text-shadow: 2px 2px 4px #000;
     }
-    #scoreboard {
-      background: rgba(255,255,255,0.8);
-      color: black;
+    /* Progress log styling */
+    #progressLog {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: rgba(0,0,0,0.7);
       padding: 10px;
-      border-radius: 5px;
-      margin-bottom: 20px;
-    }
-    #biddingControls {
-      margin-bottom: 20px;
+      border-radius: 8px;
+      max-height: 150px;
+      overflow-y: auto;
+      font-size: 0.9em;
     }
   </style>
 </head>
 <body>
 <div id="table">
-  <h1>Forty-Fives</h1>
   <div id="scoreboard">
-    <div id="scoreInfo"></div>
+    <div id="scoreInfo">Loading scores...</div>
   </div>
   <div id="progressLog"></div>
-
   <div id="compArea">
-    <h2>Computer's Hand</h2>
+    <!-- Computer's hand (display card backs) -->
     <div id="compHand"></div>
   </div>
-
-  <div id="centerArea">
-    <h2>Current Trick</h2>
-    <div id="trickArea"></div>
-    <div id="trumpIcon"></div>
+  <div id="leftPile">
+    <h3>Your Tricks</h3>
+    <div id="playerTricks"></div>
   </div>
-
+  <div id="centerArea">
+    <div id="trumpIcon"></div>
+    <div id="trickArea">No trick yet.</div>
+  </div>
+  <div id="rightPile">
+    <h3>Computer's Tricks</h3>
+    <div id="compTricks"></div>
+  </div>
   <div id="playerArea">
-    <h2>Your Hand</h2>
+    <!-- Player's hand -->
     <div id="playerHand"></div>
   </div>
-
-  <div id="kittyArea">
-    <h2>Kitty</h2>
-    <div id="kittyStack"></div>
-  </div>
-
   <div id="biddingControls">
-    <h2>Bidding</h2>
+    <h3>Bidding</h3>
     <button onclick="userBid(15)">Bid 15</button>
     <button onclick="userBid(0)">Pass (0)</button>
   </div>
 </div>
 
 <script>
-function log(msg) {
-  let logDiv = document.getElementById("progressLog");
-  let p = document.createElement("p");
-  p.textContent = msg;
-  logDiv.appendChild(p);
-  logDiv.scrollTop = logDiv.scrollHeight;
-}
+  // Logging function for the progress area.
+  function log(msg) {
+    const logDiv = document.getElementById("progressLog");
+    const p = document.createElement("p");
+    p.textContent = msg;
+    logDiv.appendChild(p);
+    logDiv.scrollTop = logDiv.scrollHeight;
+  }
 
-function showState(){
-  fetch('/show_state')
-    .then(res => res.json())
-    .then(data => {
-      console.log(data);
-      // Update scoreboard:
-      document.getElementById("scoreInfo").textContent = 
-        `Your Score: ${data.total_your} | Computer Score: ${data.total_comp}`;
-      // Update player's hand:
-      let ph = document.getElementById("playerHand");
-      ph.innerHTML = "";
-      data.your_cards.forEach(card => {
-         let img = document.createElement("img");
-         img.src = card.img;
-         img.className = "card";
-         // You can add onclick behavior for discarding or playing
-         img.onclick = () => { console.log("You clicked", card.name); };
-         ph.appendChild(img);
-      });
-      // Update computer's hand (display card backs):
-      let ch = document.getElementById("compHand");
-      ch.innerHTML = "";
-      for(let i=0; i<data.computer_count; i++){
-         let img = document.createElement("img");
-         img.src = data.card_back;
-         img.className = "card";
-         ch.appendChild(img);
-      }
-      // Update kitty:
-      let ks = document.getElementById("kittyStack");
-      ks.innerHTML = "";
-      if(data.kitty_revealed) {
-          data.kitty.forEach((k, i) => {
-            let img = document.createElement("img");
-            img.src = k.img;
+  // Function to update the UI from the game state JSON.
+  function showState() {
+    fetch('/show_state')
+      .then(response => response.json())
+      .then(data => {
+        console.log(data);
+        // Update scoreboard.
+        document.getElementById("scoreInfo").textContent =
+          `You: ${data.total_your}  |  Computer: ${data.total_comp}`;
+        
+        // Update player's hand.
+        const playerHandDiv = document.getElementById("playerHand");
+        playerHandDiv.innerHTML = "";
+        data.your_cards.forEach(card => {
+          const img = document.createElement("img");
+          img.src = card.img;
+          img.className = "card";
+          // Add click handler for playing/discarding as needed.
+          img.onclick = () => { log("You clicked " + card.name); };
+          playerHandDiv.appendChild(img);
+        });
+
+        // Update computer's hand (show card back for each).
+        const compHandDiv = document.getElementById("compHand");
+        compHandDiv.innerHTML = "";
+        for (let i = 0; i < data.computer_count; i++) {
+          const img = document.createElement("img");
+          img.src = data.card_back;
+          img.className = "card";
+          compHandDiv.appendChild(img);
+        }
+
+        // Update kitty area.
+        const kittyDiv = document.getElementById("kittyStack");
+        kittyDiv.innerHTML = "";
+        if (data.kitty_revealed) {
+          data.kitty.forEach((card, i) => {
+            const img = document.createElement("img");
+            img.src = card.img;
             img.className = "card";
             img.style.position = "absolute";
             img.style.left = (i * 20) + "px";
-            ks.appendChild(img);
+            kittyDiv.appendChild(img);
           });
-      } else {
-          // show card backs
+        } else {
           data.kitty.forEach((_, i) => {
-            let img = document.createElement("img");
+            const img = document.createElement("img");
             img.src = data.card_back;
             img.className = "card";
             img.style.position = "absolute";
             img.style.left = (i * 20) + "px";
-            ks.appendChild(img);
+            kittyDiv.appendChild(img);
           });
-      }
-      // Update current trick area:
-      let ct = document.getElementById("trickArea");
-      ct.innerHTML = "";
-      if(data.last_trick && data.last_trick.length > 0){
-         data.last_trick.forEach(item => {
-             let img = document.createElement("img");
-             img.src = item[2];
-             img.className = "card";
-             ct.appendChild(img);
-         });
-      }
-    });
-}
+        }
 
-function userBid(bidVal){
-  fetch('/user_bid', {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({bid_val: bidVal})
-  })
-  .then(res => res.json())
-  .then(data => {
-    log(data.message);
-    showState();
-  });
-}
+        // Update current trick area.
+        const trickDiv = document.getElementById("trickArea");
+        trickDiv.innerHTML = "";
+        if (data.last_trick && data.last_trick.length > 0) {
+          data.last_trick.forEach(item => {
+            const img = document.createElement("img");
+            img.src = item[2];
+            img.className = "card";
+            trickDiv.appendChild(img);
+          });
+        } else {
+          trickDiv.textContent = "No trick played yet.";
+        }
+        
+        // Update trump suit icon.
+        const trumpIcon = document.getElementById("trumpIcon");
+        trumpIcon.textContent = data.trump_suit ? getSuitIcon(data.trump_suit) : "";
+      })
+      .catch(err => console.error(err));
+  }
 
-window.onload = showState;
+  // Helper function to get a Unicode symbol for a suit.
+  function getSuitIcon(suit) {
+    switch(suit) {
+      case "Hearts": return "♥";
+      case "Diamonds": return "♦";
+      case "Clubs": return "♣";
+      case "Spades": return "♠";
+      default: return "";
+    }
+  }
+
+  // Function for bidding.
+  function userBid(bidVal) {
+    fetch('/user_bid', {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({bid_val: bidVal})
+    })
+      .then(response => response.json())
+      .then(data => {
+        log(data.message);
+        showState();
+      });
+  }
+
+  window.onload = showState;
 </script>
 </body>
 </html>
