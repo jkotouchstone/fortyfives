@@ -1,0 +1,40 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Forty-Fives</title>
+  <style>
+    /* your CSS */
+  </style>
+</head>
+<body>
+<div id="table">
+  <div id="controls">
+    <button onclick="newGame()">New Game</button>
+  </div>
+  <div id="progressLog"></div>
+  <!-- etc. layout for computerArea, playerArea, kittyArea, scoreboard ... -->
+</div>
+<script>
+function newGame(){
+  if(confirm("Are you sure?")){
+    fetch('/reset_game',{method:'POST'})
+      .then(r=>r.json())
+      .then(d=>{
+        console.log(d.message);
+        showState();
+      });
+  }
+}
+function showState(){
+  fetch('/show_state')
+    .then(r=>r.json())
+    .then(d=>{
+      // update UI
+    });
+}
+// plus your other JS logic for bidding, discarding, etc.
+window.onload=()=>showState();
+</script>
+</body>
+</html>
