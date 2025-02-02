@@ -1,8 +1,10 @@
+import os
 from flask import Flask
-from routes import fortyfives_bp  # Import the blueprint
+from routes import fortyfives_bp
 
 app = Flask(__name__)
-app.register_blueprint(fortyfives_bp)  # Register the blueprint with the app
+app.register_blueprint(fortyfives_bp)
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=True)
