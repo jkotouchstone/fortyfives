@@ -9,7 +9,6 @@ def create_app():
     return app
 
 if __name__ == "__main__":
-    # This is the file Render will run by default (python app.py)
     app = create_app()
-    # If debugging locally, you can enable debug=True
+    # Render typically runs python app.py by default. This is all you need.
     app.run(host="0.0.0.0", port=5000, debug=False)
