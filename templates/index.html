@@ -4,53 +4,53 @@
   <meta charset="UTF-8">
   <title>Forty-Fives Card Game</title>
   <style>
-    /* Green felt background (using an example texture URL; replace with your own) */
-    body {
+    /* Reset and base styles */
+    * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
+    }
+    body {
       font-family: 'Helvetica Neue', sans-serif;
-      background: url('https://www.publicdomainpictures.net/pictures/320000/velka/green-felt-texture.jpg') no-repeat center center fixed;
+      background: url('https://i.imgur.com/Ek8W9Ez.jpg'); /* example green felt background */
       background-size: cover;
       color: #fff;
-      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
     }
-    
-    /* 45's Logo in top left */
+    /* 45's logo in the top left */
     #logo {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      height: 60px;
-      z-index: 1000;
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      width: 100px;
     }
-    
-    /* Main game container with a slight transparent background */
+    /* Main game container */
     #gameTable {
       width: 90%;
       max-width: 1000px;
-      background: rgba(0, 128, 0, 0.8);
+      background: rgba(0, 128, 0, 0.8); /* semi-transparent green felt */
       border-radius: 8px;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+      box-shadow: 0 4px 6px rgba(0,0,0,0.5);
       padding: 20px;
-      margin: 100px auto 20px auto;
+      margin-bottom: 20px;
       display: flex;
       flex-direction: column;
       gap: 20px;
     }
-    
     /* Scoreboard styling */
     #scoreboard {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      border-bottom: 1px solid rgba(255,255,255,0.5);
+      border-bottom: 1px solid #ccc;
       padding-bottom: 10px;
     }
     #scoreboard h3 {
       font-size: 1.2em;
     }
-    
     /* Hands and Trick Area Layout */
     #compHand, #playerHand {
       display: flex;
@@ -59,18 +59,18 @@
       gap: 10px;
       min-height: 80px;
       padding: 10px 0;
-      border: 1px solid rgba(255,255,255,0.5);
+      border: 1px solid #e0e0e0;
       border-radius: 4px;
-      background: rgba(0, 100, 0, 0.6);
+      background-color: rgba(255,255,255,0.8);
     }
     #trickArea {
       text-align: center;
       padding: 15px;
-      background: rgba(0, 100, 0, 0.7);
+      background-color: rgba(233,236,239,0.9);
       border-radius: 4px;
       font-size: 1.1em;
+      color: #333;
     }
-    
     /* Card styles */
     .card {
       width: 60px;
@@ -80,19 +80,18 @@
     .card:hover {
       transform: scale(1.1);
     }
-    
     /* Game log styling */
     #gameLog {
       max-height: 150px;
       overflow-y: auto;
-      border-top: 1px solid rgba(255,255,255,0.5);
+      border-top: 1px solid #ccc;
       padding-top: 10px;
+      background: rgba(0,0,0,0.5);
     }
     #gameLog h3 {
       margin-bottom: 10px;
     }
-    
-    /* Dealer Button styling (hidden during bidding) */
+    /* Dealer Button styling */
     #dealerButton {
       background-color: #007bff;
       color: #fff;
@@ -104,16 +103,12 @@
       cursor: pointer;
       box-shadow: 0 2px 4px rgba(0,0,0,0.2);
       font-weight: bold;
-      display: none;  /* Hide by default during bidding */
     }
-    
     /* Bidding Section styling */
     #biddingSection {
       display: flex;
       gap: 10px;
-      margin: 20px auto;
-      width: 90%;
-      max-width: 1000px;
+      margin-top: 20px;
     }
     #biddingSection button {
       flex: 1;
@@ -129,22 +124,31 @@
     #biddingSection button:hover {
       background-color: #218838;
     }
-    
-    /* Status message (phase display) */
-    #status {
+    /* Trump Selection UI */
+    #trumpSelection {
+      display: none;
+      margin-top: 20px;
       text-align: center;
-      margin-bottom: 10px;
-      font-size: 1.1em;
-      font-weight: bold;
+    }
+    #trumpSelection button {
+      margin: 5px;
+      padding: 10px 15px;
+      border: none;
+      border-radius: 4px;
+      background-color: #ffc107;
+      color: #333;
+      font-size: 1em;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    #trumpSelection button:hover {
+      background-color: #e0a800;
     }
   </style>
 </head>
 <body>
-  <!-- 45's Logo -->
-  <img id="logo" src="https://via.placeholder.com/150x60?text=45%27s+Logo" alt="45's Logo">
-  
+  <img id="logo" src="https://via.placeholder.com/100x50?text=45%27s" alt="45's Logo">
   <div id="gameTable">
-    <div id="status"></div>
     <div id="scoreboard">
       <h3>Scoreboard</h3>
       <div>
@@ -171,16 +175,23 @@
     </div>
   </div>
 
-  <!-- The dealer button will be hidden during bidding -->
   <div id="dealerButton">DEALER</div>
 
-  <!-- Bidding Section -->
   <div id="biddingSection">
     <button onclick="placeBid(15)">Bid 15</button>
     <button onclick="placeBid(20)">Bid 20</button>
     <button onclick="placeBid(25)">Bid 25</button>
     <button onclick="placeBid(30)">Bid 30</button>
     <button onclick="placeBid(0)">Pass</button>
+  </div>
+
+  <!-- Trump Selection UI -->
+  <div id="trumpSelection">
+    <h3>Select a Trump Suit</h3>
+    <button onclick="selectTrump('Hearts')">Hearts</button>
+    <button onclick="selectTrump('Diamonds')">Diamonds</button>
+    <button onclick="selectTrump('Clubs')">Clubs</button>
+    <button onclick="selectTrump('Spades')">Spades</button>
   </div>
 
   <script>
@@ -206,9 +217,6 @@
         .then(data => {
           console.log("DEBUG: Game State:", data);
           gameState = data;
-          // Update phase status
-          document.getElementById("status").textContent = "Phase: " + data.phase;
-          
           // Update player's hand
           const playerHand = document.getElementById("playerHand");
           playerHand.innerHTML = "";
@@ -232,12 +240,11 @@
           document.getElementById("playerScore").textContent = `Player: ${data.total_your}`;
           document.getElementById("computerScore").textContent = `Computer: ${data.total_comp}`;
 
-          // Hide the dealer button during bidding; show it otherwise.
-          const dealerButton = document.getElementById("dealerButton");
-          if (data.phase === "bidding") {
-            dealerButton.style.display = "none";
+          // If the phase is trump selection, show the trump selection UI.
+          if (data.phase === "trump_selection") {
+            showTrumpSelection();
           } else {
-            dealerButton.style.display = "block";
+            hideTrumpSelection();
           }
         })
         .catch(err => console.error("Error fetching game state:", err));
@@ -266,7 +273,30 @@
 
     function showTrumpSelection() {
       log("Select a trump suit.");
-      // TODO: Implement UI for trump selection.
+      document.getElementById("trumpSelection").style.display = "block";
+    }
+
+    function hideTrumpSelection() {
+      document.getElementById("trumpSelection").style.display = "none";
+    }
+
+    function selectTrump(trump) {
+      console.log("Selecting trump suit:", trump);
+      fetch('/select_trump', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trump: trump })
+      })
+      .then(res => res.json())
+      .then(data => {
+        log(data.message);
+        hideTrumpSelection();
+        if (data.next_phase === "discard") {
+          showDiscardPhase();
+        }
+        showState();
+      })
+      .catch(err => console.error("Error selecting trump:", err));
     }
 
     function showDiscardPhase() {
