@@ -27,6 +27,14 @@ def bid():
     data = request.json
     bid_value = data.get("bid_value", 0)
     result = current_game.process_bid("player", bid_value)
+
+    # If bidding is over, check the next phase
+    if not current_game.bidding_active:
+        if current_game.leading_player == "player":
+            return jsonify({"message": result, "next_phase": "trump_selection"})
+        else:
+            return jsonify({"message": result, "next_phase": "discard_phase"})
+
     return jsonify({"message": result})
 
 @fortyfives_bp.route("/trump_selection", methods=["POST"])
