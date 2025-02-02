@@ -1,107 +1,46 @@
-# routes.py
-from flask import Blueprint, jsonify, request, render_template
-from game_logic import Game, card_back_url, card_to_image_url
+from flask import Flask, request, jsonify, render_template
+from game_logic import Game
 
-fortyfives_bp = Blueprint('fortyfives_bp', __name__, template_folder='templates')
-current_game = None
+app = Flask(__name__)
+current_game = Game()
 
-@fortyfives_bp.route('/')
+@app.route("/")
 def index():
-    global current_game
-    if not current_game or current_game.game_over:
-        current_game = Game()
-        current_game.deal_hands()
-    return render_template('index.html')
+    return render_template("index.html")
 
-@fortyfives_bp.route('/show_state', methods=['GET'])
+@app.route("/show_state")
 def show_state():
-    global current_game
-    if not current_game:
-        return jsonify({"error": "No game in progress"}), 400
-    user = current_game.players[0]
-    comp = current_game.players[1]
-    if user.score >= 120 or comp.score >= 120:
-        current_game.game_over = True
-    your_cards = [{"name": str(c), "img": card_to_image_url(str(c))} for c in user.hand]
-    kitty = [{"name": str(c), "img": card_to_image_url(str(c))} for c in current_game.kitty]
-    bidderName = None
-    if current_game.bid_winner is not None:
-        bidderName = current_game.players[current_game.bid_winner].name
-    state = {
-        "your_cards": your_cards,
-        "computer_count": len(comp.hand),
-        "kitty": kitty,
-        "kitty_revealed": current_game.kitty_revealed,
-        "card_back": card_back_url(),
-        "deck_count": len(current_game.deck.cards),
-        "last_trick": current_game.last_played_cards,
-        "total_your": user.score,
-        "total_comp": comp.score,
-        "bidder": bidderName,
-        "bidding_done": current_game.bidding_done,
-        "trump_suit": current_game.trump_suit,
-        "game_over": current_game.game_over,
-        "leading_player": current_game.leading_player
-    }
-    return jsonify(state)
+    game_state = current_game.get_state()
+    return jsonify(game_state)
 
-@fortyfives_bp.route('/user_bid', methods=['POST'])
+@app.route("/new_game", methods=["POST"])
+def new_game():
+    global current_game
+    current_game = Game()
+    current_game.deal_hands()
+    return jsonify({"message": "New game started!"})
+
+@app.route("/user_bid", methods=["POST"])
 def user_bid():
-    global current_game
-    data = request.get_json() or {}
+    data = request.json
     bid_val = data.get("bid_val", 0)
-    msg = current_game.user_bid(bid_val)
-    return jsonify({"message": msg})
 
-@fortyfives_bp.route('/pick_trump', methods=['POST'])
-def pick_trump():
-    global current_game
-    data = request.get_json() or {}
-    suit = data.get("suit", "Hearts")
-    current_game.set_trump(suit)
-    current_game.attach_kitty_user()
-    return jsonify({"message": f"Trump suit set to {current_game.trump_suit}"})
+    if not current_game.is_bidding_active():
+        return jsonify({"message": "Bidding is not active."}), 400
 
-@fortyfives_bp.route('/comp_discard', methods=['POST'])
-def comp_discard():
-    global current_game
-    count = current_game.discard_comp()
-    return jsonify({"message": f"Computer discarded {count} card(s) and drew {count}."})
+    response_message = current_game.process_bid("player", bid_val)
+    return jsonify({"message": response_message, "state": current_game.get_state()})
 
-@fortyfives_bp.route('/user_discard', methods=['POST'])
-def user_discard():
-    global current_game
-    data = request.get_json() or {}
-    disc_list = data.get("discards", [])
-    count = current_game.discard_user(disc_list)
-    return jsonify({"message": f"You discarded {count} card(s) and drew {count}."})
-
-@fortyfives_bp.route('/both_discard_done', methods=['POST'])
-def both_discard_done():
-    global current_game
-    current_game.both_discard_done_check()
-    lead = current_game.leading_player
-    leadName = current_game.players[lead].name if lead is not None else "None"
-    return jsonify({"message": f"Both discard phases done. {leadName} leads the first trick."})
-
-@fortyfives_bp.route('/play_card_user_lead', methods=['POST'])
+@app.route("/play_card_user_lead", methods=["POST"])
 def play_card_user_lead():
-    global current_game
-    data = request.get_json() or {}
+    data = request.json
     card_name = data.get("card_name")
-    msg = current_game.play_trick_user_lead(card_name)
-    return jsonify({"message": msg})
 
-@fortyfives_bp.route('/comp_lead_trick', methods=['POST'])
-def comp_lead_trick():
-    global current_game
-    msg = current_game.comp_lead_trick()
-    return jsonify({"message": msg})
+    if not current_game.is_card_play_allowed():
+        return jsonify({"message": "Not your turn to play."}), 400
 
-@fortyfives_bp.route('/respond_comp_lead', methods=['POST'])
-def respond_comp_lead():
-    global current_game
-    data = request.get_json() or {}
-    card_name = data.get("card_name")
-    msg = current_game.respond_to_comp_lead(card_name)
-    return jsonify({"message": msg})
+    result = current_game.play_card("player", card_name)
+    return jsonify(result)
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)
