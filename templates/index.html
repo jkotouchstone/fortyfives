@@ -2,13 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Forty-Fives – Enhanced Game UI</title>
+  <title>Forty-Fives Card Game</title>
   <style>
-    /* Background: Green felt table */
     body {
       margin: 0;
       padding: 0;
-      background-color: #006400;
+      background-color: #006400; /* Green felt table */
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       color: #fff;
       overflow: hidden;
@@ -19,22 +18,14 @@
       height: 100vh;
       display: grid;
       grid-template-areas:
-        "dealer dealer dealer"
         "score score score"
         "comp comp comp"
         "left center right"
         "player player player";
-      grid-template-rows: auto auto 150px 1fr 200px;
+      grid-template-rows: auto 150px 1fr 200px;
       grid-template-columns: 1fr 2fr 1fr;
       padding: 20px;
       box-sizing: border-box;
-    }
-    /* Dealer Indicator */
-    #dealerIndicator {
-      grid-area: dealer;
-      font-size: 1.5em;
-      text-align: center;
-      margin-bottom: 10px;
     }
     /* Scoreboard */
     #scoreboard {
@@ -52,7 +43,7 @@
       align-items: center;
       gap: 10px;
     }
-    /* Center trick area */
+    /* Center area */
     #centerArea {
       grid-area: center;
       display: flex;
@@ -71,19 +62,7 @@
       align-items: center;
       gap: 10px;
     }
-    /* Bidding Controls */
-    #biddingControls {
-      position: absolute;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0, 0, 0, 0.8);
-      padding: 10px;
-      border-radius: 8px;
-      display: flex;
-      gap: 10px;
-    }
-    /* Card images */
+    /* Card styling */
     .card {
       width: 80px;
       cursor: pointer;
@@ -93,44 +72,24 @@
     .card:hover {
       transform: scale(1.1);
     }
-    /* Buttons */
-    button {
-      padding: 8px 12px;
-      background: #333;
-      color: #fff;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-    button:hover {
-      background: #444;
-    }
   </style>
 </head>
 <body>
 <div id="table">
-  <div id="dealerIndicator">Loading dealer info...</div>
   <div id="scoreboard">
     <div id="scoreInfo">Scores Loading...</div>
   </div>
   <div id="compArea">
-    <!-- Computer's hand (show card backs) -->
+    <!-- Computer's hand (card backs) -->
     <div id="compHand"></div>
   </div>
   <div id="centerArea">
-    <!-- Current trick area -->
+    <!-- Center area (for trick play) -->
     <span id="trickPrompt">No trick yet</span>
   </div>
   <div id="playerArea">
     <!-- Player's hand -->
     <div id="playerHand"></div>
-  </div>
-  <div id="biddingControls">
-    <!-- Bidding buttons -->
-    <button id="bidPassBtn" onclick="userBid(0)">Pass</button>
-    <button id="bid15Btn" onclick="userBid(15)">Bid 15</button>
-    <button id="bid20Btn" style="display: none;" onclick="userBid(20)">Bid 20</button>
-    <!-- Additional buttons will appear dynamically based on bidding phase -->
   </div>
 </div>
 
@@ -140,58 +99,43 @@
     logDiv.innerHTML += `<p>${msg}</p>`;
   }
 
-  // Fetch state and update UI
   function showState() {
     fetch('/show_state')
       .then(res => res.json())
       .then(data => {
+        console.log(data);
+
+        // Update player's hand
+        const playerHand = document.getElementById("playerHand");
+        playerHand.innerHTML = "";
+        data.your_cards.forEach(card => {
+          const img = document.createElement("img");
+          img.src = card.img;
+          img.className = "card";
+          img.alt = card.name;
+          img.onclick = () => console.log(`You selected ${card.name}`);
+          playerHand.appendChild(img);
+        });
+
+        // Update computer's hand (card backs)
+        const compHand = document.getElementById("compHand");
+        compHand.innerHTML = "";
+        for (let i = 0; i < data.computer_count; i++) {
+          const img = document.createElement("img");
+          img.src = data.card_back;
+          img.className = "card";
+          compHand.appendChild(img);
+        }
+
+        // Update scores
         document.getElementById("scoreInfo").textContent =
           `You: ${data.total_your} | Computer: ${data.total_comp}`;
 
-        // Update dealer indicator
-        const dealerIndicator = document.getElementById("dealerIndicator");
-        const dealerName = data.leading_player === 0 ? "Player" : "Computer";
-        dealerIndicator.textContent = `Dealer: ${dealerName}`;
-
-        // Update hand views
-        updatePlayerHand(data.your_cards);
-        updateComputerHand(data.computer_count);
-      });
-  }
-
-  function updatePlayerHand(cards) {
-    const playerArea = document.getElementById("playerHand");
-    playerArea.innerHTML = "";
-    cards.forEach(card => {
-      const img = document.createElement("img");
-      img.src = card.img;
-      img.className = "card";
-      playerArea.appendChild(img);
-    });
-  }
-
-  function updateComputerHand(count) {
-    const compArea = document.getElementById("compHand");
-    compArea.innerHTML = "";
-    for (let i = 0; i < count; i++) {
-      const img = document.createElement("img");
-      img.src = "/static/card_back.png";  // Placeholder for card back image
-      img.className = "card";
-      compArea.appendChild(img);
-    }
-  }
-
-  function userBid(bidVal) {
-    fetch('/user_bid', {
-      method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({bid_val: bidVal})
-    })
-      .then(res => res.json())
-      .then(data => {
-        log(data.message);
-        showState();
-      });
+        // Update trick prompt
+        const trickPrompt = document.getElementById("trickPrompt");
+        trickPrompt.textContent = data.trick_play_active ? "Play your card" : "Waiting for next trick";
+      })
+      .catch(err => console.error("Error fetching game state:", err));
   }
 
   window.onload = showState;
