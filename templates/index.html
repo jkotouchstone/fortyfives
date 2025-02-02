@@ -7,138 +7,117 @@
     body {
       margin: 0;
       padding: 0;
-      background-color: #006400; /* Green felt table */
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      color: #fff;
+      background-color: #006400; /* Green felt table background */
+      font-family: 'Arial', sans-serif;
+      color: white;
       overflow: hidden;
-    }
-    #table {
-      position: relative;
-      width: 100%;
       height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    #gameTable {
+      width: 80%;
+      height: 80%;
+      border: 5px solid #222;
+      border-radius: 15px;
+      background-color: #004d00;
       display: grid;
       grid-template-areas:
-        "score score score"
-        "comp comp comp"
-        "left center right"
-        "player player player";
-      grid-template-rows: auto 150px 1fr 200px;
-      grid-template-columns: 1fr 2fr 1fr;
-      padding: 20px;
-      box-sizing: border-box;
-    }
-    /* Scoreboard */
-    #scoreboard {
-      grid-area: score;
-      background: rgba(0, 0, 0, 0.7);
-      padding: 10px 15px;
-      border-radius: 8px;
-      font-size: 1.1em;
-    }
-    /* Computer's hand */
-    #compArea {
-      grid-area: comp;
-      display: flex;
-      justify-content: center;
-      align-items: center;
+        "computer-hand computer-hand computer-hand"
+        "trick-area trick-area trick-area"
+        "player-hand player-hand player-hand";
+      grid-template-rows: 1fr 1fr 1fr;
+      grid-template-columns: 1fr 1fr 1fr;
       gap: 10px;
+      padding: 15px;
     }
-    /* Center area */
-    #centerArea {
-      grid-area: center;
+
+    #playerHand, #compHand, #trickArea {
       display: flex;
       justify-content: center;
       align-items: center;
-      position: relative;
-      border: 3px dashed rgba(255,255,255,0.7);
-      border-radius: 12px;
-      background: rgba(0, 0, 0, 0.5);
     }
-    /* Player's hand */
-    #playerArea {
-      grid-area: player;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: 10px;
+
+    #playerHand {
+      grid-area: player-hand;
     }
-    /* Card styling */
+
+    #compHand {
+      grid-area: computer-hand;
+    }
+
+    #trickArea {
+      grid-area: trick-area;
+      border: 2px dashed white;
+      border-radius: 10px;
+      padding: 10px;
+    }
+
     .card {
-      width: 80px;
-      cursor: pointer;
+      width: 90px;
+      height: auto;
+      margin: 5px;
       border-radius: 5px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+      cursor: pointer;
       transition: transform 0.2s;
     }
+
     .card:hover {
       transform: scale(1.1);
     }
   </style>
 </head>
 <body>
-<div id="table">
-  <div id="scoreboard">
-    <div id="scoreInfo">Scores Loading...</div>
+  <div id="gameTable">
+    <div id="compHand">Computer's Hand</div>
+    <div id="trickArea">Center Trick Area</div>
+    <div id="playerHand">Player's Hand</div>
   </div>
-  <div id="compArea">
-    <!-- Computer's hand (card backs) -->
-    <div id="compHand"></div>
-  </div>
-  <div id="centerArea">
-    <!-- Center area (for trick play) -->
-    <span id="trickPrompt">No trick yet</span>
-  </div>
-  <div id="playerArea">
-    <!-- Player's hand -->
-    <div id="playerHand"></div>
-  </div>
-</div>
 
-<script>
-  function log(msg) {
-    const logDiv = document.getElementById("scoreboard");
-    logDiv.innerHTML += `<p>${msg}</p>`;
-  }
+  <script>
+    function log(msg) {
+      console.log(msg);
+    }
 
-  function showState() {
-    fetch('/show_state')
-      .then(res => res.json())
-      .then(data => {
-        console.log(data);
+    function showState() {
+      fetch('/show_state')
+        .then(res => res.json())
+        .then(data => {
+          // Update player's hand
+          const playerHand = document.getElementById("playerHand");
+          playerHand.innerHTML = "";
+          data.your_cards.forEach(card => {
+            const img = document.createElement("img");
+            img.src = card.img;
+            img.className = "card";
+            img.alt = card.name;
+            img.onclick = () => log(`You selected ${card.name}`);
+            playerHand.appendChild(img);
+          });
 
-        // Update player's hand
-        const playerHand = document.getElementById("playerHand");
-        playerHand.innerHTML = "";
-        data.your_cards.forEach(card => {
-          const img = document.createElement("img");
-          img.src = card.img;
-          img.className = "card";
-          img.alt = card.name;
-          img.onclick = () => console.log(`You selected ${card.name}`);
-          playerHand.appendChild(img);
-        });
+          // Update computer's hand with card backs
+          const compHand = document.getElementById("compHand");
+          compHand.innerHTML = "";
+          for (let i = 0; i < data.computer_count; i++) {
+            const img = document.createElement("img");
+            img.src = data.card_back;
+            img.className = "card";
+            compHand.appendChild(img);
+          }
 
-        // Update computer's hand (card backs)
-        const compHand = document.getElementById("compHand");
-        compHand.innerHTML = "";
-        for (let i = 0; i < data.computer_count; i++) {
-          const img = document.createElement("img");
-          img.src = data.card_back;
-          img.className = "card";
-          compHand.appendChild(img);
-        }
+          // Display a message in the trick area
+          const trickArea = document.getElementById("trickArea");
+          trickArea.textContent = data.trick_play_active
+            ? "Play your card in the trick!"
+            : "Waiting for next trick...";
+        })
+        .catch(err => console.error("Error fetching game state:", err));
+    }
 
-        // Update scores
-        document.getElementById("scoreInfo").textContent =
-          `You: ${data.total_your} | Computer: ${data.total_comp}`;
-
-        // Update trick prompt
-        const trickPrompt = document.getElementById("trickPrompt");
-        trickPrompt.textContent = data.trick_play_active ? "Play your card" : "Waiting for next trick";
-      })
-      .catch(err => console.error("Error fetching game state:", err));
-  }
-
-  window.onload = showState;
-</script>
+    window.onload = showState;
+  </script>
 </body>
 </html>
