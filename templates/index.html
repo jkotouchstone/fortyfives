@@ -131,7 +131,6 @@
   </style>
 </head>
 <body>
-  <!-- Main game container -->
   <div id="gameTable">
     <div id="scoreboard">
       <h3>Scoreboard</h3>
@@ -159,10 +158,8 @@
     </div>
   </div>
 
-  <!-- Dealer Button -->
   <div id="dealerButton">DEALER</div>
 
-  <!-- Bidding Section -->
   <div id="biddingSection">
     <button onclick="placeBid(15)">Bid 15</button>
     <button onclick="placeBid(20)">Bid 20</button>
@@ -171,7 +168,6 @@
     <button onclick="placeBid(0)">Pass</button>
   </div>
 
-  <!-- Inline Script for Game Logic -->
   <script>
     let gameState = {};
 
@@ -195,8 +191,6 @@
         .then(data => {
           console.log("DEBUG: Game State:", data);
           gameState = data;
-
-          // Update player's hand
           const playerHand = document.getElementById("playerHand");
           playerHand.innerHTML = "";
           data.your_cards.forEach(card => {
@@ -208,7 +202,6 @@
             playerHand.appendChild(img);
           });
 
-          // Update computer's hand
           const compHand = document.getElementById("compHand");
           compHand.innerHTML = "";
           for (let i = 0; i < data.computer_count; i++) {
@@ -220,13 +213,13 @@
 
           document.getElementById("playerScore").textContent = `Player: ${data.total_your}`;
           document.getElementById("computerScore").textContent = `Computer: ${data.total_comp}`;
-
           updateDealer();
         })
         .catch(err => console.error("Error fetching game state:", err));
     }
 
     function placeBid(bidValue) {
+      console.log("Placing bid:", bidValue);
       fetch('/bid', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -234,15 +227,13 @@
       })
         .then(res => res.json())
         .then(data => {
+          console.log("Response from /bid:", data);
           log(data.message);
-
-          // Check the next phase after bidding
           if (data.next_phase === "trump_selection") {
             showTrumpSelection();
-          } else if (data.next_phase === "discard_phase") {
+          } else if (data.next_phase === "discard") {
             showDiscardPhase();
           }
-
           showState();
         })
         .catch(err => console.error("Error placing bid:", err));
