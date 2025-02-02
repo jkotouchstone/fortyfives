@@ -21,6 +21,31 @@ def show_state():
     game_state = current_game.get_state()
     return jsonify(game_state)
 
+@fortyfives_bp.route("/bid", methods=["POST"])
+def bid():
+    """Handle the bidding process."""
+    data = request.json
+    bid_value = data.get("bid_value", 0)
+    result = current_game.process_bid("player", bid_value)
+    return jsonify({"message": result})
+
+@fortyfives_bp.route("/trump_selection", methods=["POST"])
+def trump_selection():
+    """Handle trump selection after the bidding phase."""
+    data = request.json
+    trump_suit = data.get("trump_suit")
+    current_game.trump_suit = trump_suit
+    current_game.start_discard_phase()
+    return jsonify({"message": f"Trump suit selected: {trump_suit}"})
+
+@fortyfives_bp.route("/discard_cards", methods=["POST"])
+def discard_cards():
+    """Handle the discard and draw phase."""
+    data = request.json
+    cards_to_discard = data.get("cards", [])
+    result = current_game.discard_cards("player", cards_to_discard)
+    return jsonify(result)
+
 @fortyfives_bp.route("/play_card", methods=["POST"])
 def play_card():
     """Play a card during the trick phase."""
@@ -31,12 +56,3 @@ def play_card():
 
     result = current_game.play_card("player", card_name)
     return jsonify(result)
-
-@fortyfives_bp.route("/bid", methods=["POST"])
-def bid():
-    """Handle the bidding process."""
-    data = request.json
-    bid_value = data.get("bid_value", 0)
-    result = current_game.process_bid("player", bid_value)
-    return jsonify({"message": result})
-    
