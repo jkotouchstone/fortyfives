@@ -40,19 +40,22 @@ class Game:
         self.kitty = self.deck.deal(3)
 
     def get_state(self):
-        return {
-            "your_cards": [{"name": str(card), "img": self.get_card_image(card)} for card in self.players["player"]["hand"]],
-            "computer_count": len(self.players["computer"]["hand"]),
-            "kitty_count": len(self.kitty),
-            "total_your": self.players["player"]["score"],
-            "total_comp": self.players["computer"]["score"],
-            "trump_suit": self.trump_suit,
-            "leading_player": self.leading_player,
-            "bidding_active": self.bidding_active,
-            "trick_play_active": self.trick_play_active,
-            "kitty_revealed": self.leading_player == "player" and not self.bidding_active,
-            "card_back": "https://deckofcardsapi.com/static/img/back.png"
-        }
+    state = {
+        "your_cards": [{"name": str(card), "img": self.get_card_image(card)} for card in self.players["player"]["hand"]],
+        "computer_count": len(self.players["computer"]["hand"]),
+        "kitty_count": len(self.kitty),
+        "total_your": self.players["player"]["score"],
+        "total_comp": self.players["computer"]["score"],
+        "trump_suit": self.trump_suit,
+        "leading_player": self.leading_player,
+        "bidding_active": self.bidding_active,
+        "trick_play_active": self.trick_play_active,
+        "card_back": "https://deckofcardsapi.com/static/img/back.png"
+    }
+
+    # Log the state to the console
+    print("DEBUG: Game State:", state)
+    return state
 
     def get_card_image(self, card):
         rank_code = "0" if card.rank == "10" else card.rank[0]
