@@ -5,7 +5,7 @@
   <title>Forty‑Fives Game</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    /* Basic styling – adjust later as needed */
+    /* Basic styling – adjust as needed later */
     body {
       font-family: sans-serif;
       background: #f5f5f5;
@@ -14,7 +14,7 @@
       text-align: center;
     }
     .container {
-      max-width: 800px;
+      max-width: 900px;
       margin: auto;
       background: #fff;
       padding: 20px;
@@ -73,7 +73,7 @@
 </head>
 <body>
   <div class="container">
-    <!-- Trump Display -->
+    <!-- Current Trump Display -->
     <div id="trump-display"></div>
     
     <!-- Bidding Phase -->
@@ -114,6 +114,15 @@
       <button onclick="confirmKittySelection()">Confirm Selection</button>
     </div>
     
+    <!-- Draw Phase (for competitor win) -->
+    <div id="draw-section" class="section hidden">
+      <h2>Draw Phase</h2>
+      <div>Your Hand:</div>
+      <div id="draw-hand" class="cards-container"></div>
+      <div>Select any cards to discard (0–4) and click "Draw Cards"</div>
+      <button onclick="confirmDraw()">Draw Cards</button>
+    </div>
+    
     <!-- Trick Play Phase -->
     <div id="trick-section" class="section hidden">
       <h2>Trick Play</h2>
@@ -122,7 +131,7 @@
       <div id="player-hand-trick" class="cards-container"></div>
       <div>Trick Area:</div>
       <div id="trick-area" class="cards-container"></div>
-      <!-- Trick Log: Shows record of each trick played in this hand -->
+      <!-- Trick Log -->
       <div id="trick-log"></div>
     </div>
     
@@ -143,7 +152,7 @@
   
   <script>
     /***** Game State Variables *****/
-    // Phases: "bidding", "trump", "kitty", "trick", "finished"
+    // Phases: "bidding", "trump", "kitty", "draw", "trick", "finished"
     let gamePhase = "bidding";
     let deck = [];
     let playerHand = [];
@@ -156,13 +165,14 @@
     let playerTricks = 0;
     let competitorTricks = 0;
     let trickCards = []; // Array of objects: { card, player }
-    let trickNumber = 1; // Counts the current trick (1 to 5)
+    let handPlayedCards = []; // All cards played in the hand (for bonus calculation)
+    let trickNumber = 1; // Current trick number (1–5)
     
     // Cumulative scoreboard across hands
     let cumulativePlayerScore = 0;
     let cumulativeCompetitorScore = 0;
-    let handNumber = 0; // Increments each completed hand
-    let handLogMessages = []; // Array to keep record of each hand's result
+    let handNumber = 0; // Completed hand count
+    let handLogMessages = [];
     
     const suits = ['♠', '♥', '♦', '♣'];
     const ranks = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
@@ -194,22 +204,63 @@
     function updateScoreboard() {
       const scoreboard = document.getElementById('scoreboard');
       scoreboard.textContent = "You: " + cumulativePlayerScore + " | Competitor: " + cumulativeCompetitorScore;
-      // Also update the hand log display
       const handLogDiv = document.getElementById('hand-log');
       handLogDiv.innerHTML = handLogMessages.map(msg => "<div>" + msg + "</div>").join("");
+    }
+    
+    /***** Bonus Ranking Function *****/
+    function getCardBonusRank(card) {
+      // A♥ is always trump.
+      let isTrump = (card.suit === trumpSuit) || (card.suit === "♥" && card.rank === "A");
+      if (isTrump) {
+        let order;
+        if (trumpSuit === "♥") {
+          order = ["5", "J", "A", "K", "Q", "10", "9", "8", "7", "6", "4", "3", "2"];
+        } else {
+          order = ["5", "J", "A", "K", "Q", "2", "3", "4", "6", "7", "8", "9", "10"];
+        }
+        let index = order.indexOf(card.rank);
+        if (index === -1) index = order.length;
+        return order.length - index; // Higher return value = higher rank.
+      } else {
+        // Non-trump ranking based on suit.
+        if (card.suit === "♠" || card.suit === "♣") {
+          let order = ["K", "Q", "J", "A", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
+          let index = order.indexOf(card.rank);
+          if (index === -1) index = order.length;
+          return order.length - index;
+        } else if (card.suit === "♥") {
+          let order = ["K", "Q", "J", "10", "9", "8", "7", "6", "5", "4", "3", "2"];
+          let index = order.indexOf(card.rank);
+          if (index === -1) index = order.length;
+          return order.length - index;
+        } else if (card.suit === "♦") {
+          let order = ["K", "Q", "J", "10", "9", "8", "7", "6", "5", "4", "3", "2", "A"];
+          let index = order.indexOf(card.rank);
+          if (index === -1) index = order.length;
+          return order.length - index;
+        }
+      }
+      return 0;
     }
     
     /***** Initial Deal (on page load) *****/
     function dealCards() {
       deck = createDeck();
       shuffle(deck);
-      // Deal 5 cards to you and 5 to competitor; kitty gets 3 cards.
-      playerHand = deck.splice(0, 5);
-      competitorHand = deck.splice(0, 5);
+      // Deal 5 cards to each player using the "3 then 2" rotation.
+      playerHand = [];
+      competitorHand = [];
+      // Deal 3 cards first:
+      playerHand = deck.splice(0, 3);
+      competitorHand = deck.splice(0, 3);
+      // Then 2 cards each:
+      playerHand = playerHand.concat(deck.splice(0, 2));
+      competitorHand = competitorHand.concat(deck.splice(0, 2));
+      // Kitty gets 3 cards.
       kitty = deck.splice(0, 3);
       updateBiddingUI();
     }
-    // Display player's hand during bidding.
     function updateBiddingUI() {
       const container = document.getElementById('player-hand-bidding');
       container.innerHTML = "";
@@ -222,10 +273,9 @@
     }
     
     /***** Bidding Phase *****/
-    // When you click a bid button (bid of 0 means Pass)
     function placeBid(bid) {
       playerBid = bid;
-      // Simulate competitor bid: 50% chance to pass (bid 0) or randomly bid from 15,20,25,30.
+      // Simulate competitor bid: 50% chance to pass (0) or randomly bid 15, 20, 25, or 30.
       competitorBid = (Math.random() < 0.5) ? 0 : [15, 20, 25, 30][Math.floor(Math.random() * 4)];
       let message = "";
       if (playerBid === 0 && competitorBid === 0) {
@@ -243,12 +293,11 @@
         gamePhase = "trump";
         updateSections();
         if (bidWinner === "competitor") {
-          // For competitor win: auto-select trump suit after a delay.
+          // Competitor auto-selects trump.
           document.getElementById('trump-instructions').textContent = "Competitor is selecting trump suit...";
           document.getElementById('trump-buttons').classList.add('hidden');
           setTimeout(autoSelectTrump, 1500);
         } else {
-          // For player win: prompt trump selection.
           document.getElementById('trump-instructions').textContent = "Select the trump suit:";
           document.getElementById('trump-buttons').classList.remove('hidden');
         }
@@ -269,14 +318,15 @@
       const randomSuit = suits[Math.floor(Math.random() * suits.length)];
       trumpSuit = randomSuit;
       updateTrumpDisplay();
-      // Competitor adds kitty to its hand and discards extras.
+      // Competitor (winning bidder) adds the kitty to its hand and discards extras to keep 5.
       competitorHand = competitorHand.concat(kitty);
       while (competitorHand.length > 5) {
         competitorHand.splice(Math.floor(Math.random() * competitorHand.length), 1);
       }
-      gamePhase = "trick";
+      // Now, before trick play, let the player (losing bidder) draw 0–4 cards.
+      gamePhase = "draw";
       updateSections();
-      startTrickPlay();
+      updateDrawPhase();
     }
     
     /***** Kitty Phase (for player win) *****/
@@ -326,17 +376,59 @@
       startTrickPlay();
     }
     
+    /***** Draw Phase (for competitor win) *****/
+    function updateDrawPhase() {
+      document.getElementById('trump-section').classList.add('hidden');
+      document.getElementById('draw-section').classList.remove('hidden');
+      const container = document.getElementById('draw-hand');
+      container.innerHTML = "";
+      playerHand.forEach((card, index) => {
+        const div = document.createElement('div');
+        div.className = 'card';
+        div.textContent = card.rank + card.suit;
+        div.dataset.index = index;
+        div.onclick = () => {
+          if (div.classList.contains('selected')) {
+            div.classList.remove('selected');
+          } else {
+            const selected = container.querySelectorAll('.selected');
+            if (selected.length < 4) { // Player may discard up to 4 cards.
+              div.classList.add('selected');
+            }
+          }
+        };
+        container.appendChild(div);
+      });
+    }
+    function confirmDraw() {
+      const container = document.getElementById('draw-hand');
+      const selectedDivs = container.querySelectorAll('.selected');
+      let discardIndices = [];
+      selectedDivs.forEach(div => {
+        discardIndices.push(parseInt(div.dataset.index));
+      });
+      discardIndices.sort((a, b) => b - a);
+      discardIndices.forEach(idx => {
+        playerHand.splice(idx, 1);
+      });
+      while (playerHand.length < 5 && deck.length > 0) {
+        playerHand.push(deck.pop());
+      }
+      startTrickPlay();
+    }
+    
     /***** Trick Play Phase *****/
     function startTrickPlay() {
       gamePhase = "trick";
-      // Reset trick-related state.
       trickCards = [];
+      handPlayedCards = [];
       trickNumber = 1;
+      // Hide previous phases.
       document.getElementById('bidding-section').classList.add('hidden');
       document.getElementById('trump-section').classList.add('hidden');
       document.getElementById('kitty-section').classList.add('hidden');
+      document.getElementById('draw-section').classList.add('hidden');
       document.getElementById('trick-section').classList.remove('hidden');
-      // Clear any previous trick log.
       document.getElementById('trick-log').innerHTML = "";
       updateTrickUI();
     }
@@ -379,35 +471,30 @@
         trickDiv.appendChild(div);
       });
     }
-    // After both players have played, evaluate the trick.
     function evaluateTrick() {
       if (trickCards.length < 2) return;
-      // Identify which card was played by whom.
-      let playerCard, competitorCard;
-      trickCards.forEach(entry => {
-        if (entry.player === "player") {
-          playerCard = entry.card;
-        } else {
-          competitorCard = entry.card;
-        }
-      });
-      // For simplicity, highest card value wins.
+      // Record this trick's cards for bonus evaluation.
+      handPlayedCards.push(...trickCards);
+      // For trick play, determine winner by highest card value.
       let winning = trickCards[0];
       trickCards.forEach(entry => {
         if (entry.card.value > winning.card.value) {
           winning = entry;
         }
       });
-      // Update trick win counts.
       if (winning.player === "player") {
         playerTricks++;
       } else {
         competitorTricks++;
       }
-      // Log trick details.
-      let trickMessage = "Trick " + trickNumber + ": You played " + (playerCard ? (playerCard.rank + playerCard.suit) : "–") +
-                         ", Competitor played " + (competitorCard ? (competitorCard.rank + competitorCard.suit) : "–") +
-                         ". Winner: " + (winning.player === "player" ? "You" : "Competitor") + " (" + winning.card.rank + winning.card.suit + ").";
+      let playerCard = trickCards.find(e => e.player === "player");
+      let compCard = trickCards.find(e => e.player === "competitor");
+      let trickMessage = "Trick " + trickNumber + ": You played " +
+                         (playerCard ? (playerCard.card.rank + playerCard.card.suit) : "–") +
+                         ", Competitor played " +
+                         (compCard ? (compCard.card.rank + compCard.card.suit) : "–") +
+                         ". Winner: " + (winning.player === "player" ? "You" : "Competitor") +
+                         " (" + winning.card.rank + winning.card.suit + ").";
       appendTrickLog(trickMessage);
       trickCards = [];
       trickNumber++;
@@ -429,11 +516,31 @@
       gamePhase = "finished";
       document.getElementById('trick-section').classList.add('hidden');
       document.getElementById('result-section').classList.remove('hidden');
-      let handResult = "Hand " + (++handNumber) + ": You won " + playerTricks + " tricks; Competitor won " + competitorTricks + " tricks.";
+      
+      // Determine bonus: find the highest ranking card among all played cards.
+      let bonusCard = null;
+      let bonusValue = -Infinity;
+      handPlayedCards.forEach(entry => {
+        let rankVal = getCardBonusRank(entry.card);
+        if (rankVal > bonusValue) {
+          bonusValue = rankVal;
+          bonusCard = entry;
+        }
+      });
+      let bonusWinner = bonusCard ? bonusCard.player : null;
+      
+      // Each trick is worth 5 points; bonus adds an extra 5 points.
+      let roundPlayerPoints = playerTricks * 5 + (bonusWinner === "player" ? 5 : 0);
+      let roundCompetitorPoints = competitorTricks * 5 + (bonusWinner === "competitor" ? 5 : 0);
+      
+      cumulativePlayerScore += roundPlayerPoints;
+      cumulativeCompetitorScore += roundCompetitorPoints;
+      
+      let handResult = "Hand " + (++handNumber) + ": You won " + playerTricks + " tricks (" + (playerTricks*5) +
+                       (bonusWinner === "player" ? " + Bonus (5)" : "") + "); Competitor won " + competitorTricks +
+                       " tricks (" + (competitorTricks*5) + (bonusWinner === "competitor" ? " + Bonus (5)" : "") +
+                       "). Round Total: You " + roundPlayerPoints + " vs. Competitor " + roundCompetitorPoints + ".";
       document.getElementById('result-message').textContent = handResult;
-      // Update cumulative scores.
-      cumulativePlayerScore += playerTricks;
-      cumulativeCompetitorScore += competitorTricks;
       handLogMessages.push(handResult);
       updateScoreboard();
     }
@@ -442,6 +549,8 @@
       playerTricks = 0;
       competitorTricks = 0;
       trickCards = [];
+      handPlayedCards = [];
+      trickNumber = 1;
       trumpSuit = null;
       playerBid = 0;
       competitorBid = 0;
@@ -458,6 +567,7 @@
       document.getElementById('bidding-section').classList.add('hidden');
       document.getElementById('trump-section').classList.add('hidden');
       document.getElementById('kitty-section').classList.add('hidden');
+      document.getElementById('draw-section').classList.add('hidden');
       document.getElementById('trick-section').classList.add('hidden');
       if (gamePhase === "bidding") {
         document.getElementById('bidding-section').classList.remove('hidden');
@@ -466,6 +576,8 @@
         document.getElementById('trump-section').classList.remove('hidden');
       } else if (gamePhase === "kitty") {
         document.getElementById('kitty-section').classList.remove('hidden');
+      } else if (gamePhase === "draw") {
+        document.getElementById('draw-section').classList.remove('hidden');
       } else if (gamePhase === "trick") {
         document.getElementById('trick-section').classList.remove('hidden');
       }
