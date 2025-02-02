@@ -5,16 +5,16 @@
   <title>Forty-Fives Card Game</title>
   <style>
     body {
-      margin: 0;
-      padding: 0;
       background-color: #006400;
-      font-family: 'Arial', sans-serif;
+      font-family: Arial, sans-serif;
       color: white;
       display: flex;
-      justify-content: center;
+      flex-direction: column;
       align-items: center;
+      justify-content: center;
       height: 100vh;
       overflow: hidden;
+      margin: 0;
     }
 
     #gameTable {
@@ -88,6 +88,7 @@
   </style>
 </head>
 <body>
+  <h1>Forty-Fives Card Game</h1>
   <div id="gameTable">
     <div id="compHand">Computer's Hand</div>
     <div id="trickArea">
@@ -96,9 +97,24 @@
     <div id="playerHand">Player's Hand</div>
   </div>
 
+  <button id="startGameBtn">Start New Game</button>
+  <div id="biddingSection" style="margin-top: 20px;">
+    <button onclick="placeBid(15)">Bid 15</button>
+    <button onclick="placeBid(20)">Bid 20</button>
+    <button onclick="placeBid(25)">Bid 25</button>
+    <button onclick="placeBid(30)">Bid 30</button>
+    <button onclick="placeBid(0)">Pass</button>
+  </div>
+
   <script>
     function log(msg) {
       console.log(msg);
+    }
+
+    function startGame() {
+      fetch('/new_game', { method: 'POST' })
+        .then(() => showState())
+        .catch(err => console.error("Error starting new game:", err));
     }
 
     function showState() {
@@ -115,11 +131,11 @@
             img.src = card.img;
             img.className = "card";
             img.alt = card.name;
-            img.onclick = () => log(`You selected ${card.name}`);
+            img.onclick = () => playCard(card.name);
             playerHand.appendChild(img);
           });
 
-          // Update computer's hand with card backs
+          // Update computer's hand
           const compHand = document.getElementById("compHand");
           compHand.innerHTML = "";
           for (let i = 0; i < data.computer_count; i++) {
@@ -138,7 +154,38 @@
         .catch(err => console.error("Error fetching game state:", err));
     }
 
-    // Refresh the game state on page load
+    function playCard(cardName) {
+      fetch('/play_card', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ card_name: cardName })
+      })
+        .then(res => res.json())
+        .then(data => {
+          console.log("Card played:", data);
+          showState();
+        })
+        .catch(err => console.error("Error playing card:", err));
+    }
+
+    function placeBid(bidValue) {
+      fetch('/bid', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bid_value: bidValue })
+      })
+        .then(res => res.json())
+        .then(data => {
+          console.log("Bid response:", data);
+          showState();
+        })
+        .catch(err => console.error("Error placing bid:", err));
+    }
+
+    // Attach event to start game button
+    document.getElementById("startGameBtn").onclick = startGame;
+
+    // Show initial game state when page loads
     window.onload = showState;
   </script>
 </body>
