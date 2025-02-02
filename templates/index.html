@@ -2,59 +2,49 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Forty-Fives Splitted Architecture</title>
+  <title>Forty-Fives Without "New Game"</title>
   <style>
     body { margin:0; padding:0; background:darkgreen; font-family:sans-serif; color:white; }
-    #table { position:relative; width:100%; height:100vh; }
-    #progressLog { position:absolute; top:0; right:0; width:250px; max-height:200px; overflow-y:auto; background:rgba(0,0,0,0.3); }
-    /* etc styling for your layout, scoreboard, deck, kitty, etc. */
+    /* Your CSS layout: scoreboard, kitty area, etc. */
   </style>
 </head>
 <body>
 <div id="table">
-  <div id="controls">
-    <button onclick="newGame()">New Game</button>
-  </div>
   <div id="progressLog"></div>
-  <!-- your layout for scoreboard, computer hand, user hand, etc. -->
+  <!-- scoreboard, your hand, comp hand, kitty, etc. -->
+  <!-- Notice there's NO 'New Game' button -->
 </div>
 
 <script>
-function newGame(){
-  if(confirm("Are you sure you want to start a new game?")){
-    fetch('/reset_game',{method:'POST'})
-      .then(r=>r.json())
-      .then(d=>{
-        console.log(d.message);
-        showState();
-      });
-  }
-}
-
 function showState(){
   fetch('/show_state')
    .then(r=>r.json())
    .then(d=>{
      console.log(d);
-     // update the UI: show computer hand count, your hand with images, kitty if revealed, etc.
+     // Update UI with the data from 'd'
+     // e.g. d.your_cards => array of {name, img}
+     // d.computer_count => number of cards in computer's hand
+     // d.deck_count => how many remain in the deck
+     // etc.
    });
 }
 
-function userBid(bidVal){
+function userBid(bVal){
   fetch('/user_bid',{
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({bid_val: bidVal})
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({bid_val: bVal})
   })
-  .then(r=>r.json())
-  .then(resp=>{
-    console.log(resp.message);
-    showState();
-  });
+   .then(r=>r.json())
+   .then(resp=>{
+     console.log(resp.message);
+     showState();
+   });
 }
 
-// etc. for discarding, picking trump, playing a card, etc.
+// etc. for user discarding, picking trump, etc.
 
-window.onload=()=>{ showState(); };
+window.onload=()=> showState();
 </script>
 </body>
 </html>
