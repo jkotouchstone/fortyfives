@@ -53,9 +53,10 @@ class Game:
         "card_back": "https://deckofcardsapi.com/static/img/back.png"
     }
 
-    # Log the state to the console
+    # Log the state to help with debugging
     print("DEBUG: Game State:", state)
     return state
+
 
     def get_card_image(self, card):
         rank_code = "0" if card.rank == "10" else card.rank[0]
