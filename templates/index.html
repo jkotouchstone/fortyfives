@@ -4,146 +4,11 @@
   <meta charset="UTF-8">
   <title>Forty-Fives Card Game</title>
   <style>
-    body {
-      background-color: #006400;
-      font-family: Arial, sans-serif;
-      color: white;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-      margin: 0;
-    }
-
-    #gameTable {
-      width: 90%;
-      height: 70%;
-      border: 5px solid #333;
-      border-radius: 15px;
-      background-color: #004d00;
-      display: grid;
-      grid-template-areas:
-        "scoreboard computer-hand log"
-        "scoreboard trick-area log"
-        "scoreboard player-hand log";
-      grid-template-columns: 1fr 4fr 1fr;
-      grid-template-rows: 1fr 1fr 1fr;
-      padding: 15px;
-      box-sizing: border-box;
-      gap: 10px;
-    }
-
-    #scoreboard {
-      grid-area: scoreboard;
-      border: 2px solid white;
-      border-radius: 10px;
-      padding: 10px;
-    }
-
-    #gameLog {
-      grid-area: log;
-      border: 2px solid white;
-      border-radius: 10px;
-      padding: 10px;
-      overflow-y: auto;
-    }
-
-    .card {
-      width: 90px;
-      height: auto;
-      margin: 5px;
-      border-radius: 5px;
-      box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-      cursor: pointer;
-    }
-
-    button {
-      padding: 10px 15px;
-      margin: 5px;
-      border: none;
-      background-color: #ffcc00;
-      color: #000;
-      font-weight: bold;
-      border-radius: 8px;
-      cursor: pointer;
-    }
-
-    button:hover {
-      background-color: #ffaa00;
-    }
-
-    #dealerButton {
-      padding: 5px 10px;
-      background-color: white;
-      color: black;
-      font-weight: bold;
-      border-radius: 50%;
-      text-align: center;
-      width: 50px;
-      height: 50px;
-      line-height: 50px;
-      box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-      position: absolute;
-    }
-
-    #playerHand, #compHand, #trickArea {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-
-    #playerHand {
-      grid-area: player-hand;
-    }
-
-    #compHand {
-      grid-area: computer-hand;
-    }
-
-    #trickArea {
-      grid-area: trick-area;
-      border: 2px dashed white;
-      border-radius: 10px;
-      text-align: center;
-      padding: 10px;
-    }
-
-    #customLogo {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      font-weight: bold;
-      color: white;
-      font-size: 32px;
-      display: flex;
-      flex-direction: row;
-      align-items: center;
-    }
-
-    #customLogo .number {
-      font-size: 40px;
-      margin-right: -12px;
-    }
-
-    #customLogo .letter {
-      font-size: 24px;
-      position: relative;
-      top: -10px;
-    }
+    /* Your existing CSS */
   </style>
 </head>
 <body>
-  <!-- Custom Logo -->
-  <div id="customLogo">
-    <span class="number">4</span>
-    <span class="number">5</span>
-    <span class="letter">'s</span>
-  </div>
-
-  <!-- Game Table -->
+  <!-- Game Table and Buttons -->
   <div id="gameTable">
     <div id="scoreboard">
       <h3>Scoreboard</h3>
@@ -172,6 +37,7 @@
     <button onclick="placeBid(0)">Pass</button>
   </div>
 
+  <!-- Inline Script for Game Logic -->
   <script>
     let gameState = {};
 
@@ -220,8 +86,42 @@
 
           document.getElementById("playerScore").textContent = `Player: ${data.total_your}`;
           document.getElementById("computerScore").textContent = `Computer: ${data.total_comp}`;
+
+          updateDealer();
         })
         .catch(err => console.error("Error fetching game state:", err));
+    }
+
+    function placeBid(bidValue) {
+      fetch('/bid', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bid_value: bidValue })
+      })
+        .then(res => res.json())
+        .then(data => {
+          log(data.message);
+
+          // Check the next phase after bidding
+          if (data.next_phase === "trump_selection") {
+            showTrumpSelection();
+          } else if (data.next_phase === "discard_phase") {
+            showDiscardPhase();
+          }
+
+          showState();
+        })
+        .catch(err => console.error("Error placing bid:", err));
+    }
+
+    function showTrumpSelection() {
+      log("Select a trump suit.");
+      // TODO: Implement trump selection UI here
+    }
+
+    function showDiscardPhase() {
+      log("Discard cards if needed.");
+      // TODO: Implement discard phase UI here
     }
 
     function playCard(cardName) {
@@ -236,6 +136,19 @@
           showState();
         })
         .catch(err => console.error("Error playing card:", err));
+    }
+
+    function updateDealer() {
+      const dealerButton = document.getElementById("dealerButton");
+      if (gameState.dealer === "player") {
+        dealerButton.style.top = "auto";
+        dealerButton.style.bottom = "20px";
+        dealerButton.style.left = "calc(50% - 25px)";
+      } else {
+        dealerButton.style.top = "20px";
+        dealerButton.style.bottom = "auto";
+        dealerButton.style.left = "calc(50% - 25px)";
+      }
     }
 
     window.onload = startGame;
