@@ -31,6 +31,17 @@ def bid():
     }
     return jsonify(response)
 
+@fortyfives_bp.route('/select_trump', methods=['POST'])
+def select_trump():
+    data = request.get_json()
+    trump = data.get('trump')
+    result = game.set_trump(trump)
+    response = {
+        "message": result,
+        "next_phase": game.phase
+    }
+    return jsonify(response)
+
 @fortyfives_bp.route('/play_card', methods=['POST'])
 def play_card():
     data = request.get_json()
