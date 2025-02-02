@@ -75,6 +75,11 @@
       border-top: 2px solid #333;
       padding-top: 10px;
     }
+    /* Draw Phase instructions */
+    #draw-phase-instructions {
+      margin-top: 10px;
+      font-style: italic;
+    }
   </style>
 </head>
 <body>
@@ -116,17 +121,17 @@
       <div>Your Combined Hand (Your 5 cards + Kitty):</div>
       <div id="combined-hand" class="cards-container"></div>
       <div id="kitty-instructions">
-        Select up to 5 cards to keep from your 8‑card hand. Missing cards will be drawn from the deck to make a final 5‑card hand.
+        Select up to 5 cards to keep from your 8‑card hand.
       </div>
       <button onclick="confirmKittySelection()">Confirm Selection</button>
     </div>
     
-    <!-- Draw Phase (for competitor win) -->
+    <!-- Draw Phase (for both competitor win and player win) -->
     <div id="draw-section" class="section hidden">
       <h2>Draw Phase</h2>
       <div>Your Hand:</div>
       <div id="draw-hand" class="cards-container"></div>
-      <div>Select any cards to discard (0–4) and click "Draw Cards"</div>
+      <div id="draw-phase-instructions"></div>
       <button onclick="confirmDraw()">Draw Cards</button>
     </div>
     
@@ -142,7 +147,7 @@
       <div id="trick-log"></div>
     </div>
     
-    <!-- Result Section (only shown when a player wins 120+) -->
+    <!-- Result Section (only shown when a player reaches 120+) -->
     <div id="result-section" class="section hidden">
       <h2>Game Over</h2>
       <div id="result-message"></div>
@@ -183,7 +188,7 @@
     let handLogMessages = [];
     
     // Dealer flag – you are either the dealer or not.
-    // For the first hand, determine randomly; then rotate.
+    // For the first hand, determined randomly; then rotate.
     let isPlayerDealer = undefined;
     
     const suits = ['♠', '♥', '♦', '♣'];
@@ -263,7 +268,7 @@
     function dealCards() {
       deck = createDeck();
       shuffle(deck);
-      // For the first hand, randomly assign dealer; thereafter, use rotation.
+      // For the first hand, randomly assign dealer; then rotate.
       if (typeof isPlayerDealer === 'undefined') {
         isPlayerDealer = Math.random() < 0.5;
       }
@@ -338,12 +343,12 @@
       const randomSuit = suits[Math.floor(Math.random() * suits.length)];
       trumpSuit = randomSuit;
       updateTrumpDisplay();
-      // Competitor (winning bid) adds kitty to its hand and discards extras.
+      // Competitor (winning bid) adds kitty to its hand and discards extras to keep 5.
       competitorHand = competitorHand.concat(kitty);
       while (competitorHand.length > 5) {
         competitorHand.splice(Math.floor(Math.random() * competitorHand.length), 1);
       }
-      // Before trick play, let the losing bidder (you) have a chance to discard 0–4 cards.
+      // Before trick play, let the losing bidder (you) have a chance to draw cards.
       gamePhase = "draw";
       updateSections();
       updateDrawPhase();
@@ -386,55 +391,84 @@
         alert("You can keep at most 5 cards.");
         return;
       }
-      const numToDraw = 5 - selectedCards.length;
-      for (let i = 0; i < numToDraw; i++) {
-        if (deck.length > 0) {
-          selectedCards.push(deck.pop());
-        }
-      }
+      // Instead of auto-drawing here, transition to the draw phase.
       playerHand = selectedCards;
-      startTrickPlay();
+      gamePhase = "draw";
+      updateSections();
+      updateDrawPhase();
     }
     
-    /***** Draw Phase (for competitor win) *****/
+    /***** Draw Phase (for both competitor win and player win) *****/
     function updateDrawPhase() {
       document.getElementById('trump-section').classList.add('hidden');
       document.getElementById('draw-section').classList.remove('hidden');
       const container = document.getElementById('draw-hand');
       container.innerHTML = "";
-      playerHand.forEach((card, index) => {
-        const div = document.createElement('div');
-        div.className = 'card';
-        div.textContent = card.rank + card.suit;
-        div.dataset.index = index;
-        div.onclick = () => {
-          if (div.classList.contains('selected')) {
-            div.classList.remove('selected');
-          } else {
-            const selected = container.querySelectorAll('.selected');
-            if (selected.length < 4) { // up to 4 cards can be discarded
-              div.classList.add('selected');
+      if (bidWinner === "player") {
+        // For player win: simply display the kept cards (no discarding allowed)
+        playerHand.forEach((card) => {
+          const div = document.createElement('div');
+          div.className = 'card';
+          div.textContent = card.rank + card.suit;
+          container.appendChild(div);
+        });
+        // Disable selection for player win.
+        container.style.pointerEvents = "none";
+        const instructions = document.getElementById('draw-phase-instructions');
+        let needToDraw = 5 - playerHand.length;
+        instructions.textContent = needToDraw > 0 
+          ? "You have kept " + playerHand.length + " cards. You need to draw " + needToDraw + " cards. Click 'Draw Cards' to draw them."
+          : "You have a full 5-card hand. Click 'Draw Cards' to continue.";
+      } else {
+        // For competitor win: allow discarding from your hand.
+        container.style.pointerEvents = "auto";
+        playerHand.forEach((card, index) => {
+          const div = document.createElement('div');
+          div.className = 'card';
+          div.textContent = card.rank + card.suit;
+          div.dataset.index = index;
+          div.onclick = () => {
+            if (div.classList.contains('selected')) {
+              div.classList.remove('selected');
+            } else {
+              const selected = container.querySelectorAll('.selected');
+              if (selected.length < 4) {
+                div.classList.add('selected');
+              }
             }
-          }
-        };
-        container.appendChild(div);
-      });
+          };
+          container.appendChild(div);
+        });
+        document.getElementById('draw-phase-instructions').textContent = "Select any cards to discard (0–4) and click 'Draw Cards'.";
+      }
     }
     function confirmDraw() {
-      const container = document.getElementById('draw-hand');
-      const selectedDivs = container.querySelectorAll('.selected');
-      let discardIndices = [];
-      selectedDivs.forEach(div => {
-        discardIndices.push(parseInt(div.dataset.index));
-      });
-      discardIndices.sort((a, b) => b - a);
-      discardIndices.forEach(idx => {
-        playerHand.splice(idx, 1);
-      });
-      while (playerHand.length < 5 && deck.length > 0) {
-        playerHand.push(deck.pop());
+      if (bidWinner === "player") {
+        // For player win, automatically draw the required number of cards.
+        let required = 5 - playerHand.length;
+        for (let i = 0; i < required; i++) {
+          if (deck.length > 0) {
+            playerHand.push(deck.pop());
+          }
+        }
+        startTrickPlay();
+      } else {
+        // For competitor win, allow player to discard selected cards.
+        const container = document.getElementById('draw-hand');
+        const selectedDivs = container.querySelectorAll('.selected');
+        let discardIndices = [];
+        selectedDivs.forEach(div => {
+          discardIndices.push(parseInt(div.dataset.index));
+        });
+        discardIndices.sort((a, b) => b - a);
+        discardIndices.forEach(idx => {
+          playerHand.splice(idx, 1);
+        });
+        while (playerHand.length < 5 && deck.length > 0) {
+          playerHand.push(deck.pop());
+        }
+        startTrickPlay();
       }
-      startTrickPlay();
     }
     
     /***** Trick Play Phase *****/
@@ -443,11 +477,10 @@
       trickCards = [];
       handPlayedCards = [];
       trickNumber = 1;
-      // Set the lead for the first trick:
-      // If the computer won the bid, the computer leads the first trick.
-      // Otherwise, if you won the bid, you lead.
+      // Set the lead for the first trick to the bid winner.
+      // (So if you won the bid, you lead; if competitor won, computer leads.)
       trickTurn = bidWinner;
-      // If the computer is leading, trigger its play.
+      // If the computer is to lead, trigger its play.
       if (trickTurn === "competitor") {
         setTimeout(competitorPlayCard, 1000);
       }
@@ -530,7 +563,6 @@
       appendTrickLog(trickMessage);
       trickCards = [];
       trickNumber++;
-      // The winner of the trick leads the next one.
       trickTurn = winning.player;
       if (playerHand.length === 0 && competitorHand.length === 0) {
         endHand();
@@ -545,7 +577,7 @@
       logDiv.appendChild(p);
     }
     
-    /***** End of Hand & Next Hand / Game Over *****/
+    /***** End of Hand & Game Over *****/
     function endHand() {
       gamePhase = "finished";
       document.getElementById('trick-section').classList.add('hidden');
@@ -569,7 +601,6 @@
                        "Computer won " + competitorTricks + " tricks (" + (competitorTricks*5) +
                        (bonusWinner === "competitor" ? " + Bonus (5)" : "") + "). " +
                        "Round Total: You " + roundPlayerPoints + " vs. Computer " + roundCompetitorPoints + ".";
-      // Append the hand result to the hand log.
       handLogMessages.push(handResult);
       updateScoreboard();
       
@@ -579,7 +610,7 @@
         document.getElementById('result-message').textContent = "Game Over! " + winner + " win the game.\n" + handResult;
         document.getElementById('result-section').classList.remove('hidden');
       } else {
-        // Automatically start next hand after a short delay.
+        // Automatically start the next hand after a short delay.
         setTimeout(nextHand, 3000);
       }
     }
@@ -598,19 +629,16 @@
       competitorBid = 0;
       bidWinner = null;
       document.getElementById('bidding-message').textContent = "";
-      // Start a new hand (using the current cumulative scores).
       gamePhase = "bidding";
       updateTrumpDisplay();
       updateSections();
       dealCards();
     }
     function resetGame() {
-      // Reset cumulative scores and hand log.
       cumulativePlayerScore = 0;
       cumulativeCompetitorScore = 0;
       handNumber = 0;
       handLogMessages = [];
-      // Reset dealer to a random assignment.
       isPlayerDealer = undefined;
       updateScoreboard();
       resetHandState();
