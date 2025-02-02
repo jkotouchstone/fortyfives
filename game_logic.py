@@ -31,14 +31,14 @@ class Game:
         self.trump_suit = None
         self.current_bid = None
         self.leading_player = None
-        # Use a single state variable to manage phases: bidding, trump_selection, discard, trick_play, etc.
+        # The game phase can be: "bidding", "trump_selection", "discard", "trick_play", etc.
         self.phase = "bidding"
         self.kitty = []
         self.current_trick = []
 
     def deal_hands(self):
-        # Reset deck for a new game
-        self.deck = Deck()
+        """Deals hands to both players and the kitty."""
+        self.deck = Deck()  # Reset the deck for a new game
         self.players["player"]["hand"] = self.deck.deal(5)
         self.players["computer"]["hand"] = self.deck.deal(5)
         self.kitty = self.deck.deal(3)
@@ -48,8 +48,9 @@ class Game:
         self.current_trick = []
 
     def get_state(self):
+        """Returns the current game state."""
         return {
-            "your_cards": [{"name": str(card), "img": self.get_card_image(card)} 
+            "your_cards": [{"name": str(card), "img": self.get_card_image(card)}
                            for card in self.players["player"]["hand"]],
             "computer_count": len(self.players["computer"]["hand"]),
             "kitty_count": len(self.kitty),
@@ -62,46 +63,97 @@ class Game:
         }
 
     def get_card_image(self, card):
+        """Generates the URL for a card's image."""
         rank_code = "0" if card.rank == "10" else card.rank[0]
         suit_code = card.suit[0].upper()
         return f"https://deckofcardsapi.com/static/img/{rank_code}{suit_code}.png"
 
     def find_card_in_hand(self, hand, card_name):
+        """Finds a card in a hand by its string representation."""
         return next((c for c in hand if str(c) == card_name), None)
 
+    def computer_bid(self):
+        """
+        Evaluates the computer's hand and returns a bid value along with a preferred trump suit.
+        It sums the rank values for cards in each suit (using an arbitrary mapping) and picks the
+        suit with the highest cumulative value. The strength is then mapped to a bid value.
+        """
+        hand = self.players["computer"]["hand"]
+        rank_order = {"2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "8": 8, "9": 9,
+                      "10": 10, "J": 11, "Q": 12, "K": 13, "A": 14}
+        suits = ["Hearts", "Diamonds", "Clubs", "Spades"]
+        trump_strength = {}
+        for suit in suits:
+            trump_strength[suit] = sum(rank_order.get(card.rank, 0) 
+                                       for card in hand if card.suit == suit)
+        # Choose the suit with the highest strength
+        best_suit = max(trump_strength, key=trump_strength.get)
+        best_strength = trump_strength[best_suit]
+
+        # Map the strength to a bid value.
+        # Adjust these thresholds and bid values as needed.
+        if best_strength >= 40:
+            bid_value = 30
+        elif best_strength >= 35:
+            bid_value = 25
+        elif best_strength >= 30:
+            bid_value = 20
+        else:
+            bid_value = 0  # Pass if the hand is weak
+
+        return bid_value, best_suit
+
     def process_bid(self, player, bid_val):
+        """
+        Processes a bid from the player or computer.
+        For the player:
+          - If the bid is 0 (pass), the computer's evaluation is used.
+          - If the player bids a nonzero value, the computer's bid (based on its hand) is compared.
+        Updates the game phase and trump suit accordingly.
+        """
         print(f"Received bid from {player}: {bid_val}")
         if self.phase != "bidding":
             return "Bidding is not active."
 
         if player == "player":
             if bid_val == 0:
-                # Player passes; computer wins the bid and will select trump.
-                self.phase = "trump_selection"
-                self.leading_player = "computer"
-                return self.computer_selects_trump()
-            elif self.current_bid is None or bid_val > self.current_bid:
-                self.current_bid = bid_val
-                # Optionally, you could trigger a computer response here.
-                return f"You bid {bid_val}. Waiting for computer's response."
+                # Player passes; let the computer evaluate its bid.
+                comp_bid, comp_trump = self.computer_bid()
+                if comp_bid == 0:
+                    # Both players pass; allow player to select trump.
+                    self.phase = "trump_selection"
+                    return "Both players passed. Please select a trump suit."
+                else:
+                    self.current_bid = comp_bid
+                    self.phase = "discard"
+                    self.trump_suit = comp_trump
+                    return f"You passed. Computer bids {comp_bid} with {comp_trump} as trump. Moving to discard phase."
             else:
-                return "You cannot bid lower than the current bid."
+                # Player bids a nonzero value.
+                self.current_bid = bid_val
+                comp_bid, comp_trump = self.computer_bid()
+                if comp_bid > bid_val:
+                    self.current_bid = comp_bid
+                    self.phase = "discard"
+                    self.trump_suit = comp_trump
+                    return f"You bid {bid_val}, but computer outbids with {comp_bid} using {comp_trump} as trump. Moving to discard phase."
+                else:
+                    self.phase = "trump_selection"
+                    return f"You win the bid with {bid_val}. Please select a trump suit."
         elif player == "computer":
-            if self.current_bid is None or self.current_bid < 20:
-                self.current_bid = 20
+            # This branch is available if you want to trigger computer bidding explicitly.
+            comp_bid, comp_trump = self.computer_bid()
+            if comp_bid > (self.current_bid or 0):
+                self.current_bid = comp_bid
                 self.phase = "discard"
-                self.trump_suit = random.choice(["Hearts", "Diamonds", "Clubs", "Spades"])
-                return f"Computer bids 20 and selects {self.trump_suit} as trump. Moving to discard phase."
+                self.trump_suit = comp_trump
+                return f"Computer bids {comp_bid} with {comp_trump} as trump. Moving to discard phase."
             else:
                 self.phase = "trump_selection"
                 return "Computer passes. You win the bid. Please select a trump suit."
 
-    def computer_selects_trump(self):
-        self.trump_suit = random.choice(["Hearts", "Diamonds", "Clubs", "Spades"])
-        self.phase = "discard"
-        return f"Computer wins the bid and selects {self.trump_suit} as trump. Moving to discard phase."
-
     def discard_cards(self, player, cards_to_discard):
+        """Handles the discard and draw phase for a player."""
         if self.phase != "discard":
             return {"message": "Discard phase is not active."}
 
@@ -123,6 +175,7 @@ class Game:
         return {"message": f"{player.capitalize()} discarded and drew {len(cards_to_discard)} cards."}
 
     def play_card(self, player, card_name):
+        """Handles playing a card during a trick."""
         if self.phase != "trick_play":
             return {"message": "Trick play is not active."}
 
@@ -144,16 +197,18 @@ class Game:
             self.players[winner]["tricks"].append(self.current_trick)
             self.current_trick = []
             msg += f" {winner.capitalize()} wins the trick."
+
         return {"message": msg}
 
     def computer_play_card(self):
+        """Simulates the computer playing a card."""
         if self.players["computer"]["hand"]:
             card = random.choice(self.players["computer"]["hand"])
-            # Call play_card for computer. (Make sure to avoid recursive loops.)
             if self.phase == "trick_play":
                 self.play_card("computer", str(card))
 
     def determine_trick_winner(self):
+        """Determines the winner of the current trick."""
         player_entry = next((entry for entry in self.current_trick if entry["player"] == "player"), None)
         computer_entry = next((entry for entry in self.current_trick if entry["player"] == "computer"), None)
 
@@ -167,17 +222,18 @@ class Game:
             if computer_card.suit == self.trump_suit and player_card.suit != self.trump_suit:
                 return "computer"
 
-            # If both cards have the same suit, the higher rank wins.
+            # If both cards are the same suit, the higher rank wins.
             if player_card.suit == computer_card.suit:
                 player_rank = self.get_rank_value(player_card)
                 computer_rank = self.get_rank_value(computer_card)
                 return "player" if player_rank > computer_rank else "computer"
             else:
-                # Default rule for off-suit cards; adjust as needed.
+                # Default rule for off-suit cards (adjust as needed).
                 return "player"
         return "player"
 
     def get_rank_value(self, card):
+        """Returns the rank value of a card."""
         rank_order = {"2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "8": 8, "9": 9,
                       "10": 10, "J": 11, "Q": 12, "K": 13, "A": 14}
         return rank_order.get(card.rank, 0)
