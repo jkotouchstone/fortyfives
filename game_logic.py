@@ -8,6 +8,7 @@ class Card:
     def __str__(self):
         return f"{self.rank} of {self.suit}"
 
+
 class Deck:
     def __init__(self):
         suits = ["Hearts", "Diamonds", "Clubs", "Spades"]
@@ -18,6 +19,7 @@ class Deck:
     def deal(self, num_cards):
         return [self.cards.pop() for _ in range(num_cards)]
 
+
 class Game:
     def __init__(self):
         self.deck = Deck()
@@ -26,47 +28,50 @@ class Game:
             "computer": {"hand": [], "score": 0, "tricks": []}
         }
         self.dealer = "computer"
+        self.trump_suit = None
         self.current_bid = None
         self.leading_player = None
-        self.trump_suit = None
         self.bidding_active = True
         self.trick_play_active = False
         self.kitty = []
         self.current_trick = []
 
     def deal_hands(self):
+        """Deals hands to both players and the kitty."""
         self.players["player"]["hand"] = self.deck.deal(5)
         self.players["computer"]["hand"] = self.deck.deal(5)
         self.kitty = self.deck.deal(3)
 
     def get_state(self):
-    state = {
-        "your_cards": [{"name": str(card), "img": self.get_card_image(card)} for card in self.players["player"]["hand"]],
-        "computer_count": len(self.players["computer"]["hand"]),
-        "kitty_count": len(self.kitty),
-        "total_your": self.players["player"]["score"],
-        "total_comp": self.players["computer"]["score"],
-        "trump_suit": self.trump_suit,
-        "leading_player": self.leading_player,
-        "bidding_active": self.bidding_active,
-        "trick_play_active": self.trick_play_active,
-        "card_back": "https://deckofcardsapi.com/static/img/back.png"
-    }
+        """Returns the current game state."""
+        state = {
+            "your_cards": [{"name": str(card), "img": self.get_card_image(card)} for card in self.players["player"]["hand"]],
+            "computer_count": len(self.players["computer"]["hand"]),
+            "kitty_count": len(self.kitty),
+            "total_your": self.players["player"]["score"],
+            "total_comp": self.players["computer"]["score"],
+            "trump_suit": self.trump_suit,
+            "leading_player": self.leading_player,
+            "bidding_active": self.bidding_active,
+            "trick_play_active": self.trick_play_active,
+            "card_back": "https://deckofcardsapi.com/static/img/back.png"
+        }
 
-    # Log the state to help with debugging
-    print("DEBUG: Game State:", state)
-    return state
-
+        print("DEBUG: Game State:", state)  # Debugging output
+        return state
 
     def get_card_image(self, card):
+        """Generates the URL for a card's image based on its rank and suit."""
         rank_code = "0" if card.rank == "10" else card.rank[0]
         suit_code = card.suit[0].upper()
         return f"https://deckofcardsapi.com/static/img/{rank_code}{suit_code}.png"
 
     def is_bidding_active(self):
+        """Checks if the bidding phase is still active."""
         return self.bidding_active
 
     def process_bid(self, player, bid_val):
+        """Processes a player's bid."""
         if self.bidding_active:
             if player == "player":
                 if bid_val == 0:
@@ -90,13 +95,16 @@ class Game:
         return "Bidding phase has ended."
 
     def computer_selects_trump(self):
+        """Allows the computer to select a trump suit."""
         self.trump_suit = random.choice(["Hearts", "Diamonds", "Clubs", "Spades"])
         print(f"Computer selected {self.trump_suit} as trump.")
 
     def is_card_play_allowed(self):
+        """Checks if it's valid to play a card during trick play."""
         return not self.bidding_active and self.trick_play_active
 
     def play_card(self, player, card_name):
+        """Handles a player playing a card."""
         if not self.trick_play_active:
             return {"message": "Trick play is not active."}
 
@@ -117,6 +125,7 @@ class Game:
             return {"message": f"{player.capitalize()} played {card}."}
 
     def determine_trick_winner(self):
+        """Determines the winner of the current trick."""
         player_card = next((entry for entry in self.current_trick if entry["player"] == "player"), None)
         computer_card = next((entry for entry in self.current_trick if entry["player"] == "computer"), None)
 
@@ -134,6 +143,7 @@ class Game:
         return "player"
 
     def get_rank_value(self, card):
+        """Returns the rank value of a card."""
         rank_order = {"2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "8": 8, "9": 9,
                       "10": 10, "J": 11, "Q": 12, "K": 13, "A": 14}
         return rank_order.get(card.rank, 0)
