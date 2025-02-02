@@ -2,117 +2,52 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>45s Card Game – Bidding, Trump, & Trick Play</title>
+  <title>45s Card Game – Complete Flow Demo</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    /* Basic Page Styles */
+    /* Basic styling for layout and cards */
     body {
       font-family: Arial, sans-serif;
-      background: #f5f5f5;
+      background: #eee;
       margin: 0;
       padding: 20px;
       text-align: center;
     }
     .container {
       max-width: 900px;
-      margin: 0 auto;
+      margin: auto;
       background: #fff;
       padding: 20px;
       border-radius: 8px;
       box-shadow: 0 0 10px rgba(0,0,0,0.1);
     }
     .hidden { display: none; }
-
-    /* Logo Section */
+    .section { margin: 20px 0; }
+    button { padding: 10px 20px; font-size: 16px; margin: 5px; cursor: pointer; }
+    
+    /* Card styles */
+    .card {
+      width: 60px;
+      height: 90px;
+      border: 1px solid #333;
+      border-radius: 5px;
+      display: inline-block;
+      line-height: 90px;
+      font-size: 20px;
+      margin: 5px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .card.selected { background: #ffeb3b; }
+    
+    /* Logo styles */
     .logo {
       position: relative;
       display: inline-block;
       margin-bottom: 20px;
     }
-    .logo-main {
-      font-size: 48px;
-      font-weight: bold;
-      position: relative;
-      z-index: 2;
-    }
-    .logo-sub {
-      font-size: 24px;
-      position: absolute;
-      top: 0;
-      left: 35px;
-      z-index: 1;
-    }
-
-    /* General Section & Button Styles */
-    .section {
-      margin: 20px 0;
-    }
-    .section button {
-      padding: 10px 20px;
-      font-size: 16px;
-      margin: 5px;
-      cursor: pointer;
-    }
-    .hand-label {
-      font-size: 20px;
-      margin-bottom: 10px;
-    }
-    .result {
-      font-size: 20px;
-      margin-top: 20px;
-      font-weight: bold;
-    }
-
-    /* Card & Hand Styles */
-    .cards-container {
-      display: flex;
-      justify-content: center;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-    .card {
-      width: 60px;
-      height: 90px;
-      line-height: 90px;
-      border: 1px solid #333;
-      border-radius: 5px;
-      background: #fff;
-      font-size: 20px;
-      cursor: pointer;
-      user-select: none;
-      position: relative;
-    }
-    .card.selected {
-      background-color: #ffeb3b;
-      border-color: #fbc02d;
-    }
-    .dealer-button {
-      font-size: 16px;
-      font-weight: bold;
-      background: #fff;
-      padding: 5px 10px;
-      border: 1px solid #333;
-      border-radius: 5px;
-      display: inline-block;
-      margin-left: 10px;
-    }
-
-    /* Trick Play Specific */
-    .trick-area { margin: 20px 0; }
-    .trick-cards {
-      display: flex;
-      justify-content: center;
-      gap: 20px;
-    }
-    .trick-card {
-      width: 60px;
-      height: 90px;
-      line-height: 90px;
-      border: 1px solid #333;
-      border-radius: 5px;
-      background: #fff;
-      font-size: 20px;
-    }
+    .logo-main { font-size: 48px; font-weight: bold; position: relative; z-index: 2; }
+    .logo-sub { font-size: 24px; position: absolute; top: 0; left: 35px; z-index: 1; }
   </style>
 </head>
 <body>
@@ -122,64 +57,57 @@
       <span class="logo-main">45</span>
       <span class="logo-sub">s</span>
     </div>
-
+    
     <!-- Deal Phase -->
     <div id="deal-section" class="section">
       <button id="deal-button">Deal Cards</button>
     </div>
-
-    <!-- Bidding Section -->
+    
+    <!-- Bidding Phase -->
     <div id="bidding-section" class="section hidden">
-      <div class="hand-label">Bidding Phase</div>
-      <div>
-        Your Bid: <input type="number" id="player-bid" min="0" max="100" value="0">
-        <button id="place-bid">Place Bid</button>
-      </div>
+      <div>Bidding Phase</div>
+      Your Bid: <input type="number" id="player-bid" value="0" min="0" max="100">
+      <button id="place-bid">Place Bid</button>
       <div id="competitor-bid-display"></div>
     </div>
-
-    <!-- Trump Selection Section -->
+    
+    <!-- Trump Selection Phase -->
     <div id="trump-section" class="section hidden">
-      <div class="hand-label">Select Trump Suit</div>
+      <div>Select Trump Suit</div>
       <button class="trump-button" data-suit="♠">♠</button>
       <button class="trump-button" data-suit="♥">♥</button>
       <button class="trump-button" data-suit="♦">♦</button>
       <button class="trump-button" data-suit="♣">♣</button>
     </div>
-
-    <!-- Kitty Awarding / Discard Section -->
+    
+    <!-- Kitty Award / Discard Phase -->
     <div id="kitty-section" class="section hidden">
-      <div class="hand-label">Kitty Awarded (Select cards to discard until you have 5 cards)</div>
-      <div id="kitty-cards" class="cards-container">
-        <!-- (For demo purposes the kitty cards are not selectable) -->
-      </div>
-      <div>Your Hand (with kitty added):</div>
-      <div id="winner-hand" class="cards-container"></div>
+      <div>Kitty Awarded: (Select cards to discard until you have 5 cards)</div>
+      <div id="kitty-cards"></div>
+      <div>Your Hand with Kitty:</div>
+      <div id="winner-hand"></div>
       <button id="discard-from-winner">Discard Selected Cards</button>
     </div>
-
-    <!-- Trick Play Section -->
+    
+    <!-- Trick Play Phase -->
     <div id="trick-section" class="section hidden">
-      <div class="hand-label">Trick Play</div>
+      <div>Trick Play</div>
       <div id="trick-info"></div>
-      <div class="trick-area">
-        <div class="trick-cards" id="trick-cards">
-          <!-- Cards played in the current trick -->
-        </div>
-      </div>
       <div>Your Hand:</div>
-      <div id="player-hand-trick" class="cards-container"></div>
+      <div id="player-hand-trick"></div>
+      <div>Current Trick:</div>
+      <div id="trick-cards"></div>
     </div>
-
-    <!-- Result Display & Play Again -->
-    <div class="result" id="result-display"></div>
+    
+    <!-- Result and Replay -->
+    <div id="result-display" class="section"></div>
     <div class="section">
       <button id="play-again" class="hidden">Play Again</button>
     </div>
   </div>
-
+  
   <script>
-    /* --- Game State Variables & Phases --- */
+    /***** State Variables & Constants *****/
     // Phases: "deal", "bidding", "trump", "kitty", "trick", "finished"
     let gamePhase = "deal";
     let deck = [];
@@ -190,16 +118,15 @@
     let playerBid = 0;
     let competitorBid = 0;
     let bidWinner = null; // "player" or "competitor"
-    let currentLeader = null; // Who leads the trick ("player" or "competitor")
-    let trickCards = [];     // Cards played in the current trick
+    let trickCards = [];
     let playerTricks = 0;
     let competitorTricks = 0;
-    let trickTurn = null;    // Whose turn in trick play ("player" or "competitor")
-
+    let trickTurn = null; // "player" or "competitor"
+    
     const suits = ['♠', '♥', '♦', '♣'];
-    const ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
-
-    /* --- Utility Functions --- */
+    const ranks = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+    
+    /***** Utility Functions *****/
     function createDeck() {
       let newDeck = [];
       for (let suit of suits) {
@@ -213,15 +140,15 @@
       }
       return newDeck;
     }
-    function shuffle(array) {
-      for (let i = array.length - 1; i > 0; i--) {
+    function shuffle(arr) {
+      for (let i = arr.length - 1; i > 0; i--) {
         let j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
+        [arr[i], arr[j]] = [arr[j], arr[i]];
       }
     }
-
-    /* --- Phase 1: Deal Cards --- */
-    // Deal 5 cards to player and competitor, and 4 cards to the kitty.
+    
+    /***** Phase 1: Deal Cards *****/
+    // Deal 5 cards to player and competitor, plus 4 cards to the kitty.
     function dealCards() {
       deck = createDeck();
       shuffle(deck);
@@ -238,9 +165,8 @@
       gamePhase = "bidding";
       updateSections();
     }
-
-    /* --- Phase 2: Bidding --- */
-    // Player enters a bid; competitor’s bid is randomly simulated.
+    
+    /***** Phase 2: Bidding *****/
     function placeBid() {
       playerBid = parseInt(document.getElementById('player-bid').value) || 0;
       competitorBid = Math.floor(Math.random() * 100);
@@ -249,29 +175,28 @@
       gamePhase = "trump";
       updateSections();
     }
-
-    /* --- Phase 3: Trump Selection --- */
-    // The winning bidder selects a trump suit.
+    
+    /***** Phase 3: Trump Selection *****/
     function selectTrump(suit) {
       trumpSuit = suit;
       gamePhase = "kitty";
       updateSections();
       if (bidWinner === "player") {
-        // If you won the bid, add the kitty to your hand for discarding.
+        // Winner (player) gets kitty added to hand and chooses discards.
         playerHand = playerHand.concat(kitty);
         updateWinnerHand();
       } else {
-        // If competitor won, simulate adding the kitty and auto-discarding.
+        // Competitor wins bid: add kitty and auto-discard extra cards.
         competitorHand = competitorHand.concat(kitty);
         autoDiscardCompetitor();
       }
     }
-
-    /* --- Phase 4: Kitty Awarding / Discard --- */
-    // For the winning bidder (player), allow selection of cards to discard until only 5 remain.
+    
+    /***** Phase 4: Kitty Award / Discard *****/
+    // For the winning bidder (player) to discard extra cards.
     function updateWinnerHand() {
-      const winnerHandDiv = document.getElementById('winner-hand');
-      winnerHandDiv.innerHTML = "";
+      const winnerDiv = document.getElementById('winner-hand');
+      winnerDiv.innerHTML = "";
       playerHand.forEach((card, index) => {
         const cardDiv = document.createElement('div');
         cardDiv.className = 'card';
@@ -280,19 +205,18 @@
         cardDiv.addEventListener('click', () => {
           cardDiv.classList.toggle('selected');
         });
-        winnerHandDiv.appendChild(cardDiv);
+        winnerDiv.appendChild(cardDiv);
       });
     }
-    // When player clicks "Discard Selected Cards"
     function discardFromWinner() {
-      const winnerHandDiv = document.getElementById('winner-hand');
+      const winnerDiv = document.getElementById('winner-hand');
       let selectedIndices = [];
-      winnerHandDiv.childNodes.forEach((cardDiv, index) => {
-        if (cardDiv.classList.contains('selected')) {
+      winnerDiv.childNodes.forEach((div, index) => {
+        if (div.classList.contains('selected')) {
           selectedIndices.push(index);
         }
       });
-      // Remove selected cards (start from the highest index)
+      // Remove selected cards (remove highest index first)
       selectedIndices.sort((a, b) => b - a);
       selectedIndices.forEach(idx => {
         playerHand.splice(idx, 1);
@@ -301,7 +225,7 @@
       while (playerHand.length > 5) { playerHand.pop(); }
       startTrickPlay();
     }
-    // For competitor, auto-discard extra cards to reduce hand to 5.
+    // Auto-discard extra cards for competitor.
     function autoDiscardCompetitor() {
       while (competitorHand.length > 5) {
         let idx = Math.floor(Math.random() * competitorHand.length);
@@ -309,28 +233,24 @@
       }
       startTrickPlay();
     }
-
-    /* --- Phase 5: Trick Play --- */
-    // Initialize trick play. The bid winner leads the first trick.
+    
+    /***** Phase 5: Trick Play *****/
+    // Initialize trick play; the bid winner leads the first trick.
     function startTrickPlay() {
       gamePhase = "trick";
-      currentLeader = bidWinner;
-      trickTurn = currentLeader;
+      trickTurn = bidWinner;
       updateTrickPlay();
       updateSections();
     }
-    // Render trick play UI.
     function updateTrickPlay() {
-      document.getElementById('trick-info').textContent = 
-        "Current Trick – " + (trickTurn === "player" ? "Your turn" : "Competitor's turn (leading: " + currentLeader + ")");
+      document.getElementById('trick-info').textContent = "Trick Turn: " + trickTurn;
       updatePlayerTrickHand();
       updateTrickCardsUI();
-      // If competitor is to lead and no card has been played in this trick, auto-play competitor's card.
+      // If competitor is to lead with no card played yet, auto-play.
       if (gamePhase === "trick" && trickTurn === "competitor" && trickCards.length === 0) {
         setTimeout(competitorPlayCard, 1000);
       }
     }
-    // Update the player's hand (for trick play) UI.
     function updatePlayerTrickHand() {
       const handDiv = document.getElementById('player-hand-trick');
       handDiv.innerHTML = "";
@@ -347,7 +267,6 @@
         handDiv.appendChild(cardDiv);
       });
     }
-    // When the player clicks on a card during trick play.
     function playPlayerCard(index) {
       if (trickTurn !== "player") return;
       const card = playerHand.splice(index, 1)[0];
@@ -356,7 +275,6 @@
       trickTurn = "competitor";
       setTimeout(competitorPlayCard, 1000);
     }
-    // Competitor auto-plays a card.
     function competitorPlayCard() {
       if (trickTurn !== "competitor") return;
       const idx = Math.floor(Math.random() * competitorHand.length);
@@ -365,73 +283,66 @@
       updateTrickCardsUI();
       setTimeout(evaluateTrick, 1000);
     }
-    // Update UI to show cards played in the current trick.
     function updateTrickCardsUI() {
       const trickDiv = document.getElementById('trick-cards');
       trickDiv.innerHTML = "";
       trickCards.forEach(entry => {
-        const cardDiv = document.createElement('div');
-        cardDiv.className = 'trick-card';
-        cardDiv.textContent = entry.card.rank + entry.card.suit;
-        trickDiv.appendChild(cardDiv);
+        const div = document.createElement('div');
+        div.className = 'card';
+        div.textContent = entry.card.rank + entry.card.suit;
+        trickDiv.appendChild(div);
       });
     }
-    // Evaluate the trick winner using simple rules:
-    // – If any trump is played, the highest trump wins.
-    // – Otherwise, the highest card of the lead suit wins.
+    // Simple trick evaluation: highest trump wins, or highest card of the lead suit.
     function evaluateTrick() {
       if (trickCards.length < 2) return;
       const leadSuit = trickCards[0].card.suit;
-      let winningEntry = trickCards[0];
+      let winning = trickCards[0];
       trickCards.forEach(entry => {
-        // Check for trump cards.
         if (entry.card.suit === trumpSuit) {
-          if (winningEntry.card.suit !== trumpSuit || entry.card.value > winningEntry.card.value) {
-            winningEntry = entry;
+          if (winning.card.suit !== trumpSuit || entry.card.value > winning.card.value) {
+            winning = entry;
           }
-        } else if (entry.card.suit === leadSuit && winningEntry.card.suit === leadSuit && entry.card.value > winningEntry.card.value) {
-          winningEntry = entry;
+        } else if (entry.card.suit === leadSuit && winning.card.suit === leadSuit && entry.card.value > winning.card.value) {
+          winning = entry;
         }
       });
-      if (winningEntry.player === "player") {
+      if (winning.player === "player") {
         playerTricks++;
       } else {
         competitorTricks++;
       }
-      // Set the winner as the next trick leader.
-      currentLeader = winningEntry.player;
-      trickTurn = currentLeader;
       trickCards = [];
-      // If both hands are empty, end the hand.
       if (playerHand.length === 0 && competitorHand.length === 0) {
         endHand();
       } else {
+        trickTurn = winning.player;
         updateTrickPlay();
       }
     }
-    // End-of-hand processing.
     function endHand() {
       gamePhase = "finished";
-      let resultText = "Tricks Won – You: " + playerTricks + ", Competitor: " + competitorTricks;
+      let result = "You won " + playerTricks + " tricks. Competitor won " + competitorTricks + " tricks.";
       if (playerTricks > competitorTricks) {
-        resultText += ". You win the hand!";
+        result += " You win the hand!";
       } else if (playerTricks < competitorTricks) {
-        resultText += ". Competitor wins the hand!";
+        result += " Competitor wins the hand!";
       } else {
-        resultText += ". It's a tie!";
+        result += " It's a tie!";
       }
-      document.getElementById('result-display').textContent = resultText;
+      document.getElementById('result-display').textContent = result;
       document.getElementById('play-again').classList.remove('hidden');
     }
-
-    /* --- Section Visibility Based on Game Phase --- */
+    
+    /***** Section Visibility Control *****/
     function updateSections() {
-      // Hide all optional sections.
+      // Hide all sections first.
       document.getElementById('deal-section').classList.add('hidden');
       document.getElementById('bidding-section').classList.add('hidden');
       document.getElementById('trump-section').classList.add('hidden');
       document.getElementById('kitty-section').classList.add('hidden');
       document.getElementById('trick-section').classList.add('hidden');
+      // Show the section for the current phase.
       if (gamePhase === "deal") {
         document.getElementById('deal-section').classList.remove('hidden');
       } else if (gamePhase === "bidding") {
@@ -444,12 +355,12 @@
         document.getElementById('trick-section').classList.remove('hidden');
       }
     }
-
-    /* --- Event Listeners --- */
+    
+    /***** Event Listeners *****/
     document.getElementById('deal-button').addEventListener('click', dealCards);
     document.getElementById('place-bid').addEventListener('click', placeBid);
-    document.querySelectorAll('.trump-button').forEach(button => {
-      button.addEventListener('click', () => selectTrump(button.dataset.suit));
+    document.querySelectorAll('.trump-button').forEach(btn => {
+      btn.addEventListener('click', () => selectTrump(btn.dataset.suit));
     });
     document.getElementById('discard-from-winner').addEventListener('click', discardFromWinner);
     document.getElementById('play-again').addEventListener('click', () => {
@@ -461,7 +372,6 @@
       playerBid = 0;
       competitorBid = 0;
       bidWinner = null;
-      currentLeader = null;
       trickCards = [];
       document.getElementById('result-display').textContent = "";
       document.getElementById('play-again').classList.add('hidden');
