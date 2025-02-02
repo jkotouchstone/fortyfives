@@ -34,30 +34,6 @@
       gap: 10px;
     }
 
-    #playerHand, #compHand, #trickArea {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-
-    #playerHand {
-      grid-area: player-hand;
-    }
-
-    #compHand {
-      grid-area: computer-hand;
-    }
-
-    #trickArea {
-      grid-area: trick-area;
-      border: 2px dashed white;
-      border-radius: 10px;
-      text-align: center;
-      padding: 10px;
-    }
-
     #scoreboard {
       grid-area: scoreboard;
       border: 2px solid white;
@@ -71,7 +47,6 @@
       border-radius: 10px;
       padding: 10px;
       overflow-y: auto;
-      height: 100%;
     }
 
     .card {
@@ -81,11 +56,6 @@
       border-radius: 5px;
       box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
       cursor: pointer;
-      transition: transform 0.2s;
-    }
-
-    .card:hover {
-      transform: scale(1.1);
     }
 
     button {
@@ -115,15 +85,66 @@
       line-height: 70px;
       box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
       position: absolute;
+      right: 10px;
     }
 
-    #biddingSection {
-      margin-top: 20px;
+    #customLogo {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      font-weight: bold;
+      color: white;
+      font-size: 32px;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+    }
+
+    #customLogo .number {
+      font-size: 40px;
+      margin-right: -12px;
+    }
+
+    #customLogo .letter {
+      font-size: 24px;
+      position: relative;
+      top: -10px;
+    }
+
+    #playerHand, #compHand, #trickArea {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    #playerHand {
+      grid-area: player-hand;
+    }
+
+    #compHand {
+      grid-area: computer-hand;
+    }
+
+    #trickArea {
+      grid-area: trick-area;
+      border: 2px dashed white;
+      border-radius: 10px;
+      text-align: center;
+      padding: 10px;
     }
   </style>
 </head>
 <body>
-  <h1>Forty-Fives Card Game</h1>
+  <!-- Custom Logo -->
+  <div id="customLogo">
+    <span class="number">4</span>
+    <span class="number">5</span>
+    <span class="letter">'s</span>
+  </div>
+
+  <!-- Game Table -->
   <div id="gameTable">
     <div id="scoreboard">
       <h3>Scoreboard</h3>
@@ -142,6 +163,8 @@
     </div>
   </div>
 
+  <div id="dealerButton">DEALER</div>
+
   <div id="biddingSection">
     <button onclick="placeBid(15)">Bid 15</button>
     <button onclick="placeBid(20)">Bid 20</button>
@@ -149,8 +172,6 @@
     <button onclick="placeBid(30)">Bid 30</button>
     <button onclick="placeBid(0)">Pass</button>
   </div>
-
-  <div id="dealerButton">DEALER</div>
 
   <script>
     let gameState = {};
@@ -198,10 +219,6 @@
             compHand.appendChild(img);
           }
 
-          // Update dealer button
-          updateDealer(data.leading_player);
-
-          // Update scoreboard
           document.getElementById("playerScore").textContent = `Player: ${data.total_your}`;
           document.getElementById("computerScore").textContent = `Computer: ${data.total_comp}`;
         })
@@ -220,31 +237,6 @@
           showState();
         })
         .catch(err => console.error("Error playing card:", err));
-    }
-
-    function placeBid(bidValue) {
-      fetch('/bid', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bid_value: bidValue })
-      })
-        .then(res => res.json())
-        .then(data => {
-          log(data.message);
-          showState();
-        })
-        .catch(err => console.error("Error placing bid:", err));
-    }
-
-    function updateDealer(leadingPlayer) {
-      const dealerButton = document.getElementById("dealerButton");
-      if (leadingPlayer === "player") {
-        dealerButton.style.top = "auto";
-        dealerButton.style.bottom = "20px";
-      } else {
-        dealerButton.style.top = "20px";
-        dealerButton.style.bottom = "auto";
-      }
     }
 
     window.onload = startGame;
