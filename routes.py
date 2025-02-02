@@ -1,10 +1,10 @@
 from flask import Blueprint, request, jsonify, render_template
 from game_logic import Game
 
-# Create a Blueprint for your game routes.
+# Create a blueprint for the Forty-Fives game
 fortyfives_bp = Blueprint('fortyfives', __name__)
 
-# Create a single instance of the game.
+# Create a single instance of the game
 game = Game()
 
 @fortyfives_bp.route('/')
@@ -18,8 +18,7 @@ def new_game():
 
 @fortyfives_bp.route('/show_state', methods=['GET'])
 def show_state():
-    state = game.get_state()
-    return jsonify(state)
+    return jsonify(game.get_state())
 
 @fortyfives_bp.route('/bid', methods=['POST'])
 def bid():
