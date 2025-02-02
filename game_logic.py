@@ -68,27 +68,34 @@ class Game:
         return f"https://deckofcardsapi.com/static/img/{rank_code}{suit_code}.png"
 
     def process_bid(self, player, bid_val):
-        """Processes a player's or computer's bid."""
-        if not self.bidding_active:
-            return "Bidding is not active."
+    """Processes bidding. Moves to the next phase once bidding concludes."""
+    if not self.bidding_active:
+        return "Bidding is not active."
 
-        if player == "player":
-            if self.current_bid is None or bid_val > self.current_bid:
-                self.current_bid = bid_val
-                return f"You bid {bid_val}. Waiting for computer's response."
-            else:
-                return "You cannot bid lower than the current bid."
+    if player == "player":
+        # Player can either pass or bid higher than the current bid
+        if bid_val == 0:
+            self.bidding_active = False
+            self.leading_player = "computer"
+            self.computer_selects_trump()
+            return "You passed. Computer wins the bid and selects trump."
+        elif self.current_bid is None or bid_val > self.current_bid:
+            self.current_bid = bid_val
+            return f"You bid {bid_val}. Waiting for computer's response."
+        else:
+            return "You cannot bid lower than the current bid."
 
-        elif player == "computer":
-            if self.current_bid is None or self.current_bid < 20:
-                self.current_bid = 20
-                self.bidding_active = False
-                self.trump_suit = random.choice(["Hearts", "Diamonds", "Clubs", "Spades"])
-                self.start_discard_phase()
-                return f"Computer bids 20 and selects {self.trump_suit} as trump."
-            else:
-                self.bidding_active = False
-                return "Computer passes. You win the bid."
+    elif player == "computer":
+        # Computer decides whether to bid or pass based on a simple strategy
+        if self.current_bid is None or self.current_bid < 20:
+            self.current_bid = 20
+            self.bidding_active = False
+            self.trump_suit = random.choice(["Hearts", "Diamonds", "Clubs", "Spades"])
+            self.start_discard_phase()
+            return f"Computer bids 20 and selects {self.trump_suit} as trump."
+        else:
+            self.bidding_active = False
+            return "Computer passes. You win the bid. Select a trump suit."
 
     def start_discard_phase(self):
         """Begins the discard phase after bidding."""
