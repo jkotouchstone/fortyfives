@@ -40,12 +40,13 @@ def show_state():
         "bidder": bidderName,
         "bidding_done": current_game.bidding_done,
         "trump_suit": current_game.trump_suit,
-        "game_over": current_game.game_over
+        "game_over": current_game.game_over,
+        "leading_player": current_game.leading_player
     }
     return jsonify(state)
 
 @fortyfives_bp.route('/user_bid', methods=['POST'])
-def user_bid():
+def user_bid_route():
     global current_game
     data = request.get_json() or {}
     bid_val = data.get("bid_val", 0)
@@ -71,9 +72,37 @@ def comp_discard():
 def user_discard():
     global current_game
     data = request.get_json() or {}
-    discList = data.get("discards", [])
-    count = current_game.discard_user(discList)
+    disc_list = data.get("discards", [])
+    count = current_game.discard_user(disc_list)
     return jsonify({"message": f"You discarded {count} card(s) and drew {count} new card(s)."} )
 
-# (Additional routes for trick play would go here.)
+@fortyfives_bp.route('/both_discard_done', methods=['POST'])
+def both_discard_done():
+    global current_game
+    current_game.both_discard_done_check()
+    lead = current_game.leading_player
+    leadName = current_game.players[lead].name if lead is not None else "None"
+    return jsonify({"message": f"Both discards done. {leadName} leads the first trick."})
 
+# Routes for trick play:
+@fortyfives_bp.route('/play_card_user_lead', methods=['POST'])
+def play_card_user_lead():
+    global current_game
+    data = request.get_json() or {}
+    card_name = data.get("card_name")
+    msg = current_game.play_trick_user_lead(card_name)
+    return jsonify({"message": msg})
+
+@fortyfives_bp.route('/comp_lead_trick', methods=['POST'])
+def comp_lead_trick():
+    global current_game
+    msg = current_game.comp_lead_trick()
+    return jsonify({"message": msg})
+
+@fortyfives_bp.route('/respond_comp_lead', methods=['POST'])
+def respond_comp_lead():
+    global current_game
+    data = request.get_json() or {}
+    card_name = data.get("card_name")
+    msg = current_game.respond_to_comp_lead(card_name)
+    return jsonify({"message": msg})
