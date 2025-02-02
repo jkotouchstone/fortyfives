@@ -1,10 +1,14 @@
+# app.py
+
 from flask import Flask
+from routes import fortyfives_bp
 
-app = Flask(__name__)
+def create_app():
+    app = Flask(__name__)
+    # register blueprint
+    app.register_blueprint(fortyfives_bp, url_prefix='/')
+    return app
 
-@app.route("/")
-def index():
-    return "Hello from run.py"
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+if __name__=="__main__":
+    app = create_app()
+    app.run(host="0.0.0.0", port=5000, debug=True)
