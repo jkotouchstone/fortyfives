@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: 45s-card-game
+    name: fortyfives-game
     env: python
-    buildCommand: "pip install -r requirements.txt"
-    startCommand: "python app.py"
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app.py
