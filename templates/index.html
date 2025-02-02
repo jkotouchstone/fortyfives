@@ -2,17 +2,18 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Forty-Fives Without "New Game"</title>
+  <title>Forty-Fives Final (No 'New Game')</title>
   <style>
     body { margin:0; padding:0; background:darkgreen; font-family:sans-serif; color:white; }
-    /* Your CSS layout: scoreboard, kitty area, etc. */
+    #table { position:relative; width:100%; height:100vh; }
+    #progressLog { position:absolute; top:0; right:0; width:250px; max-height:200px; overflow-y:auto; background:rgba(0,0,0,0.3); padding:8px; }
+    /* scoreboard, your hand area, comp area, kitty area, etc. styling here */
   </style>
 </head>
 <body>
 <div id="table">
   <div id="progressLog"></div>
-  <!-- scoreboard, your hand, comp hand, kitty, etc. -->
-  <!-- Notice there's NO 'New Game' button -->
+  <!-- scoreboard, your hand, comp hand, kitty, etc. --> 
 </div>
 
 <script>
@@ -21,28 +22,25 @@ function showState(){
    .then(r=>r.json())
    .then(d=>{
      console.log(d);
-     // Update UI with the data from 'd'
-     // e.g. d.your_cards => array of {name, img}
-     // d.computer_count => number of cards in computer's hand
-     // d.deck_count => how many remain in the deck
-     // etc.
+     // update your UI: show user cards, comp card count, scoreboard, etc.
    });
 }
 
+// Example: user wants to bid 15
 function userBid(bVal){
   fetch('/user_bid',{
     method:'POST',
     headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({bid_val: bVal})
+    body: JSON.stringify({bid_val:bVal})
   })
    .then(r=>r.json())
-   .then(resp=>{
-     console.log(resp.message);
+   .then(d=>{
+     console.log(d.message);
      showState();
    });
 }
 
-// etc. for user discarding, picking trump, etc.
+// etc. for comp_discard, user_discard, pick_trump, etc.
 
 window.onload=()=> showState();
 </script>
