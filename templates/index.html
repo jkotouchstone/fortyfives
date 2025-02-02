@@ -7,37 +7,38 @@
     body {
       margin: 0;
       padding: 0;
-      background-color: #006400; /* Green felt table background */
+      background-color: #006400;
       font-family: 'Arial', sans-serif;
       color: white;
-      overflow: hidden;
-      height: 100vh;
       display: flex;
       justify-content: center;
       align-items: center;
+      height: 100vh;
+      overflow: hidden;
     }
 
     #gameTable {
       width: 80%;
-      height: 80%;
-      border: 5px solid #222;
+      height: 90%;
+      border: 5px solid #333;
       border-radius: 15px;
       background-color: #004d00;
       display: grid;
       grid-template-areas:
-        "computer-hand computer-hand computer-hand"
-        "trick-area trick-area trick-area"
-        "player-hand player-hand player-hand";
+        "computer-hand"
+        "trick-area"
+        "player-hand";
       grid-template-rows: 1fr 1fr 1fr;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 10px;
       padding: 15px;
+      box-sizing: border-box;
     }
 
     #playerHand, #compHand, #trickArea {
       display: flex;
       justify-content: center;
       align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
     }
 
     #playerHand {
@@ -52,6 +53,7 @@
       grid-area: trick-area;
       border: 2px dashed white;
       border-radius: 10px;
+      text-align: center;
       padding: 10px;
     }
 
@@ -68,12 +70,29 @@
     .card:hover {
       transform: scale(1.1);
     }
+
+    button {
+      padding: 10px 15px;
+      margin-top: 10px;
+      border: none;
+      background-color: #ffcc00;
+      color: #000;
+      font-weight: bold;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #ffaa00;
+    }
   </style>
 </head>
 <body>
   <div id="gameTable">
     <div id="compHand">Computer's Hand</div>
-    <div id="trickArea">Center Trick Area</div>
+    <div id="trickArea">
+      <p id="trickPrompt">Waiting for the trick...</p>
+    </div>
     <div id="playerHand">Player's Hand</div>
   </div>
 
@@ -86,6 +105,8 @@
       fetch('/show_state')
         .then(res => res.json())
         .then(data => {
+          console.log("DEBUG: Game State:", data);
+
           // Update player's hand
           const playerHand = document.getElementById("playerHand");
           playerHand.innerHTML = "";
@@ -108,15 +129,16 @@
             compHand.appendChild(img);
           }
 
-          // Display a message in the trick area
-          const trickArea = document.getElementById("trickArea");
-          trickArea.textContent = data.trick_play_active
+          // Update trick information
+          const trickPrompt = document.getElementById("trickPrompt");
+          trickPrompt.textContent = data.trick_play_active
             ? "Play your card in the trick!"
             : "Waiting for next trick...";
         })
         .catch(err => console.error("Error fetching game state:", err));
     }
 
+    // Refresh the game state on page load
     window.onload = showState;
   </script>
 </body>
