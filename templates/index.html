@@ -3,29 +3,91 @@
 <head>
   <title>Forty-Fives Game</title>
   <style>
-    body { background: darkgreen; color: white; font-family: sans-serif; margin: 0; padding: 20px; }
-    #table { max-width: 800px; margin: auto; }
-    .card { width: 80px; margin: 5px; }
-    #progressLog { background: rgba(0,0,0,0.3); padding: 10px; margin-bottom: 20px; max-height: 150px; overflow-y: auto; }
+    body {
+      margin: 0;
+      padding: 0;
+      background: darkgreen;
+      font-family: sans-serif;
+      color: white;
+    }
+    #table {
+      max-width: 900px;
+      margin: auto;
+      padding: 20px;
+    }
+    #progressLog {
+      background: rgba(0,0,0,0.3);
+      padding: 10px;
+      max-height: 150px;
+      overflow-y: auto;
+      margin-bottom: 20px;
+    }
+    #playerHand, #compHand, #kittyArea {
+      margin-bottom: 20px;
+    }
+    .card {
+      width: 80px;
+      margin: 5px;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+    .selected {
+      outline: 2px solid yellow;
+    }
+    button {
+      margin: 5px;
+      padding: 5px 10px;
+      border: none;
+      border-radius: 4px;
+      background: #555;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #666;
+    }
+    #scoreboard {
+      background: rgba(255,255,255,0.8);
+      color: black;
+      padding: 10px;
+      border-radius: 5px;
+      margin-bottom: 20px;
+    }
+    #biddingControls {
+      margin-bottom: 20px;
+    }
   </style>
 </head>
 <body>
 <div id="table">
-  <h1>Forty-Fives Game</h1>
+  <h1>Forty-Fives</h1>
+  <div id="scoreboard">
+    <div id="scoreInfo"></div>
+  </div>
   <div id="progressLog"></div>
-  <div>
+
+  <div id="compArea">
+    <h2>Computer's Hand</h2>
+    <div id="compHand"></div>
+  </div>
+
+  <div id="centerArea">
+    <h2>Current Trick</h2>
+    <div id="trickArea"></div>
+    <div id="trumpIcon"></div>
+  </div>
+
+  <div id="playerArea">
     <h2>Your Hand</h2>
     <div id="playerHand"></div>
   </div>
-  <div>
-    <h2>Computer's Hand Count</h2>
-    <div id="compHand"></div>
+
+  <div id="kittyArea">
+    <h2>Kitty</h2>
+    <div id="kittyStack"></div>
   </div>
-  <div>
-    <h2>Game State</h2>
-    <pre id="gameState"></pre>
-  </div>
-  <div>
+
+  <div id="biddingControls">
     <h2>Bidding</h2>
     <button onclick="userBid(15)">Bid 15</button>
     <button onclick="userBid(0)">Pass (0)</button>
@@ -46,18 +108,63 @@ function showState(){
     .then(res => res.json())
     .then(data => {
       console.log(data);
-      document.getElementById("gameState").textContent = JSON.stringify(data, null, 2);
-      // Display user's hand
-      let playerHandDiv = document.getElementById("playerHand");
-      playerHandDiv.innerHTML = "";
+      // Update scoreboard:
+      document.getElementById("scoreInfo").textContent = 
+        `Your Score: ${data.total_your} | Computer Score: ${data.total_comp}`;
+      // Update player's hand:
+      let ph = document.getElementById("playerHand");
+      ph.innerHTML = "";
       data.your_cards.forEach(card => {
          let img = document.createElement("img");
          img.src = card.img;
          img.className = "card";
-         playerHandDiv.appendChild(img);
+         // You can add onclick behavior for discarding or playing
+         img.onclick = () => { console.log("You clicked", card.name); };
+         ph.appendChild(img);
       });
-      // Display computer's hand count
-      document.getElementById("compHand").textContent = data.computer_count;
+      // Update computer's hand (display card backs):
+      let ch = document.getElementById("compHand");
+      ch.innerHTML = "";
+      for(let i=0; i<data.computer_count; i++){
+         let img = document.createElement("img");
+         img.src = data.card_back;
+         img.className = "card";
+         ch.appendChild(img);
+      }
+      // Update kitty:
+      let ks = document.getElementById("kittyStack");
+      ks.innerHTML = "";
+      if(data.kitty_revealed) {
+          data.kitty.forEach((k, i) => {
+            let img = document.createElement("img");
+            img.src = k.img;
+            img.className = "card";
+            img.style.position = "absolute";
+            img.style.left = (i * 20) + "px";
+            ks.appendChild(img);
+          });
+      } else {
+          // show card backs
+          data.kitty.forEach((_, i) => {
+            let img = document.createElement("img");
+            img.src = data.card_back;
+            img.className = "card";
+            img.style.position = "absolute";
+            img.style.left = (i * 20) + "px";
+            ks.appendChild(img);
+          });
+      }
+      // Update current trick area:
+      let ct = document.getElementById("trickArea");
+      ct.innerHTML = "";
+      if(data.last_trick && data.last_trick.length > 0){
+         data.last_trick.forEach(item => {
+             let img = document.createElement("img");
+             img.src = item[2];
+             img.className = "card";
+             ct.appendChild(img);
+         });
+      }
     });
 }
 
@@ -67,11 +174,11 @@ function userBid(bidVal){
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify({bid_val: bidVal})
   })
-    .then(res => res.json())
-    .then(data => {
-      log(data.message);
-      showState();
-    });
+  .then(res => res.json())
+  .then(data => {
+    log(data.message);
+    showState();
+  });
 }
 
 window.onload = showState;
