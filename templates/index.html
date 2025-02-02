@@ -12,8 +12,7 @@
     }
     body {
       font-family: 'Helvetica Neue', sans-serif;
-      background: url('https://i.imgur.com/Ek8W9Ez.jpg'); /* example green felt background */
-      background-size: cover;
+      background-color: #0B6623; /* Felt-green background */
       color: #fff;
       display: flex;
       flex-direction: column;
@@ -51,8 +50,8 @@
     #scoreboard h3 {
       font-size: 1.2em;
     }
-    /* Hands and Trick Area Layout */
-    #compHand, #playerHand {
+    /* Hands, Kitty and Trick Area Layout */
+    #compHand, #playerHand, #kittyArea {
       display: flex;
       justify-content: center;
       align-items: center;
@@ -62,6 +61,9 @@
       border: 1px solid #e0e0e0;
       border-radius: 4px;
       background-color: rgba(255,255,255,0.8);
+    }
+    #kittyArea {
+      flex-direction: column;
     }
     #trickArea {
       text-align: center;
@@ -161,6 +163,11 @@
       <p>Computer's Hand</p>
     </div>
 
+    <div id="kittyArea">
+      <p>Kitty</p>
+      <!-- Kitty cards will be shown here as card backs if available -->
+    </div>
+
     <div id="trickArea">
       <p id="trickPrompt">Waiting for the trick...</p>
     </div>
@@ -237,10 +244,19 @@
             img.className = "card";
             compHand.appendChild(img);
           }
+          // Update kitty area if there are cards still in the kitty
+          const kittyArea = document.getElementById("kittyArea");
+          kittyArea.innerHTML = "<p>Kitty</p>";
+          if (data.kitty_count > 0) {
+            for (let i = 0; i < data.kitty_count; i++) {
+              const img = document.createElement("img");
+              img.src = data.card_back;
+              img.className = "card";
+              kittyArea.appendChild(img);
+            }
+          }
           document.getElementById("playerScore").textContent = `Player: ${data.total_your}`;
           document.getElementById("computerScore").textContent = `Computer: ${data.total_comp}`;
-
-          // If the phase is trump selection, show the trump selection UI.
           if (data.phase === "trump_selection") {
             showTrumpSelection();
           } else {
@@ -263,8 +279,6 @@
           log(data.message);
           if (data.next_phase === "trump_selection") {
             showTrumpSelection();
-          } else if (data.next_phase === "discard") {
-            showDiscardPhase();
           }
           showState();
         })
@@ -291,17 +305,9 @@
       .then(data => {
         log(data.message);
         hideTrumpSelection();
-        if (data.next_phase === "discard") {
-          showDiscardPhase();
-        }
         showState();
       })
       .catch(err => console.error("Error selecting trump:", err));
-    }
-
-    function showDiscardPhase() {
-      log("Discard cards if needed.");
-      // TODO: Implement UI for discarding cards.
     }
 
     function playCard(cardName) {
