@@ -2,329 +2,139 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Forty-Fives Card Game</title>
+  <title>Game UI Application</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    /* Reset and base styles */
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    body {
-      font-family: 'Helvetica Neue', sans-serif;
-      background-color: #0B6623; /* Felt-green background */
-      color: #fff;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 20px;
-    }
-    /* 45's logo in the top left */
-    #logo {
-      position: fixed;
-      top: 20px;
-      left: 20px;
-      width: 100px;
-    }
-    /* Main game container */
-    #gameTable {
-      width: 90%;
-      max-width: 1000px;
-      background: rgba(0, 128, 0, 0.8); /* semi-transparent green felt */
-      border-radius: 8px;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.5);
-      padding: 20px;
+    /* === Logo Section === */
+    .logo {
+      position: relative;
+      display: inline-block;
       margin-bottom: 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
     }
-    /* Scoreboard styling */
-    #scoreboard {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid #ccc;
-      padding-bottom: 10px;
+    .logo-main {
+      font-size: 48px;
+      font-weight: bold;
+      position: relative;
+      z-index: 2;
     }
-    #scoreboard h3 {
-      font-size: 1.2em;
+    .logo-sub {
+      font-size: 24px;
+      position: absolute;
+      top: 0;
+      left: 35px; /* Adjust to fine-tune overlap */
+      z-index: 1;
     }
-    /* Hands, Kitty and Trick Area Layout */
-    #compHand, #playerHand, #kittyArea {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: 10px;
-      min-height: 80px;
-      padding: 10px 0;
-      border: 1px solid #e0e0e0;
-      border-radius: 4px;
-      background-color: rgba(255,255,255,0.8);
+
+    /* === Hand Container & Dealer Button === */
+    .hand-container {
+      position: relative;
+      margin: 20px 0;
+      /* Additional layout styling as needed */
     }
-    #kittyArea {
-      flex-direction: column;
+    .cards {
+      display: inline-block;
+      /* Style your card container here */
     }
-    #trickArea {
-      text-align: center;
-      padding: 15px;
-      background-color: rgba(233,236,239,0.9);
-      border-radius: 4px;
-      font-size: 1.1em;
-      color: #333;
+    .cards img {
+      width: 80px; /* Example width; adjust as needed */
+      margin-right: 5px;
     }
-    /* Card styles */
-    .card {
-      width: 60px;
-      cursor: pointer;
-      transition: transform 0.2s;
-    }
-    .card:hover {
-      transform: scale(1.1);
-    }
-    /* Game log styling */
-    #gameLog {
-      max-height: 150px;
-      overflow-y: auto;
-      border-top: 1px solid #ccc;
-      padding-top: 10px;
-      background: rgba(0,0,0,0.5);
-    }
-    #gameLog h3 {
-      margin-bottom: 10px;
-    }
-    /* Dealer Button styling */
-    #dealerButton {
-      background-color: #007bff;
-      color: #fff;
-      padding: 10px 20px;
-      border-radius: 50%;
-      position: fixed;
-      left: calc(50% - 25px);
-      top: 20px;
-      cursor: pointer;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    .dealer-button {
+      position: absolute;
+      top: 50%;
+      left: -60px; /* Adjust horizontal positioning */
+      transform: translateY(-50%);
+      background: #fff;
+      padding: 5px 10px;
+      border-radius: 5px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
       font-weight: bold;
     }
-    /* Bidding Section styling */
-    #biddingSection {
+
+    /* === Discard Cards & Draw Option === */
+    .discard-section {
+      margin-top: 20px;
       display: flex;
-      gap: 10px;
-      margin-top: 20px;
+      align-items: center;
     }
-    #biddingSection button {
-      flex: 1;
-      padding: 10px;
-      border: none;
-      border-radius: 4px;
-      background-color: #28a745;
-      color: #fff;
-      font-size: 1em;
+    .discard-section label {
+      margin-right: 10px;
+      font-size: 14px;
+    }
+    .discard-section select {
+      margin-right: 10px;
+      padding: 4px;
+      font-size: 14px;
+    }
+    #discard-draw {
+      padding: 5px 10px;
+      font-size: 14px;
       cursor: pointer;
-      transition: background-color 0.2s;
     }
-    #biddingSection button:hover {
-      background-color: #218838;
-    }
-    /* Trump Selection UI */
-    #trumpSelection {
-      display: none;
-      margin-top: 20px;
-      text-align: center;
-    }
-    #trumpSelection button {
-      margin: 5px;
-      padding: 10px 15px;
-      border: none;
-      border-radius: 4px;
-      background-color: #ffc107;
+
+    /* === Dealer Discards Display === */
+    .dealer-discards {
+      margin-top: 10px;
+      font-size: 14px;
       color: #333;
-      font-size: 1em;
-      cursor: pointer;
-      transition: background-color 0.2s;
-    }
-    #trumpSelection button:hover {
-      background-color: #e0a800;
     }
   </style>
 </head>
 <body>
-  <img id="logo" src="https://via.placeholder.com/100x50?text=45%27s" alt="45's Logo">
-  <div id="gameTable">
-    <div id="scoreboard">
-      <h3>Scoreboard</h3>
-      <div>
-        <p id="playerScore">Player: 0</p>
-        <p id="computerScore">Computer: 0</p>
-      </div>
-    </div>
+  <!-- Logo Section -->
+  <div class="logo">
+    <span class="logo-main">45</span>
+    <span class="logo-sub">s</span>
+  </div>
 
-    <div id="compHand">
-      <p>Computer's Hand</p>
+  <!-- Hand Container with Cards and Dealer Button -->
+  <div class="hand-container">
+    <div class="cards">
+      <!-- Replace these with your actual card images or elements -->
+      <img src="card1.png" alt="Card 1">
+      <img src="card2.png" alt="Card 2">
+      <img src="card3.png" alt="Card 3">
+      <!-- Add additional cards as needed -->
     </div>
-
-    <div id="kittyArea">
-      <p>Kitty</p>
-      <!-- Kitty cards will be shown here as card backs if available -->
-    </div>
-
-    <div id="trickArea">
-      <p id="trickPrompt">Waiting for the trick...</p>
-    </div>
-
-    <div id="playerHand">
-      <p>Player's Hand</p>
-    </div>
-
-    <div id="gameLog">
-      <h3>Game Log</h3>
-      <ul id="logEntries"></ul>
+    <div class="dealer-button">
+      Dealer
     </div>
   </div>
 
-  <div id="dealerButton">DEALER</div>
-
-  <div id="biddingSection">
-    <button onclick="placeBid(15)">Bid 15</button>
-    <button onclick="placeBid(20)">Bid 20</button>
-    <button onclick="placeBid(25)">Bid 25</button>
-    <button onclick="placeBid(30)">Bid 30</button>
-    <button onclick="placeBid(0)">Pass</button>
+  <!-- Discard Cards & Draw Option -->
+  <div class="discard-section">
+    <label for="discard-select">Discard Cards:</label>
+    <select id="discard-select">
+      <option value="0">0</option>
+      <option value="1">1</option>
+      <option value="2">2</option>
+      <option value="3">3</option>
+      <option value="4">4</option>
+      <option value="5">5</option>
+    </select>
+    <button id="discard-draw">Discard &amp; Draw</button>
   </div>
 
-  <!-- Trump Selection UI -->
-  <div id="trumpSelection">
-    <h3>Select a Trump Suit</h3>
-    <button onclick="selectTrump('Hearts')">Hearts</button>
-    <button onclick="selectTrump('Diamonds')">Diamonds</button>
-    <button onclick="selectTrump('Clubs')">Clubs</button>
-    <button onclick="selectTrump('Spades')">Spades</button>
+  <!-- Dealer Discards Display -->
+  <div class="dealer-discards">
+    <span>Dealer Discards: </span>
+    <span id="dealer-discard-count">0</span>
   </div>
 
+  <!-- JavaScript to Handle UI Actions -->
   <script>
-    let gameState = {};
+    // Handle the discard & draw button click
+    document.getElementById('discard-draw').addEventListener('click', function() {
+      const discardCount = document.getElementById('discard-select').value;
+      console.log('Discard and draw:', discardCount);
+      // TODO: Integrate your discard/draw game logic here.
+    });
 
-    function log(msg) {
-      console.log(msg);
-      const logEntries = document.getElementById("logEntries");
-      const li = document.createElement("li");
-      li.textContent = msg;
-      logEntries.appendChild(li);
+    // Example function to update the dealer discard count dynamically
+    function updateDealerDiscards(count) {
+      document.getElementById('dealer-discard-count').textContent = count;
     }
-
-    function startGame() {
-      fetch('/new_game', { method: 'POST' })
-        .then(() => showState())
-        .catch(err => console.error("Error starting new game:", err));
-    }
-
-    function showState() {
-      fetch('/show_state')
-        .then(res => res.json())
-        .then(data => {
-          console.log("DEBUG: Game State:", data);
-          gameState = data;
-          // Update player's hand
-          const playerHand = document.getElementById("playerHand");
-          playerHand.innerHTML = "";
-          data.your_cards.forEach(card => {
-            const img = document.createElement("img");
-            img.src = card.img;
-            img.className = "card";
-            img.alt = card.name;
-            img.onclick = () => playCard(card.name);
-            playerHand.appendChild(img);
-          });
-          // Update computer's hand (displaying card back images)
-          const compHand = document.getElementById("compHand");
-          compHand.innerHTML = "";
-          for (let i = 0; i < data.computer_count; i++) {
-            const img = document.createElement("img");
-            img.src = data.card_back;
-            img.className = "card";
-            compHand.appendChild(img);
-          }
-          // Update kitty area if there are cards still in the kitty
-          const kittyArea = document.getElementById("kittyArea");
-          kittyArea.innerHTML = "<p>Kitty</p>";
-          if (data.kitty_count > 0) {
-            for (let i = 0; i < data.kitty_count; i++) {
-              const img = document.createElement("img");
-              img.src = data.card_back;
-              img.className = "card";
-              kittyArea.appendChild(img);
-            }
-          }
-          document.getElementById("playerScore").textContent = `Player: ${data.total_your}`;
-          document.getElementById("computerScore").textContent = `Computer: ${data.total_comp}`;
-          if (data.phase === "trump_selection") {
-            showTrumpSelection();
-          } else {
-            hideTrumpSelection();
-          }
-        })
-        .catch(err => console.error("Error fetching game state:", err));
-    }
-
-    function placeBid(bidValue) {
-      console.log("Placing bid:", bidValue);
-      fetch('/bid', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bid_value: bidValue })
-      })
-        .then(res => res.json())
-        .then(data => {
-          console.log("Response from /bid:", data);
-          log(data.message);
-          if (data.next_phase === "trump_selection") {
-            showTrumpSelection();
-          }
-          showState();
-        })
-        .catch(err => console.error("Error placing bid:", err));
-    }
-
-    function showTrumpSelection() {
-      log("Select a trump suit.");
-      document.getElementById("trumpSelection").style.display = "block";
-    }
-
-    function hideTrumpSelection() {
-      document.getElementById("trumpSelection").style.display = "none";
-    }
-
-    function selectTrump(trump) {
-      console.log("Selecting trump suit:", trump);
-      fetch('/select_trump', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ trump: trump })
-      })
-      .then(res => res.json())
-      .then(data => {
-        log(data.message);
-        hideTrumpSelection();
-        showState();
-      })
-      .catch(err => console.error("Error selecting trump:", err));
-    }
-
-    function playCard(cardName) {
-      fetch('/play_card', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ card_name: cardName })
-      })
-        .then(res => res.json())
-        .then(data => {
-          log(data.message);
-          showState();
-        })
-        .catch(err => console.error("Error playing card:", err));
-    }
-
-    window.onload = startGame;
+    // Example usage: updateDealerDiscards(2); // Uncomment and adjust as needed.
   </script>
 </body>
 </html>
