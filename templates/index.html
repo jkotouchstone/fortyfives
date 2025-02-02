@@ -85,6 +85,22 @@
     button:hover {
       background-color: #ffaa00;
     }
+
+    #dealerButton {
+      padding: 5px 10px;
+      background-color: white;
+      color: black;
+      font-weight: bold;
+      border-radius: 50%;
+      text-align: center;
+      width: 70px;
+      height: 70px;
+      line-height: 70px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+      position: absolute;
+      top: 10px;
+      right: 10px;
+    }
   </style>
 </head>
 <body>
@@ -106,7 +122,11 @@
     <button onclick="placeBid(0)">Pass</button>
   </div>
 
+  <div id="dealerButton">DEALER</div>
+
   <script>
+    let gameState = {};
+
     function log(msg) {
       console.log(msg);
     }
@@ -122,6 +142,7 @@
         .then(res => res.json())
         .then(data => {
           console.log("DEBUG: Game State:", data);
+          gameState = data;  // Store the game state globally
 
           // Update player's hand
           const playerHand = document.getElementById("playerHand");
@@ -150,6 +171,9 @@
           trickPrompt.textContent = data.trick_play_active
             ? "Play your card in the trick!"
             : "Waiting for next trick...";
+
+          // Show the dealer
+          updateDealer(data.leading_player);
         })
         .catch(err => console.error("Error fetching game state:", err));
     }
@@ -180,6 +204,11 @@
           showState();
         })
         .catch(err => console.error("Error placing bid:", err));
+    }
+
+    function updateDealer(leadingPlayer) {
+      const dealerButton = document.getElementById("dealerButton");
+      dealerButton.textContent = leadingPlayer === "player" ? "PLAYER DEALER" : "COMPUTER DEALER";
     }
 
     // Attach event to start game button
