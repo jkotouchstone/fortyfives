@@ -27,7 +27,7 @@ class Game:
             "player": {"hand": [], "score": 0, "tricks": []},
             "computer": {"hand": [], "score": 0, "tricks": []}
         }
-        self.dealer = "computer"  # Dealer is set to computer by default.
+        self.dealer = "computer"
         self.trump_suit = None
         self.current_bid = None
         self.leading_player = None
@@ -38,7 +38,7 @@ class Game:
 
     def deal_hands(self):
         """Deals hands to both players and the kitty."""
-        self.deck = Deck()  # Reset the deck for a new game.
+        self.deck = Deck()  # Reset the deck for a new game
         self.players["player"]["hand"] = self.deck.deal(5)
         self.players["computer"]["hand"] = self.deck.deal(5)
         self.kitty = self.deck.deal(3)
@@ -84,13 +84,14 @@ class Game:
         suits = ["Hearts", "Diamonds", "Clubs", "Spades"]
         trump_strength = {}
         for suit in suits:
-            trump_strength[suit] = sum(rank_order.get(card.rank, 0)
+            trump_strength[suit] = sum(rank_order.get(card.rank, 0) 
                                        for card in hand if card.suit == suit)
-        # Choose the suit with the highest strength.
+        # Choose the suit with the highest strength
         best_suit = max(trump_strength, key=trump_strength.get)
         best_strength = trump_strength[best_suit]
 
         # Map the strength to a bid value.
+        # Adjust these thresholds and bid values as needed.
         if best_strength >= 40:
             bid_value = 30
         elif best_strength >= 35:
@@ -98,7 +99,7 @@ class Game:
         elif best_strength >= 30:
             bid_value = 20
         else:
-            bid_value = 0  # Pass if the hand is weak.
+            bid_value = 0  # Pass if the hand is weak
 
         return bid_value, best_suit
 
@@ -108,7 +109,7 @@ class Game:
         For the player:
           - If the bid is 0 (pass), the computer's evaluation is used.
           - If the player bids a nonzero value, the computer's bid (based on its hand) is compared.
-        Updates the game phase and trump suit accordingly.
+        Updates the game phase accordingly.
         """
         print(f"Received bid from {player}: {bid_val}")
         if self.phase != "bidding":
@@ -119,7 +120,7 @@ class Game:
                 # Player passes; let the computer evaluate its bid.
                 comp_bid, comp_trump = self.computer_bid()
                 if comp_bid == 0:
-                    # Both players pass; let the player choose trump.
+                    # Both players pass; allow player to select trump.
                     self.phase = "trump_selection"
                     return "Both players passed. Please select a trump suit."
                 else:
@@ -140,6 +141,7 @@ class Game:
                     self.phase = "trump_selection"
                     return f"You win the bid with {bid_val}. Please select a trump suit."
         elif player == "computer":
+            # This branch is available if you want to trigger computer bidding explicitly.
             comp_bid, comp_trump = self.computer_bid()
             if comp_bid > (self.current_bid or 0):
                 self.current_bid = comp_bid
@@ -149,6 +151,19 @@ class Game:
             else:
                 self.phase = "trump_selection"
                 return "Computer passes. You win the bid. Please select a trump suit."
+
+    def set_trump(self, trump):
+        """
+        Sets the trump suit when the game is in trump_selection phase.
+        Validates the trump suit and then updates the game phase to discard.
+        """
+        if self.phase != "trump_selection":
+            return "Not in trump selection phase."
+        if trump not in ["Hearts", "Diamonds", "Clubs", "Spades"]:
+            return "Invalid trump suit selected."
+        self.trump_suit = trump
+        self.phase = "discard"
+        return f"Trump suit set to {trump}. Moving to discard phase."
 
     def discard_cards(self, player, cards_to_discard):
         """Handles the discard and draw phase for a player."""
@@ -187,7 +202,7 @@ class Game:
         msg = f"{player.capitalize()} played {card}."
 
         if len(self.current_trick) == 1 and player == "player":
-            # Simulate computer's move after the player plays.
+            # Simulate the computer's move after the player plays.
             self.computer_play_card()
 
         if len(self.current_trick) == 2:
@@ -226,7 +241,7 @@ class Game:
                 computer_rank = self.get_rank_value(computer_card)
                 return "player" if player_rank > computer_rank else "computer"
             else:
-                # Default rule for off-suit cards.
+                # Default rule for off-suit cards (adjust as needed).
                 return "player"
         return "player"
 
