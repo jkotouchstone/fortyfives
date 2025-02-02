@@ -1,48 +1,80 @@
-<!-- templates/index.html -->
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Forty-Fives Final (No 'New Game')</title>
+  <title>Forty-Fives Game</title>
   <style>
-    body { margin:0; padding:0; background:darkgreen; font-family:sans-serif; color:white; }
-    #table { position:relative; width:100%; height:100vh; }
-    #progressLog { position:absolute; top:0; right:0; width:250px; max-height:200px; overflow-y:auto; background:rgba(0,0,0,0.3); padding:8px; }
-    /* scoreboard, your hand area, comp area, kitty area, etc. styling here */
+    body { background: darkgreen; color: white; font-family: sans-serif; margin: 0; padding: 20px; }
+    #table { max-width: 800px; margin: auto; }
+    .card { width: 80px; margin: 5px; }
+    #progressLog { background: rgba(0,0,0,0.3); padding: 10px; margin-bottom: 20px; max-height: 150px; overflow-y: auto; }
   </style>
 </head>
 <body>
 <div id="table">
+  <h1>Forty-Fives Game</h1>
   <div id="progressLog"></div>
-  <!-- scoreboard, your hand, comp hand, kitty, etc. --> 
+  <div>
+    <h2>Your Hand</h2>
+    <div id="playerHand"></div>
+  </div>
+  <div>
+    <h2>Computer's Hand Count</h2>
+    <div id="compHand"></div>
+  </div>
+  <div>
+    <h2>Game State</h2>
+    <pre id="gameState"></pre>
+  </div>
+  <div>
+    <h2>Bidding</h2>
+    <button onclick="userBid(15)">Bid 15</button>
+    <button onclick="userBid(0)">Pass (0)</button>
+  </div>
 </div>
 
 <script>
+function log(msg) {
+  let logDiv = document.getElementById("progressLog");
+  let p = document.createElement("p");
+  p.textContent = msg;
+  logDiv.appendChild(p);
+  logDiv.scrollTop = logDiv.scrollHeight;
+}
+
 function showState(){
   fetch('/show_state')
-   .then(r=>r.json())
-   .then(d=>{
-     console.log(d);
-     // update your UI: show user cards, comp card count, scoreboard, etc.
-   });
+    .then(res => res.json())
+    .then(data => {
+      console.log(data);
+      document.getElementById("gameState").textContent = JSON.stringify(data, null, 2);
+      // Display user's hand
+      let playerHandDiv = document.getElementById("playerHand");
+      playerHandDiv.innerHTML = "";
+      data.your_cards.forEach(card => {
+         let img = document.createElement("img");
+         img.src = card.img;
+         img.className = "card";
+         playerHandDiv.appendChild(img);
+      });
+      // Display computer's hand count
+      document.getElementById("compHand").textContent = data.computer_count;
+    });
 }
 
-// Example: user wants to bid 15
-function userBid(bVal){
-  fetch('/user_bid',{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({bid_val:bVal})
+function userBid(bidVal){
+  fetch('/user_bid', {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({bid_val: bidVal})
   })
-   .then(r=>r.json())
-   .then(d=>{
-     console.log(d.message);
-     showState();
-   });
+    .then(res => res.json())
+    .then(data => {
+      log(data.message);
+      showState();
+    });
 }
 
-// etc. for comp_discard, user_discard, pick_trump, etc.
-
-window.onload=()=> showState();
+window.onload = showState;
 </script>
 </body>
 </html>
