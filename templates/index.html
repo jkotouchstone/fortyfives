@@ -2,14 +2,33 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Game UI Application</title>
+  <title>Card Game - 45s</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
+    /* General Page Styles */
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: #fff;
+      padding: 20px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    h1, h2 {
+      text-align: center;
+    }
+
     /* === Logo Section === */
     .logo {
+      text-align: center;
+      margin-bottom: 20px;
       position: relative;
       display: inline-block;
-      margin-bottom: 20px;
     }
     .logo-main {
       font-size: 48px;
@@ -21,120 +40,305 @@
       font-size: 24px;
       position: absolute;
       top: 0;
-      left: 35px; /* Adjust to fine-tune overlap */
+      left: 35px; /* Adjust for desired overlap */
       z-index: 1;
     }
 
-    /* === Hand Container & Dealer Button === */
-    .hand-container {
-      position: relative;
+    /* === Hands Section === */
+    .hand-section {
       margin: 20px 0;
-      /* Additional layout styling as needed */
     }
-    .cards {
-      display: inline-block;
-      /* Style your card container here */
+    .hand-label {
+      font-weight: bold;
+      margin-bottom: 10px;
+      text-align: center;
     }
-    .cards img {
-      width: 80px; /* Example width; adjust as needed */
-      margin-right: 5px;
+    .cards-container {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 10px;
     }
+    .card {
+      width: 60px;
+      height: 90px;
+      border: 1px solid #333;
+      border-radius: 5px;
+      margin: 0 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      background: #fff;
+      cursor: pointer;
+      user-select: none;
+      position: relative;
+    }
+    .card.selected {
+      background: #ffeb3b;
+      border-color: #fbc02d;
+    }
+    /* The dealer button appears next to the dealer hand label */
     .dealer-button {
-      position: absolute;
-      top: 50%;
-      left: -60px; /* Adjust horizontal positioning */
-      transform: translateY(-50%);
+      display: inline-block;
       background: #fff;
       padding: 5px 10px;
       border-radius: 5px;
       box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
       font-weight: bold;
+      margin-left: 10px;
     }
 
-    /* === Discard Cards & Draw Option === */
+    /* === Discard Section === */
     .discard-section {
-      margin-top: 20px;
-      display: flex;
-      align-items: center;
-    }
-    .discard-section label {
-      margin-right: 10px;
-      font-size: 14px;
-    }
-    .discard-section select {
-      margin-right: 10px;
-      padding: 4px;
-      font-size: 14px;
+      text-align: center;
+      margin: 20px 0;
     }
     #discard-draw {
-      padding: 5px 10px;
-      font-size: 14px;
+      padding: 10px 20px;
+      font-size: 16px;
       cursor: pointer;
+    }
+
+    /* === Game Controls === */
+    .controls {
+      text-align: center;
+      margin-top: 20px;
+    }
+    .controls button {
+      padding: 10px 20px;
+      font-size: 16px;
+      margin: 0 5px;
+      cursor: pointer;
+    }
+
+    /* === Result Display === */
+    .result {
+      text-align: center;
+      font-size: 18px;
+      margin-top: 20px;
+      font-weight: bold;
     }
 
     /* === Dealer Discards Display === */
     .dealer-discards {
+      text-align: center;
       margin-top: 10px;
-      font-size: 14px;
-      color: #333;
+      font-size: 16px;
     }
   </style>
 </head>
 <body>
-  <!-- Logo Section -->
-  <div class="logo">
-    <span class="logo-main">45</span>
-    <span class="logo-sub">s</span>
-  </div>
-
-  <!-- Hand Container with Cards and Dealer Button -->
-  <div class="hand-container">
-    <div class="cards">
-      <!-- Replace these with your actual card images or elements -->
-      <img src="card1.png" alt="Card 1">
-      <img src="card2.png" alt="Card 2">
-      <img src="card3.png" alt="Card 3">
-      <!-- Add additional cards as needed -->
+  <div class="container">
+    <!-- Logo Section -->
+    <div class="logo">
+      <span class="logo-main">45</span>
+      <span class="logo-sub">s</span>
     </div>
-    <div class="dealer-button">
-      Dealer
+
+    <!-- Dealer Hand Section -->
+    <div class="hand-section" id="dealer-section">
+      <div class="hand-label">
+        Dealer's Hand 
+        <span class="dealer-button">Dealer</span>
+      </div>
+      <div class="cards-container" id="dealer-cards">
+        <!-- Dealer cards will appear here -->
+      </div>
+      <div class="dealer-discards">
+         Dealer Discards: <span id="dealer-discard-count">0</span>
+      </div>
     </div>
+
+    <!-- Player Hand Section -->
+    <div class="hand-section" id="player-section">
+      <div class="hand-label">Your Hand</div>
+      <div class="cards-container" id="player-cards">
+        <!-- Player cards will appear here -->
+      </div>
+    </div>
+
+    <!-- Discard & Draw Button -->
+    <div class="discard-section">
+      <button id="discard-draw" disabled>Discard &amp; Draw</button>
+    </div>
+
+    <!-- Game Controls -->
+    <div class="controls">
+      <button id="deal-button">Deal</button>
+      <button id="play-again" style="display:none;">Play Again</button>
+    </div>
+
+    <!-- Game Result Display -->
+    <div class="result" id="result-display"></div>
   </div>
 
-  <!-- Discard Cards & Draw Option -->
-  <div class="discard-section">
-    <label for="discard-select">Discard Cards:</label>
-    <select id="discard-select">
-      <option value="0">0</option>
-      <option value="1">1</option>
-      <option value="2">2</option>
-      <option value="3">3</option>
-      <option value="4">4</option>
-      <option value="5">5</option>
-    </select>
-    <button id="discard-draw">Discard &amp; Draw</button>
-  </div>
-
-  <!-- Dealer Discards Display -->
-  <div class="dealer-discards">
-    <span>Dealer Discards: </span>
-    <span id="dealer-discard-count">0</span>
-  </div>
-
-  <!-- JavaScript to Handle UI Actions -->
   <script>
-    // Handle the discard & draw button click
-    document.getElementById('discard-draw').addEventListener('click', function() {
-      const discardCount = document.getElementById('discard-select').value;
-      console.log('Discard and draw:', discardCount);
-      // TODO: Integrate your discard/draw game logic here.
-    });
+    // ---------------------------
+    // Game State Variables
+    // ---------------------------
+    let deck = [];
+    let playerHand = [];
+    let dealerHand = [];
+    let playerSelectedIndices = new Set();
+    let dealerDiscardCount = 0;
+    let gamePhase = 'init'; // phases: init, dealt, drawn, finished
 
-    // Example function to update the dealer discard count dynamically
-    function updateDealerDiscards(count) {
-      document.getElementById('dealer-discard-count').textContent = count;
+    // Card definitions
+    const suits = ['♠', '♥', '♦', '♣'];
+    const ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+
+    // ---------------------------
+    // Utility Functions
+    // ---------------------------
+    // Create a new deck of 52 cards
+    function createDeck() {
+      let newDeck = [];
+      for (let suit of suits) {
+        for (let rank of ranks) {
+          let value;
+          if (rank === 'A') value = 14;
+          else if (rank === 'K') value = 13;
+          else if (rank === 'Q') value = 12;
+          else if (rank === 'J') value = 11;
+          else value = parseInt(rank);
+          newDeck.push({ suit, rank, value });
+        }
+      }
+      return newDeck;
     }
-    // Example usage: updateDealerDiscards(2); // Uncomment and adjust as needed.
+
+    // Fisher-Yates shuffle
+    function shuffle(deck) {
+      for (let i = deck.length - 1; i > 0; i--) {
+        let j = Math.floor(Math.random() * (i + 1));
+        [deck[i], deck[j]] = [deck[j], deck[i]];
+      }
+    }
+
+    // ---------------------------
+    // Game Functions
+    // ---------------------------
+    // Deal initial hands to player and dealer (5 cards each)
+    function dealHands() {
+      deck = createDeck();
+      shuffle(deck);
+      playerHand = [];
+      dealerHand = [];
+      playerSelectedIndices.clear();
+      for (let i = 0; i < 5; i++) {
+        playerHand.push(deck.pop());
+        dealerHand.push(deck.pop());
+      }
+      dealerDiscardCount = 0;
+      gamePhase = 'dealt';
+      updateUI();
+      document.getElementById('discard-draw').disabled = false;
+      document.getElementById('result-display').textContent = "";
+      document.getElementById('play-again').style.display = "none";
+    }
+
+    // Update the UI based on the current game state
+    function updateUI() {
+      const playerCardsContainer = document.getElementById('player-cards');
+      const dealerCardsContainer = document.getElementById('dealer-cards');
+
+      // Clear current card displays
+      playerCardsContainer.innerHTML = "";
+      dealerCardsContainer.innerHTML = "";
+
+      // Render player's hand (clickable to select/deselect for discard)
+      playerHand.forEach((card, index) => {
+        const cardDiv = document.createElement('div');
+        cardDiv.className = 'card';
+        cardDiv.textContent = card.rank + card.suit;
+        cardDiv.dataset.index = index;
+        if (playerSelectedIndices.has(index)) {
+          cardDiv.classList.add('selected');
+        }
+        // Only allow selection when in 'dealt' phase
+        if (gamePhase === 'dealt') {
+          cardDiv.addEventListener('click', () => {
+            toggleCardSelection(index);
+          });
+        }
+        playerCardsContainer.appendChild(cardDiv);
+      });
+
+      // Render dealer's hand (always visible in this example)
+      dealerHand.forEach(card => {
+        const cardDiv = document.createElement('div');
+        cardDiv.className = 'card';
+        cardDiv.textContent = card.rank + card.suit;
+        dealerCardsContainer.appendChild(cardDiv);
+      });
+
+      // Update dealer discard count display
+      document.getElementById('dealer-discard-count').textContent = dealerDiscardCount;
+    }
+
+    // Toggle a player's card selection (for discarding)
+    function toggleCardSelection(index) {
+      if (playerSelectedIndices.has(index)) {
+        playerSelectedIndices.delete(index);
+      } else {
+        playerSelectedIndices.add(index);
+      }
+      updateUI();
+    }
+
+    // Handle the player's "Discard & Draw" action
+    function playerDiscardDraw() {
+      if (gamePhase !== 'dealt') return;
+      // Replace each selected card with a new one from the deck
+      playerSelectedIndices.forEach(index => {
+        playerHand[index] = deck.pop();
+      });
+      playerSelectedIndices.clear();
+
+      // Let the dealer perform its discard/draw
+      dealerDiscardDraw();
+      gamePhase = 'drawn';
+      updateUI();
+
+      // Evaluate and display the result
+      evaluateHands();
+    }
+
+    // Dealer's discard logic: discard any card with value less than 10
+    function dealerDiscardDraw() {
+      for (let i = 0; i < dealerHand.length; i++) {
+        if (dealerHand[i].value < 10) {
+          dealerHand[i] = deck.pop();
+          dealerDiscardCount++;
+        }
+      }
+    }
+
+    // Evaluate the hands using a simple scoring system (sum of card values)
+    function evaluateHands() {
+      let playerScore = playerHand.reduce((sum, card) => sum + card.value, 0);
+      let dealerScore = dealerHand.reduce((sum, card) => sum + card.value, 0);
+
+      let resultText = "";
+      if (playerScore > dealerScore) {
+        resultText = "You Win!";
+      } else if (playerScore < dealerScore) {
+        resultText = "Dealer Wins!";
+      } else {
+        resultText = "It's a Tie!";
+      }
+      document.getElementById('result-display').textContent = resultText;
+      document.getElementById('discard-draw').disabled = true;
+      document.getElementById('play-again').style.display = "inline-block";
+      gamePhase = 'finished';
+    }
+
+    // ---------------------------
+    // Event Listeners
+    // ---------------------------
+    document.getElementById('deal-button').addEventListener('click', dealHands);
+    document.getElementById('discard-draw').addEventListener('click', playerDiscardDraw);
+    document.getElementById('play-again').addEventListener('click', dealHands);
   </script>
 </body>
 </html>
