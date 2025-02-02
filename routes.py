@@ -46,7 +46,7 @@ def show_state():
     return jsonify(state)
 
 @fortyfives_bp.route('/user_bid', methods=['POST'])
-def user_bid_route():
+def user_bid():
     global current_game
     data = request.get_json() or {}
     bid_val = data.get("bid_val", 0)
@@ -66,7 +66,7 @@ def pick_trump():
 def comp_discard():
     global current_game
     count = current_game.discard_comp()
-    return jsonify({"message": f"Computer discarded {count} card(s) and drew {count} new card(s)."} )
+    return jsonify({"message": f"Computer discarded {count} card(s) and drew {count}."})
 
 @fortyfives_bp.route('/user_discard', methods=['POST'])
 def user_discard():
@@ -74,7 +74,7 @@ def user_discard():
     data = request.get_json() or {}
     disc_list = data.get("discards", [])
     count = current_game.discard_user(disc_list)
-    return jsonify({"message": f"You discarded {count} card(s) and drew {count} new card(s)."} )
+    return jsonify({"message": f"You discarded {count} card(s) and drew {count}."})
 
 @fortyfives_bp.route('/both_discard_done', methods=['POST'])
 def both_discard_done():
@@ -82,9 +82,8 @@ def both_discard_done():
     current_game.both_discard_done_check()
     lead = current_game.leading_player
     leadName = current_game.players[lead].name if lead is not None else "None"
-    return jsonify({"message": f"Both discards done. {leadName} leads the first trick."})
+    return jsonify({"message": f"Both discard phases done. {leadName} leads the first trick."})
 
-# Routes for trick play:
 @fortyfives_bp.route('/play_card_user_lead', methods=['POST'])
 def play_card_user_lead():
     global current_game
