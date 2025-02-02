@@ -1,66 +1,45 @@
-from flask import Blueprint, jsonify, request
+from flask import request, jsonify, render_template
 from game_logic import Game
 
-# Define the blueprint for routes
-fortyfives_bp = Blueprint('fortyfives', __name__)
+# Create a single instance of the game.
+game = Game()
 
-# Initialize the game instance
-current_game = Game()
+def init_routes(app):
+    @app.route('/')
+    def index():
+        return render_template('index.html')
 
-@fortyfives_bp.route("/new_game", methods=["POST"])
-def new_game():
-    """Start a new game and deal hands to both players."""
-    global current_game
-    current_game = Game()
-    current_game.deal_hands()
-    return jsonify({"message": "New game started successfully!"})
+    @app.route('/new_game', methods=['POST'])
+    def new_game():
+        game.deal_hands()
+        return jsonify({"message": "New game started.", "phase": game.phase})
 
-@fortyfives_bp.route("/show_state", methods=["GET"])
-def show_state():
-    """Return the current game state."""
-    game_state = current_game.get_state()
-    return jsonify(game_state)
+    @app.route('/show_state', methods=['GET'])
+    def show_state():
+        state = game.get_state()
+        return jsonify(state)
 
-@fortyfives_bp.route("/bid", methods=["POST"])
-def bid():
-    """Handle the bidding process."""
-    data = request.json
-    bid_value = data.get("bid_value", 0)
-    result = current_game.process_bid("player", bid_value)
+    @app.route('/bid', methods=['POST'])
+    def bid():
+        data = request.get_json()
+        bid_value = data.get('bid_value')
+        result = game.process_bid("player", bid_value)
+        response = {
+            "message": result,
+            "next_phase": game.phase
+        }
+        return jsonify(response)
 
-    # If bidding is over, check the next phase
-    if not current_game.bidding_active:
-        if current_game.leading_player == "player":
-            return jsonify({"message": result, "next_phase": "trump_selection"})
-        else:
-            return jsonify({"message": result, "next_phase": "discard_phase"})
+    @app.route('/play_card', methods=['POST'])
+    def play_card():
+        data = request.get_json()
+        card_name = data.get('card_name')
+        result = game.play_card("player", card_name)
+        return jsonify(result)
 
-    return jsonify({"message": result})
-
-@fortyfives_bp.route("/trump_selection", methods=["POST"])
-def trump_selection():
-    """Handle trump selection after the bidding phase."""
-    data = request.json
-    trump_suit = data.get("trump_suit")
-    current_game.trump_suit = trump_suit
-    current_game.start_discard_phase()
-    return jsonify({"message": f"Trump suit selected: {trump_suit}"})
-
-@fortyfives_bp.route("/discard_cards", methods=["POST"])
-def discard_cards():
-    """Handle the discard and draw phase."""
-    data = request.json
-    cards_to_discard = data.get("cards", [])
-    result = current_game.discard_cards("player", cards_to_discard)
-    return jsonify(result)
-
-@fortyfives_bp.route("/play_card", methods=["POST"])
-def play_card():
-    """Play a card during the trick phase."""
-    data = request.json
-    card_name = data.get("card_name")
-    if not card_name:
-        return jsonify({"message": "No card provided."}), 400
-
-    result = current_game.play_card("player", card_name)
-    return jsonify(result)
+    @app.route('/discard', methods=['POST'])
+    def discard():
+        data = request.get_json()
+        cards_to_discard = data.get('cards', [])
+        result = game.discard_cards("player", cards_to_discard)
+        return jsonify(result)
