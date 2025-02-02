@@ -2,89 +2,91 @@
 import random
 
 ###############################################################################
-#                      CARD RANK & LOOKUP DICTIONARIES                        #
+#                      CARD RANK / TRUMP DICTIONARIES                         #
 ###############################################################################
 
 TRUMP_DIAMONDS = {
-    "5 of Diamonds": 200, "J of Diamonds": 199, "A of Hearts": 198, "A of Diamonds": 197,
-    "K of Diamonds": 196, "Q of Diamonds": 195, "10 of Diamonds": 194, "9 of Diamonds": 193,
-    "8 of Diamonds": 192, "7 of Diamonds": 191, "6 of Diamonds": 190,
-    "4 of Diamonds": 189, "3 of Diamonds": 188, "2 of Diamonds": 187
+    "5 of Diamonds":200, "J of Diamonds":199, "A of Hearts":198, "A of Diamonds":197,
+    "K of Diamonds":196, "Q of Diamonds":195, "10 of Diamonds":194, "9 of Diamonds":193,
+    "8 of Diamonds":192, "7 of Diamonds":191, "6 of Diamonds":190,
+    "4 of Diamonds":189, "3 of Diamonds":188, "2 of Diamonds":187
 }
 TRUMP_HEARTS = {
-    "5 of Hearts": 200, "J of Hearts": 199, "A of Hearts": 198,
-    "K of Hearts": 196, "Q of Hearts": 195, "10 of Hearts": 194, "9 of Hearts": 193,
-    "8 of Hearts": 192, "7 of Hearts": 191, "6 of Hearts": 190,
-    "4 of Hearts": 189, "3 of Hearts": 188, "2 of Hearts": 187
+    "5 of Hearts":200, "J of Hearts":199, "A of Hearts":198,
+    "K of Hearts":196, "Q of Hearts":195, "10 of Hearts":194, "9 of Hearts":193,
+    "8 of Hearts":192, "7 of Hearts":191, "6 of Hearts":190,
+    "4 of Hearts":189, "3 of Hearts":188, "2 of Hearts":187
 }
 TRUMP_CLUBS = {
-    "5 of Clubs": 200, "J of Clubs": 199, "A of Hearts": 198, "A of Clubs": 197,
-    "K of Clubs": 196, "Q of Clubs": 195,
-    "2 of Clubs": 194, "3 of Clubs": 193, "4 of Clubs": 192,
-    "6 of Clubs": 191, "7 of Clubs": 190, "8 of Clubs": 189,
-    "9 of Clubs": 188, "10 of Clubs": 187
+    "5 of Clubs":200, "J of Clubs":199, "A of Hearts":198, "A of Clubs":197,
+    "K of Clubs":196, "Q of Clubs":195,
+    "2 of Clubs":194, "3 of Clubs":193, "4 of Clubs":192,
+    "6 of Clubs":191, "7 of Clubs":190, "8 of Clubs":189,
+    "9 of Clubs":188, "10 of Clubs":187
 }
 TRUMP_SPADES = {
-    "5 of Spades": 200, "J of Spades": 199, "A of Hearts": 198, "A of Spades": 197,
-    "K of Spades": 196, "Q of Spades": 195,
-    "2 of Spades": 194, "3 of Spades": 193, "4 of Spades": 192,
-    "6 of Spades": 191, "7 of Spades": 190, "8 of Spades": 189,
-    "9 of Spades": 188, "10 of Spades": 187
+    "5 of Spades":200, "J of Spades":199, "A of Hearts":198, "A of Spades":197,
+    "K of Spades":196, "Q of Spades":195,
+    "2 of Spades":194, "3 of Spades":193, "4 of Spades":192,
+    "6 of Spades":191, "7 of Spades":190, "8 of Spades":189,
+    "9 of Spades":188, "10 of Spades":187
 }
 
 OFFSUIT_DIAMONDS = {
-    "K of Diamonds": 200, "Q of Diamonds": 199, "J of Diamonds": 198, "10 of Diamonds": 197,
-    "9 of Diamonds": 196, "8 of Diamonds": 195, "7 of Diamonds": 194, "6 of Diamonds": 193,
-    "5 of Diamonds": 192, "4 of Diamonds": 191, "3 of Diamonds": 190, "2 of Diamonds": 189,
-    "A of Diamonds": 188
+    "K of Diamonds":200, "Q of Diamonds":199, "J of Diamonds":198, "10 of Diamonds":197,
+    "9 of Diamonds":196, "8 of Diamonds":195, "7 of Diamonds":194, "6 of Diamonds":193,
+    "5 of Diamonds":192, "4 of Diamonds":191, "3 of Diamonds":190, "2 of Diamonds":189,
+    "A of Diamonds":188
 }
 OFFSUIT_HEARTS = {
-    "K of Hearts": 200, "Q of Hearts": 199, "J of Hearts": 198, "10 of Hearts": 197,
-    "9 of Hearts": 196, "8 of Hearts": 195, "7 of Hearts": 194, "6 of Hearts": 193,
-    "5 of Hearts": 192, "4 of Hearts": 191, "3 of Hearts": 190, "2 of Hearts": 189
+    "K of Hearts":200, "Q of Hearts":199, "J of Hearts":198, "10 of Hearts":197,
+    "9 of Hearts":196, "8 of Hearts":195, "7 of Hearts":194, "6 of Hearts":193,
+    "5 of Hearts":192, "4 of Hearts":191, "3 of Hearts":190, "2 of Hearts":189
 }
 OFFSUIT_CLUBS = {
-    "K of Clubs": 200, "Q of Clubs": 199, "J of Clubs": 198, "A of Clubs": 197,
-    "2 of Clubs": 196, "3 of Clubs": 195, "4 of Clubs": 194, "5 of Clubs": 193,
-    "6 of Clubs": 192, "7 of Clubs": 191, "8 of Clubs": 190, "9 of Clubs": 189,
-    "10 of Clubs": 188
+    "K of Clubs": 200, "Q of Clubs":199, "J of Clubs":198, "A of Clubs":197,
+    "2 of Clubs":196, "3 of Clubs":195, "4 of Clubs":194, "5 of Clubs":193,
+    "6 of Clubs":192, "7 of Clubs":191, "8 of Clubs":190, "9 of Clubs":189,
+    "10 of Clubs":188
 }
 OFFSUIT_SPADES = {
-    "K of Spades": 200, "Q of Spades": 199, "J of Spades": 198, "A of Spades": 197,
-    "2 of Spades": 196, "3 of Spades": 195, "4 of Spades": 194, "5 of Spades": 193,
-    "6 of Spades": 192, "7 of Spades": 191, "8 of Spades": 190, "9 of Spades": 189,
-    "10 of Spades": 188
+    "K of Spades":200, "Q of Spades":199, "J of Spades":198, "A of Spades":197,
+    "2 of Spades":196, "3 of Spades":195, "4 of Spades":194, "5 of Spades":193,
+    "6 of Spades":192, "7 of Spades":191, "8 of Spades":190, "9 of Spades":189,
+    "10 of Spades":188
 }
 
-def get_card_rank(card_str:str, trump_suit:str) -> int:
-    """Return numeric rank for card_str under the given trump_suit."""
+def get_card_rank(card_str: str, trump_suit: str) -> int:
+    """Look up numeric rank for card_str under a given trump_suit. Ace of Hearts => rank=198."""
     if not trump_suit:
         return 0
-    # If statements referencing TRUMP_* or OFFSUIT_* dicts
-    # Ace of Hearts => 198 rank if it's in the dictionary, etc.
-    # (Truncated for brevity)
+    # (Truncated logic that checks if card_str in TRUMP_..., else in OFFSUIT_..., etc.)
+    # Implementation from your final single-file code
     return 0
 
 def card_back_url():
     return "https://deckofcardsapi.com/static/img/back.png"
 
-def card_to_image_url(card_str:str) -> str:
+def card_to_image_url(card_str: str) -> str:
+    """
+    Converts '10 of Hearts' => '0H.png', ensuring tens become '0' in deckofcardsapi URLs.
+    """
     parts = card_str.split(" of ")
     if len(parts)!=2:
         return card_back_url()
-    rank, suit=parts
-    rank_map={
+    rank, suit = parts
+    rank_map = {
       "2":"2","3":"3","4":"4","5":"5","6":"6","7":"7","8":"8","9":"9",
       "10":"0","J":"J","Q":"Q","K":"K","A":"A"
     }
     if rank not in rank_map:
         return card_back_url()
-    rank_code=rank_map[rank]
-    suit_code=suit[0].upper()
+    rank_code = rank_map[rank]
+    suit_code = suit[0].upper()
     return f"https://deckofcardsapi.com/static/img/{rank_code}{suit_code}.png"
 
 class Card:
-    def __init__(self,suit,rank):
+    def __init__(self, suit:str, rank:str):
         self.suit=suit
         self.rank=rank
     def __str__(self):
@@ -129,6 +131,8 @@ class Game:
         self.bidding_done=False
         self.game_over=False
 
+        # If you have special flags for discard phases, you can add them.
+
     def rotate_dealer(self):
         self.dealer=1-self.dealer
 
@@ -161,45 +165,41 @@ class Game:
         self.players[first_bidder].add_to_hand(self.deck.deal(2))
         self.players[self.dealer].add_to_hand(self.deck.deal(2))
 
-    def user_bid(self,bid_val:int):
+    def user_bid(self, bid_val:int):
         """
-        Bidding logic with +5 increments. 
-        If computer wins => computer picks trump behind the scenes.
-        If user wins => user picks trump from the front-end route.
+        Bidding logic: if user is first => user picks from [0,15,20,25,30], comp outbids by +5 or pass
+        If user second => comp picks random => user tries to beat or pass
+        If comp wins => comp picks trump behind scenes
+        If user wins => user picks trump
         """
-        #  fill in the final logic from your single-file code
-        return f"(Bidding logic result, e.g. user bid {bid_val})"
+        # Fill in your final logic
+        return f"User bid: {bid_val} (placeholder logic)"
 
     def set_trump(self, suit=None):
         """
-        If comp is bidder & comp is also dealer => picks from comp's hand. 
-        Otherwise, use suit param from user.
+        If comp is bidder & also the dealer => pick from comp's hand
+        else user picks suit param
         """
         pass
 
     def attach_kitty_user(self):
-        """If user is bidder => reveal kitty to user."""
+        """If user is bidder => reveal kitty in the front-end."""
         self.kitty_revealed=True
 
-    def record_high_card(self, card_obj, pid):
-        """Check if this card is highest so far."""
-        pass
-
     def discard_comp(self):
-        """Computer discards up to 4 from non-trump suits. 
-        Return how many it discarded so we can show in the log.
-        """
+        """Computer discards up to 4 from non-trump suits"""
         return 0
 
     def discard_user(self, discList):
-        """User discards up to 4. Return how many. """
+        """User discards up to 4, draws that many."""
         return 0
+
+    def record_high_card(self, card_obj, player_idx):
+        pass
 
     def evaluate_trick(self, plays):
         pass
 
     def auto_finalize(self):
+        """After 5 tricks, awarding highest card +5, check if bidder fails bid, etc."""
         pass
-
-    # Additional methods for leading, responding, etc. omitted for brevity.
-
