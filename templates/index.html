@@ -82,7 +82,7 @@
     <!-- Bidding Phase -->
     <div id="bidding-section" class="section">
       <h2>Bidding Phase</h2>
-      <!-- Competitor bid display (for dealer) -->
+      <!-- Competitor bid is shown here when you are the dealer -->
       <div id="competitor-bid"></div>
       <div>Your Hand (Deal):</div>
       <div id="player-hand-bidding" class="cards-container"></div>
@@ -158,7 +158,7 @@
   
   <script>
     /***** Global Competitor Name *****/
-    // Choose one competitor name for the entire game.
+    // Choose one competitor name at game start; it remains constant.
     let competitorNames = ["Jasper", "Felix", "Stephen", "Tom", "Sean", "Holly", "Carolyn", "Karen", "Jennifer"];
     let competitorName = ""; // Set once at game start.
     
@@ -178,7 +178,6 @@
     let handPlayedCards = []; // For bonus determination
     let trickNumber = 1;
     let trickTurn = null; // "player" or "competitor"
-    let autoTriggered = false; // Ensure competitor auto-play once per trick
     let dealerBidRevealed = false; // For dealer: whether competitor’s bid is shown
     let playerCardPlayed = false; // Prevent multiple plays per trick
     
@@ -277,7 +276,7 @@
       if (typeof isPlayerDealer === 'undefined') {
         isPlayerDealer = Math.random() < 0.5;
       }
-      // Set competitorName only once for the duration of the game.
+      // Set competitorName once and keep it for the duration of the game.
       if (!competitorName) {
         competitorName = competitorNames[Math.floor(Math.random() * competitorNames.length)];
         document.getElementById('competitor-name').textContent = competitorName;
@@ -293,10 +292,10 @@
       kitty = deck.splice(0, 3);
       dealerBidRevealed = false;
       updateBiddingUI();
-      // If you are the dealer, display competitor's bid.
+      // If you're the dealer, display competitor's bid.
       if (isPlayerDealer) {
         competitorBid = (Math.random() < 0.5) ? 0 : [15, 20, 25, 30][Math.floor(Math.random() * 4)];
-        // Bagged rule: if competitor bid is 0, you (the dealer) must bid 15.
+        // Bagged rule: if competitor bid is 0, dealer is forced to bid 15.
         if (competitorBid === 0) {
           document.getElementById('bidding-message').textContent = "Bagged! You must bid 15 and choose trump.";
           bidWinner = "player";
@@ -323,7 +322,7 @@
     /***** Bidding Phase *****/
     function placeBid(bid) {
       if (isPlayerDealer) {
-        // For dealer, competitor's bid is already shown.
+        // Competitor's bid is already displayed.
         if (bid === 0) {
           bidWinner = "competitor";
           document.getElementById('bidding-message').textContent = "You passed. " + competitorName + " wins the bid.";
@@ -505,7 +504,7 @@
     }
     
     /***** Trick Play Phase *****/
-    // This helper ensures that once a card is played, the trick flow continues.
+    // A helper to continue the trick flow.
     function continueTrick() {
       if (trickCards.length === 2) {
         setTimeout(evaluateTrick, 500);
@@ -519,8 +518,8 @@
       trickCards = [];
       handPlayedCards = [];
       trickNumber = 1;
-      playerCardPlayed = false; // Reset player's flag
-      // Set lead based on bid winner.
+      playerCardPlayed = false;
+      // Set lead for first trick.
       trickTurn = bidWinner;
       if (trickTurn === "competitor") {
         setTimeout(competitorPlayCard, 1000);
@@ -569,6 +568,7 @@
       continueTrick();
     }
     function competitorPlayCard() {
+      if (trickCards.filter(e => e.player === "competitor").length > 0) return;
       if (competitorHand.length === 0) {
         continueTrick();
         return;
@@ -609,52 +609,35 @@
       if (trickCards.length < 2) return;
       handPlayedCards.push(...trickCards);
       
-      // Determine bonus winner.
-      let bonusWinner = null;
-      let trumpCards = handPlayedCards.filter(entry => isTrump(entry.card));
-      if (trumpCards.length > 0) {
-        let bonusCard = trumpCards.reduce((acc, curr) => (getTrumpRank(curr.card) < getTrumpRank(acc.card)) ? curr : acc);
-        bonusWinner = bonusCard.player;
+      let fiveTrump = trickCards.find(entry => entry.card.rank === "5" && isTrump(entry.card));
+      let winning;
+      if (fiveTrump) {
+        winning = fiveTrump;
       } else {
-        let ledSuit = handPlayedCards[0].card.suit;
-        let followingCards = handPlayedCards.filter(entry => entry.card.suit === ledSuit);
-        let bonusCard = followingCards.reduce((acc, curr) => (curr.card.value > acc.card.value) ? curr : acc);
-        bonusWinner = bonusCard.player;
+        let ledSuit = trickCards[0].card.suit;
+        let validCards = trickCards.filter(e => isTrump(e.card) || e.card.suit === ledSuit);
+        if (validCards.length > 0) {
+          let trumpCards = validCards.filter(e => isTrump(e.card));
+          if (trumpCards.length > 0) {
+            winning = trumpCards.reduce((best, curr) => (getTrumpRank(curr.card) < getTrumpRank(best.card)) ? curr : best);
+          } else {
+            let followingCards = validCards.filter(e => e.card.suit === ledSuit);
+            if (followingCards.length > 0) {
+              winning = followingCards.reduce((best, curr) => (getOffSuitRank(curr.card) < getOffSuitRank(best.card)) ? curr : best);
+            } else {
+              winning = validCards.reduce((best, curr) => (curr.card.value > best.card.value) ? curr : best);
+            }
+          }
+        } else {
+          winning = trickCards.reduce((best, curr) => (curr.card.value > best.card.value) ? curr : best);
+        }
       }
       
-      if (trickCards.find(e => e.player === "player")) {
-        // Increase trick count.
-        let winningSide = (bonusWinner === "player") ? "player" : "competitor"; 
-        // But here we determine trick winner by comparing the two cards.
-        let winning;
-        let fiveTrump = trickCards.find(entry => entry.card.rank === "5" && isTrump(entry.card));
-        if (fiveTrump) {
-          winning = fiveTrump;
-        } else {
-          let ledSuit = trickCards[0].card.suit;
-          let validCards = trickCards.filter(e => isTrump(e.card) || e.card.suit === ledSuit);
-          if (validCards.length > 0) {
-            let trumpCards = validCards.filter(e => isTrump(e.card));
-            if (trumpCards.length > 0) {
-              winning = trumpCards.reduce((best, curr) => (getTrumpRank(curr.card) < getTrumpRank(best.card)) ? curr : best);
-            } else {
-              let followingCards = validCards.filter(e => e.card.suit === ledSuit);
-              if (followingCards.length > 0) {
-                winning = followingCards.reduce((best, curr) => (getOffSuitRank(curr.card) < getOffSuitRank(best.card)) ? curr : best);
-              } else {
-                winning = validCards.reduce((best, curr) => (curr.card.value > best.card.value) ? curr : best);
-              }
-            }
-          } else {
-            winning = trickCards.reduce((best, curr) => (curr.card.value > best.card.value) ? curr : best);
-          }
-        }
-        
-        if (winning.player === "player") {
-          playerTricks++;
-        } else {
-          competitorTricks++;
-        }
+      // Increment trick count for the winning side.
+      if (winning.player === "player") {
+        playerTricks++;
+      } else {
+        competitorTricks++;
       }
       
       let playerCard = trickCards.find(e => e.player === "player");
@@ -668,7 +651,6 @@
       appendTrickLog(trickMessage);
       trickCards = [];
       trickNumber++;
-      
       playerCardPlayed = false;
       
       if (playerHand.length === 0 && competitorHand.length === 0) {
@@ -687,9 +669,9 @@
     }
     
     /***** End of Hand & Scoring *****/
-    // Scoring: Each trick is worth 5 points; bonus of 5 is added to the side that wins bonus.
-    // If the bidder meets or exceeds their bid, the round score is the actual trick points (with bonus).
-    // Otherwise, the bidder receives –(bid) points and opponent gets their trick points.
+    // Scoring: Each trick is 5 points; bonus of 5 goes to the side that wins bonus.
+    // If the bidder meets their bid, each side’s round score is their trick points (with bonus added to the winning side).
+    // Otherwise, the bidder gets –(bid) and the opponent gets their trick points.
     function endHand() {
       gamePhase = "finished";
       document.getElementById('trick-section').classList.add('hidden');
@@ -709,17 +691,11 @@
       let playerPoints = playerTricks * 5;
       let competitorPoints = competitorTricks * 5;
       if (bonusWinner === "player") { playerPoints += 5; }
-      else if (bonusWinner === "competitor") { competitorPoints += 5; }
+      if (bonusWinner === "competitor") { competitorPoints += 5; }
       
-      if (bidWinner === "player") {
-        if (playerPoints < playerBid) {
-          playerPoints = -playerBid;
-        }
-      } else {
-        if (competitorPoints < competitorBid) {
-          competitorPoints = -competitorBid;
-        }
-      }
+      // If the bidder fails to meet their bid, adjust.
+      if (bidWinner === "player" && playerPoints < playerBid) { playerPoints = -playerBid; }
+      if (bidWinner === "competitor" && competitorPoints < competitorBid) { competitorPoints = -competitorBid; }
       
       cumulativePlayerScore += playerPoints;
       cumulativeCompetitorScore += competitorPoints;
