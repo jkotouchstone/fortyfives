@@ -48,6 +48,8 @@
     /* Display trump suit and dealer info */
     #trump-display { font-weight: bold; margin-bottom: 10px; }
     #dealer-info { font-weight: bold; margin-bottom: 10px; color: #007; }
+    /* New: Competitor bid display above player's hand */
+    #competitor-bid { font-size: 16px; font-weight: bold; margin-bottom: 5px; color: #444; }
     /* Trick log area */
     #trick-log {
       margin-top: 10px;
@@ -80,10 +82,12 @@
     <!-- Bidding Phase -->
     <div id="bidding-section" class="section">
       <h2>Bidding Phase</h2>
+      <!-- New competitor bid display -->
+      <div id="competitor-bid"></div>
       <div>Your Hand (Deal):</div>
       <div id="player-hand-bidding" class="cards-container"></div>
       <div id="bid-options">
-        <!-- Bid buttons – if you're the dealer, a message above the buttons reveals the computer's bid -->
+        <!-- Bid buttons – if you're the dealer, your bid click will use the revealed competitor bid -->
         <button onclick="placeBid(0)">Pass</button>
         <button onclick="placeBid(15)">Bid 15</button>
         <button onclick="placeBid(20)">Bid 20</button>
@@ -103,7 +107,7 @@
         <button onclick="selectTrump('♦')">♦</button>
         <button onclick="selectTrump('♣')">♣</button>
       </div>
-      <!-- Show player's hand during trump selection -->
+      <!-- Your hand remains visible during trump selection -->
       <div id="trump-selection-hand" class="cards-container"></div>
     </div>
     
@@ -155,9 +159,9 @@
   </div>
   
   <script>
-    /***** Global Variables *****/
+    /***** Global Competitor Name Rotation *****/
     let competitorNames = ["Jasper", "Felix", "Stephen", "Tom", "Sean", "Holly", "Carolyn", "Karen", "Jennifer"];
-    let competitorName = "";  // This will be set for each hand
+    let competitorName = "";  // Will be set each hand
     
     /***** Game State Variables *****/
     let gamePhase = "bidding";  // "bidding", "trump", "kitty", "draw", "trick", "finished"
@@ -175,10 +179,9 @@
     let handPlayedCards = [];  // All cards played (for bonus calculation)
     let trickNumber = 1;
     let trickTurn = null;  // "player" or "competitor"
-    let autoTriggered = false; // Ensures computer auto-leads only once per trick
-    let dealerBidRevealed = false; // For dealer: whether competitor’s bid is shown
+    let autoTriggered = false; // To ensure competitor auto-leads only once per trick
+    let dealerBidRevealed = false; // For dealer: whether competitor’s bid has been shown
     let playerCardPlayed = false;  // Prevent multiple plays per trick
-    let competitorCardPlayed = false;  // Prevent multiple plays per trick
     
     let cumulativePlayerScore = 0;
     let cumulativeCompetitorScore = 0;
@@ -288,6 +291,13 @@
       kitty = deck.splice(0, 3);
       dealerBidRevealed = false;
       updateBiddingUI();
+      // For dealer, show competitor's bid above player's hand.
+      if (isPlayerDealer) {
+        competitorBid = (Math.random() < 0.5) ? 0 : [15, 20, 25, 30][Math.floor(Math.random() * 4)];
+        document.getElementById('competitor-bid').textContent = competitorName + " bids: " + competitorBid;
+      } else {
+        document.getElementById('competitor-bid').textContent = "";
+      }
     }
     function updateBiddingUI() {
       const container = document.getElementById('player-hand-bidding');
@@ -301,31 +311,23 @@
     }
     
     /***** Bidding Phase *****/
-    // For the dealer, as soon as the bidding phase begins, the competitor’s bid is shown
-    // in the bidding message (no pop-up). Then your bid is processed on your click.
+    // For the dealer, competitor's bid is now shown above your hand.
     function placeBid(bid) {
       if (isPlayerDealer) {
-        // Competitor’s bid should already be revealed if not yet revealed.
-        if (!dealerBidRevealed) {
-          competitorBid = (Math.random() < 0.5) ? 0 : [15, 20, 25, 30][Math.floor(Math.random() * 4)];
-          document.getElementById('bidding-message').textContent = "Competitor (" + competitorName + ") bids " + competitorBid + ". Now select your bid.";
-          dealerBidRevealed = true;
-          return;
+        // Competitor's bid is already shown.
+        if (bid === 0) {
+          bidWinner = "competitor";
+          document.getElementById('bidding-message').textContent = "You passed. " + competitorName + " wins the bid.";
+        } else if (bid > competitorBid) {
+          bidWinner = "player";
+          document.getElementById('bidding-message').textContent = "You win the bid (" + bid + " vs. " + competitorBid + ").";
         } else {
-          if (bid === 0) {
-            bidWinner = "competitor";
-            document.getElementById('bidding-message').textContent += " You passed. " + competitorName + " wins the bid.";
-          } else if (bid > competitorBid) {
-            bidWinner = "player";
-            document.getElementById('bidding-message').textContent += " You win the bid (" + bid + " vs. " + competitorBid + ").";
-          } else {
-            bidWinner = "competitor";
-            document.getElementById('bidding-message').textContent += " Your bid is not higher; " + competitorName + " wins the bid.";
-          }
-          setTimeout(() => { nextBiddingPhase(); }, 1500);
+          bidWinner = "competitor";
+          document.getElementById('bidding-message').textContent = "Your bid is not higher; " + competitorName + " wins the bid.";
         }
+        setTimeout(() => { nextBiddingPhase(); }, 1500);
       } else {
-        // Non-dealer: your bid is final.
+        // Non-dealer: process bid as before.
         playerBid = bid;
         competitorBid = (Math.random() < 0.5) ? 0 : [15, 20, 25, 30][Math.floor(Math.random() * 4)];
         if (playerBid === 0 && competitorBid === 0) {
@@ -375,7 +377,7 @@
       trumpSuit = suit;
       updateTrumpDisplay();
       if (bidWinner === "player") {
-        // Keep player's hand visible during trump selection.
+        // Keep player's hand visible; then move on.
         setTimeout(() => {
           gamePhase = "kitty";
           updateSections();
@@ -505,20 +507,17 @@
     }
     
     /***** Trick Play Phase *****/
-    // At the start of each trick, both sides should play exactly one card.
+    // Ensure that each trick exactly one card per side is played.
     function startTrickPlay() {
       gamePhase = "trick";
       trickCards = [];
       handPlayedCards = [];
       trickNumber = 1;
-      // Reset play flags.
+      // Reset the player's play flag.
       playerCardPlayed = false;
-      competitorCardPlayed = false;
       // Set lead for the first trick to the bid winner.
       trickTurn = bidWinner;
       if (trickTurn === "competitor") {
-        // Ensure competitor plays only one card.
-        competitorCardPlayed = false;
         setTimeout(competitorPlayCard, 1000);
       } else {
         updateTrickUI();
@@ -552,8 +551,7 @@
       });
       document.getElementById('trick-area').innerHTML = "";
       document.getElementById('trick-info').textContent = "Trick " + trickNumber + " of 5. " +
-        (trickTurn === "player" ? "Your turn to lead." : competitorName + " leads.") +
-        " (" + competitorName + " has " + competitorHand.length + " cards left.)";
+        (trickTurn === "player" ? "Your turn to lead." : competitorName + " leads. (" + competitorHand.length + " cards left)");
     }
     function playPlayerCard(index) {
       if (gamePhase !== "trick" || trickTurn !== "player") return;
@@ -566,12 +564,12 @@
       setTimeout(competitorPlayCard, 1000);
     }
     function competitorPlayCard() {
-      if (competitorCardPlayed) return;  // Prevent multiple plays.
+      // Prevent multiple competitor plays: if a competitor card is already in trickCards, exit.
+      if (trickCards.filter(e => e.player === "competitor").length > 0) return;
       if (competitorHand.length === 0) {
         setTimeout(evaluateTrick, 1000);
         return;
       }
-      competitorCardPlayed = true;
       let cardToPlay;
       if (trickCards.length > 0) {
         let ledSuit = trickCards[0].card.suit;
@@ -650,9 +648,9 @@
       appendTrickLog(trickMessage);
       trickCards = [];
       trickNumber++;
-      // Reset flags for next trick.
+      
+      // Reset the player's card flag for next trick.
       playerCardPlayed = false;
-      competitorCardPlayed = false;
       
       if (playerHand.length === 0 && competitorHand.length === 0) {
         endHand();
@@ -670,8 +668,7 @@
     }
     
     /***** End of Hand & Scoring *****/
-    // Scoring: If the bidder meets their bid, they receive 30 points and the opponent 0.
-    // Otherwise, the bidder receives –(bid) and the opponent receives their actual trick points (×5).
+    // Scoring: If the bidder meets or exceeds their bid, they receive 30 points; otherwise, the bidder receives –(bid) points.
     function endHand() {
       gamePhase = "finished";
       document.getElementById('trick-section').classList.add('hidden');
@@ -730,6 +727,7 @@
       bidWinner = null;
       dealerBidRevealed = false;
       document.getElementById('bidding-message').textContent = "";
+      document.getElementById('competitor-bid').textContent = "";
       gamePhase = "bidding";
       updateTrumpDisplay();
       updateSections();
