@@ -83,7 +83,7 @@
       <div>Your Hand (Deal):</div>
       <div id="player-hand-bidding" class="cards-container"></div>
       <div id="bid-options">
-        <!-- When you're the dealer, your first click will reveal the computer’s bid -->
+        <!-- Bid buttons – if you're the dealer, an alert will first show the computer’s bid -->
         <button onclick="placeBid(0)">Pass</button>
         <button onclick="placeBid(15)">Bid 15</button>
         <button onclick="placeBid(20)">Bid 20</button>
@@ -173,8 +173,8 @@
     let trickTurn = null;  // "player" or "competitor"
     let autoTriggered = false; // To ensure computer auto-leads only once per trick
     let dealerBidRevealed = false; // For dealer: whether computer’s bid is shown
-    let playerCardPlayed = false;  // Prevent multiple card plays per trick
-    
+    let playerCardPlayed = false; // Prevent multiple plays per trick
+
     let cumulativePlayerScore = 0;
     let cumulativeCompetitorScore = 0;
     let handNumber = 0;
@@ -290,6 +290,11 @@
       kitty = deck.splice(0, 3);
       dealerBidRevealed = false;
       updateBiddingUI();
+      // If you're the dealer, immediately reveal the computer’s bid via alert.
+      if (isPlayerDealer) {
+        competitorBid = (Math.random() < 0.5) ? 0 : [15, 20, 25, 30][Math.floor(Math.random() * 4)];
+        alert("Computer bid: " + competitorBid);
+      }
     }
     function updateBiddingUI() {
       const container = document.getElementById('player-hand-bidding');
@@ -303,27 +308,21 @@
     }
     
     /***** Bidding Phase *****/
-    // If you're the dealer, your first click reveals the computer’s bid.
+    // When you're the dealer, now that the computer's bid is revealed, your click immediately processes your bid.
     function placeBid(bid) {
       if (isPlayerDealer) {
-        if (!dealerBidRevealed) {
-          competitorBid = (Math.random() < 0.5) ? 0 : [15, 20, 25, 30][Math.floor(Math.random() * 4)];
-          document.getElementById('bidding-message').textContent = "Computer bids " + competitorBid + ". Now select your bid.";
-          dealerBidRevealed = true;
-          return;
+        // Dealer: competitorBid is already revealed by alert.
+        if (bid === 0) {
+          bidWinner = "competitor";
+          document.getElementById('bidding-message').textContent = "You passed. Computer wins the bid.";
+        } else if (bid > competitorBid) {
+          bidWinner = "player";
+          document.getElementById('bidding-message').textContent = "You win the bid (" + bid + " vs. " + competitorBid + ").";
         } else {
-          if (bid === 0) {
-            bidWinner = "competitor";
-            document.getElementById('bidding-message').textContent += " You passed. Computer wins the bid.";
-          } else if (bid > competitorBid) {
-            bidWinner = "player";
-            document.getElementById('bidding-message').textContent += " You outbid the computer (" + bid + " vs. " + competitorBid + ").";
-          } else {
-            bidWinner = "competitor";
-            document.getElementById('bidding-message').textContent += " Your bid is not higher; computer wins the bid.";
-          }
-          setTimeout(() => { nextBiddingPhase(); }, 1500);
+          bidWinner = "competitor";
+          document.getElementById('bidding-message').textContent = "Your bid is not higher; computer wins the bid.";
         }
+        setTimeout(() => { nextBiddingPhase(); }, 1500);
       } else {
         // Non-dealer: your bid is final.
         playerBid = bid;
@@ -505,19 +504,17 @@
     }
     
     /***** Trick Play Phase *****/
+    // At the start of each trick, both hands should lose exactly one card.
     function startTrickPlay() {
       gamePhase = "trick";
       trickCards = [];
       handPlayedCards = [];
       trickNumber = 1;
-      // Reset player card flag.
-      playerCardPlayed = false;
+      playerCardPlayed = false; // Reset the flag for each trick
       // Set lead for the first trick to the bid winner.
       trickTurn = bidWinner;
       if (trickTurn === "competitor") {
         setTimeout(competitorPlayCard, 1000);
-      } else {
-        updateTrickUI();
       }
       document.getElementById('bidding-section').classList.add('hidden');
       document.getElementById('trump-section').classList.add('hidden');
@@ -552,7 +549,7 @@
     }
     function playPlayerCard(index) {
       if (gamePhase !== "trick" || trickTurn !== "player") return;
-      if (playerCardPlayed) return; // Should not happen due to check in onclick.
+      if (playerCardPlayed) return;
       playerCardPlayed = true;
       const card = playerHand.splice(index, 1)[0];
       trickCards.push({ card: card, player: "player" });
@@ -647,10 +644,11 @@
       appendTrickLog(trickMessage);
       trickCards = [];
       trickNumber++;
-      // Reset player card flag for next trick.
+      
+      // Reset player's card flag for next trick.
       playerCardPlayed = false;
       
-      // If both hands are empty, finish the hand; otherwise, if the computer is to lead, trigger its play.
+      // If both hands are empty, finish the hand; otherwise, if competitor is to lead, trigger its play.
       if (playerHand.length === 0 && competitorHand.length === 0) {
         endHand();
       } else if (trickTurn === "competitor") {
@@ -667,8 +665,8 @@
     }
     
     /***** End of Hand & Scoring *****/
-    // Scoring: If the bidder does not meet their bid, they receive –bid points.
-    // Otherwise, the bidder receives their bid and the opponent receives their trick points.
+    // Scoring rule: if the bidder meets or exceeds their bid (by earning trick points × 5), they receive their bid;
+    // otherwise, they receive –bid. The opponent receives their actual trick points.
     function endHand() {
       gamePhase = "finished";
       document.getElementById('trick-section').classList.add('hidden');
@@ -677,11 +675,21 @@
       let roundCompetitorPoints = 0;
       
       if (bidWinner === "player") {
-        roundPlayerPoints = (playerTricks * 5 >= playerBid ? playerBid : -playerBid);
-        roundCompetitorPoints = competitorTricks * 5;
+        if ((playerTricks * 5) >= playerBid) {
+          roundPlayerPoints = playerBid;
+          roundCompetitorPoints = 30 - playerBid;
+        } else {
+          roundPlayerPoints = -playerBid;
+          roundCompetitorPoints = competitorTricks * 5;
+        }
       } else {
-        roundCompetitorPoints = (competitorTricks * 5 >= competitorBid ? competitorBid : -competitorBid);
-        roundPlayerPoints = playerTricks * 5;
+        if ((competitorTricks * 5) >= competitorBid) {
+          roundCompetitorPoints = competitorBid;
+          roundPlayerPoints = 30 - competitorBid;
+        } else {
+          roundCompetitorPoints = -competitorBid;
+          roundPlayerPoints = playerTricks * 5;
+        }
       }
       
       cumulativePlayerScore += roundPlayerPoints;
