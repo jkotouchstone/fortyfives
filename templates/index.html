@@ -5,7 +5,7 @@
   <title>Forty‑Fives Game (Heads‑Up)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    /* Basic styling – adjust later as needed */
+    /* Basic styling – adjust as needed */
     body {
       font-family: sans-serif;
       background: #f5f5f5;
@@ -83,7 +83,7 @@
       <div>Your Hand (Deal):</div>
       <div id="player-hand-bidding" class="cards-container"></div>
       <div id="bid-options">
-        <!-- Bid buttons. Their behavior depends on whether you're the dealer. -->
+        <!-- Bid buttons: if you're the dealer, you'll see the computer's bid first -->
         <button onclick="placeBid(0)">Pass</button>
         <button onclick="placeBid(15)">Bid 15</button>
         <button onclick="placeBid(20)">Bid 20</button>
@@ -222,9 +222,9 @@
     }
     
     /***** Ranking Functions *****/
-    // Full trump ranking orders:
+    // Trump ranking orders exactly as specified (no special treatment for 8):
     // Hearts: 5, J, A, K, Q, 10, 9, 8, 7, 6, 4, 3, 2
-    // Diamonds: 5, J, AH, A, K, Q, 10, 9, 8, 7, 6, 4, 3, 2  (AH = Ace of Hearts)
+    // Diamonds: 5, J, AH, A, K, Q, 10, 9, 8, 7, 6, 4, 3, 2
     // Clubs: 5, J, AH, A, K, Q, 2, 3, 4, 6, 7, 8, 9, 10
     // Spades: 5, J, AH, A, K, Q, 2, 3, 4, 6, 7, 8, 9, 10
     function getTrumpRank(card) {
@@ -250,7 +250,7 @@
       }
       return -1;
     }
-    // Full off-suit ranking orders:
+    // Off-suit ranking orders as specified:
     // Hearts: K, Q, J, 10, 9, 8, 7, 6, 5, 4, 3, 2
     // Diamonds: K, Q, J, 10, 9, 8, 7, 6, 5, 4, 3, 2, A
     // Clubs: K, Q, J, A, 2, 3, 4, 5, 6, 7, 8, 9, 10
@@ -298,14 +298,13 @@
     }
     
     /***** Bidding Phase *****/
-    // When you're not the dealer, your bid is final.
-    // When you are the dealer, the computer's bid is shown first before you decide.
+    // If you're not the dealer, your bid is final.
+    // If you are the dealer, you see the computer’s bid before choosing.
     function placeBid(bid) {
       if (isPlayerDealer) {
         // Dealer branch: show computer's bid first.
         competitorBid = (Math.random() < 0.5) ? 0 : [15, 20, 25, 30][Math.floor(Math.random() * 4)];
         document.getElementById('bidding-message').textContent = "Computer bids " + competitorBid + ".";
-        // Then, if you bid:
         if (bid === 0) {
           bidWinner = "competitor";
           document.getElementById('bidding-message').textContent += " You passed. Computer wins the bid.";
@@ -318,27 +317,19 @@
         }
         setTimeout(() => { nextBiddingPhase(); }, 1500);
       } else {
-        // Non-dealer (computer is dealer)
+        // Non-dealer: your bid is final.
         playerBid = bid;
-        // Computer (dealer) will only outbid by 5 points.
-        if (bid === 0) {
-          // If you pass, computer wins with a minimum bid of 15.
-          competitorBid = (Math.random() < 0.5) ? 15 : 0;
-          bidWinner = (competitorBid > 0) ? "competitor" : "player";
-        } else if (bid === 15) {
-          competitorBid = (Math.random() < 0.5) ? 20 : 0;
-          bidWinner = (bid > competitorBid) ? "player" : "competitor";
-        } else if (bid === 20) {
-          competitorBid = (Math.random() < 0.5) ? 25 : 0;
-          bidWinner = (bid > competitorBid) ? "player" : "competitor";
-        } else if (bid === 25) {
-          competitorBid = (Math.random() < 0.5) ? 30 : 0;
-          bidWinner = (bid > competitorBid) ? "player" : "competitor";
-        } else if (bid === 30) {
-          competitorBid = 0;
+        competitorBid = (Math.random() < 0.5) ? 0 : [15, 20, 25, 30][Math.floor(Math.random() * 4)];
+        if (playerBid === 0 && competitorBid === 0) {
+          bidWinner = "competitor";
+          document.getElementById('bidding-message').textContent = "Both passed. Computer wins the bid.";
+        } else if (playerBid >= competitorBid) {
           bidWinner = "player";
+          document.getElementById('bidding-message').textContent = "You win the bid (" + playerBid + " vs. " + competitorBid + ").";
+        } else {
+          bidWinner = "competitor";
+          document.getElementById('bidding-message').textContent = "Computer wins the bid (" + competitorBid + " vs. your bid " + playerBid + ").";
         }
-        document.getElementById('bidding-message').textContent = "You bid " + bid + ". Computer bids " + competitorBid + ". " + (bidWinner === "player" ? "You win the bid." : "Computer wins the bid.");
         setTimeout(() => { nextBiddingPhase(); }, 1500);
       }
     }
@@ -356,7 +347,6 @@
         document.getElementById('trump-buttons').classList.remove('hidden');
       }
     }
-    // Helper for dealer: when you are the dealer, call placeBid via dealerBid().
     function dealerBid(bid) {
       placeBid(bid);
     }
@@ -527,7 +517,7 @@
       document.getElementById('trick-area').innerHTML = "";
       document.getElementById('trick-info').textContent = "Trick " + trickNumber + " of 5. " +
         (trickTurn === "player" ? "Your turn to lead." : "Computer leads.");
-      if (gamePhase === "trick" && trickTurn === "competitor" && !autoTriggered) {
+      if (gamePhase === "trick" && trickTurn === "competitor" && trickCards.length === 0 && !autoTriggered) {
         autoTriggered = true;
         setTimeout(competitorPlayCard, 1000);
       }
@@ -542,7 +532,6 @@
       setTimeout(competitorPlayCard, 1000);
     }
     function competitorPlayCard() {
-      // If the competitor has no cards, evaluate the trick immediately.
       if (competitorHand.length === 0) {
         setTimeout(evaluateTrick, 1000);
         return;
@@ -583,7 +572,7 @@
     // Evaluate trick using full ranking rules:
     // 1. If any card is the 5 of trump, it wins automatically.
     // 2. Otherwise, if one card is trump and the other is not, trump wins.
-    // 3. If both are trump, compare using getTrumpRank (lower index is better).
+    // 3. If both cards are trump, compare using getTrumpRank (lower index is better).
     // 4. If neither is trump, compare only cards that follow the led suit using getOffSuitRank.
     function evaluateTrick() {
       if (trickCards.length < 2) return;
@@ -645,7 +634,7 @@
     }
     
     /***** End of Hand & Scoring *****/
-    // Scoring rule: the bidder must meet their bid; if not, they receive –bid points; otherwise, the bidder receives bid points and the opponent gets (30 – bid).
+    // Scoring: If the bidder does not meet their bid, they receive negative the bid value.
     function endHand() {
       gamePhase = "finished";
       document.getElementById('trick-section').classList.add('hidden');
