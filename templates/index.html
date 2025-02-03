@@ -5,7 +5,7 @@
   <title>Forty‑Fives Game (Heads‑Up)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    /* Basic styling – adjust later as needed */
+    /* Basic styling – adjust as needed */
     body {
       font-family: sans-serif;
       background: #f5f5f5;
@@ -82,12 +82,14 @@
       <h2>Bidding Phase</h2>
       <div>Your Hand (Deal):</div>
       <div id="player-hand-bidding" class="cards-container"></div>
-      <div>
-        <button onclick="placeBid(0)">Pass</button>
-        <button onclick="placeBid(15)">Bid 15</button>
-        <button onclick="placeBid(20)">Bid 20</button>
-        <button onclick="placeBid(25)">Bid 25</button>
-        <button onclick="placeBid(30)">Bid 30</button>
+      <div id="bid-options">
+        <!-- When you're not dealer, your bid button is final.
+             When you are the dealer, you see the computer’s bid and then can choose to outbid or pass. -->
+        <button onclick="dealerBid(0)">Pass</button>
+        <button onclick="dealerBid(15)">Bid 15</button>
+        <button onclick="dealerBid(20)">Bid 20</button>
+        <button onclick="dealerBid(25)">Bid 25</button>
+        <button onclick="dealerBid(30)">Bid 30</button>
       </div>
       <div id="bidding-message"></div>
     </div>
@@ -104,7 +106,7 @@
       </div>
     </div>
     
-    <!-- Kitty Phase (for player win) -->
+    <!-- Kitty Phase (for non-dealer bid win) -->
     <div id="kitty-section" class="section hidden">
       <h2>Kitty Phase</h2>
       <div>Your Combined Hand (Your 5 cards + Kitty):</div>
@@ -115,7 +117,7 @@
       <button onclick="confirmKittySelection()">Confirm Selection</button>
     </div>
     
-    <!-- Draw Phase -->
+    <!-- Draw Phase (for when computer is bidder) -->
     <div id="draw-section" class="section hidden">
       <h2>Draw Phase</h2>
       <div>Your Hand:</div>
@@ -161,13 +163,14 @@
     let trumpSuit = null;
     let playerBid = 0;
     let competitorBid = 0;
-    let bidWinner = null; // "player" or "competitor"
+    let bidWinner = null;  // "player" or "competitor"
     let playerTricks = 0;
     let competitorTricks = 0;
-    let trickCards = []; // Array of { card, player }
-    let handPlayedCards = []; // All cards played (for bonus calculation)
+    let trickCards = [];   // Array of { card, player }
+    let handPlayedCards = [];  // All cards played (for bonus calculation)
     let trickNumber = 1;
-    let trickTurn = null; // "player" or "competitor"
+    let trickTurn = null;  // "player" or "competitor"
+    let autoTriggered = false; // To ensure computer auto-leads only once per trick
     
     let cumulativePlayerScore = 0;
     let cumulativeCompetitorScore = 0;
@@ -216,55 +219,44 @@
     
     /***** Helper: isTrump *****/
     function isTrump(card) {
-      // If trump is hearts, every heart is trump.
-      // Otherwise, card is trump if its suit equals trumpSuit or if it's A♥.
       return card.suit === trumpSuit || (trumpSuit !== "♥" && card.suit === "♥" && card.rank === "A") || (trumpSuit === "♥" && card.suit === "♥");
     }
     
     /***** Ranking Functions *****/
-    // For trump cards, use the full order specified.
+    // Full trump ranking orders per suit:
     function getTrumpRank(card) {
       let order;
       if (trumpSuit === "♥") {
-        // Hearts trump: 5, J, A, K, Q, 10, 9, 8, 7, 6, 4, 3, 2
         order = ["5", "J", "A", "K", "Q", "10", "9", "8", "7", "6", "4", "3", "2"];
         return order.indexOf(card.rank);
       } else if (trumpSuit === "♦") {
-        // Diamonds trump: 5, J, A♥, A, K, Q, 10, 9, 8, 7, 6, 4, 3, 2
-        // Here, Ace of Hearts (if played) is treated specially.
         order = ["5", "J", "AH", "A", "K", "Q", "10", "9", "8", "7", "6", "4", "3", "2"];
-        let rank = card.rank;
-        if (card.suit === "♥" && card.rank === "A") rank = "AH";
-        return order.indexOf(rank);
+        let r = card.rank;
+        if (card.suit === "♥" && card.rank === "A") r = "AH";
+        return order.indexOf(r);
       } else if (trumpSuit === "♣") {
-        // Clubs trump: 5, J, A♥, A, K, Q, 2, 3, 4, 6, 7, 8, 9, 10
         order = ["5", "J", "AH", "A", "K", "Q", "2", "3", "4", "6", "7", "8", "9", "10"];
-        let rank = card.rank;
-        if (card.suit === "♥" && card.rank === "A") rank = "AH";
-        return order.indexOf(rank);
+        let r = card.rank;
+        if (card.suit === "♥" && card.rank === "A") r = "AH";
+        return order.indexOf(r);
       } else if (trumpSuit === "♠") {
-        // Spades trump: 5, J, A♥, A, K, Q, 2, 3, 4, 6, 7, 8, 9, 10
         order = ["5", "J", "AH", "A", "K", "Q", "2", "3", "4", "6", "7", "8", "9", "10"];
-        let rank = card.rank;
-        if (card.suit === "♥" && card.rank === "A") rank = "AH";
-        return order.indexOf(rank);
+        let r = card.rank;
+        if (card.suit === "♥" && card.rank === "A") r = "AH";
+        return order.indexOf(r);
       }
       return -1;
     }
-    // For off-suit cards, use the full order specified.
+    // Full off-suit ranking orders:
     function getOffSuitRank(card) {
       let order;
       if (card.suit === "♥") {
-        // Hearts off suit: K, Q, J, 10, 9, 8, 7, 6, 5, 4, 3, 2
         order = ["K", "Q", "J", "10", "9", "8", "7", "6", "5", "4", "3", "2"];
       } else if (card.suit === "♦") {
-        // Diamonds off suit: K, Q, J, 10, 9, 8, 7, 6, 5, 4, 3, 2, A
         order = ["K", "Q", "J", "10", "9", "8", "7", "6", "5", "4", "3", "2", "A"];
       } else if (card.suit === "♣") {
-        // Clubs off suit: K, Q, J, A, 2, 3, 4, 5, 6, 7, 8, 9, 10
         order = ["K", "Q", "J", "A", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
       } else if (card.suit === "♠") {
-        // Spades off suit: K, Q, J, A, 2, 3, 4, 5, 6, 7, 8, 9, 10
         order = ["K", "Q", "J", "A", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
       }
       return order.indexOf(card.rank);
@@ -278,7 +270,7 @@
         isPlayerDealer = Math.random() < 0.5;
       }
       updateDealerInfo();
-      // Deal 5 cards to each player (3 then 2).
+      // Deal 5 cards (3 then 2) to each player.
       playerHand = deck.splice(0, 3);
       competitorHand = deck.splice(0, 3);
       playerHand = playerHand.concat(deck.splice(0, 2));
@@ -299,37 +291,61 @@
     }
     
     /***** Bidding Phase *****/
+    // When not dealer, bid immediately as before.
+    // When you are the dealer, you see the computer's bid and then can choose.
     function placeBid(bid) {
-      if (isPlayerDealer && bid === 0) {
-        bid = 15;
-        document.getElementById('bidding-message').textContent = "As the dealer, you must bid at least 15.";
-      }
-      playerBid = bid;
-      competitorBid = (Math.random() < 0.5) ? 0 : [15, 20, 25, 30][Math.floor(Math.random() * 4)];
-      let message = "";
-      if (playerBid === 0 && competitorBid === 0) {
-        bidWinner = "competitor";
-        message = "Both passed. Competitor wins the bid.";
-      } else if (playerBid >= competitorBid) {
-        bidWinner = "player";
-        message = "You win the bid (" + playerBid + " vs. " + competitorBid + ").";
+      if (!isPlayerDealer) {
+        // Non-dealer: your bid is final.
+        playerBid = bid;
+        competitorBid = (Math.random() < 0.5) ? 0 : [15, 20, 25, 30][Math.floor(Math.random() * 4)];
+        if (playerBid === 0 && competitorBid === 0) {
+          bidWinner = "competitor";
+          document.getElementById('bidding-message').textContent = "Both passed. Competitor wins the bid.";
+        } else if (playerBid >= competitorBid) {
+          bidWinner = "player";
+          document.getElementById('bidding-message').textContent = "You win the bid (" + playerBid + " vs. " + competitorBid + ").";
+        } else {
+          bidWinner = "competitor";
+          document.getElementById('bidding-message').textContent = "Competitor wins the bid (" + competitorBid + " vs. your bid " + playerBid + ").";
+        }
+        setTimeout(() => { nextBiddingPhase(); }, 1500);
       } else {
-        bidWinner = "competitor";
-        message = "Competitor wins the bid (" + competitorBid + " vs. your bid " + playerBid + ").";
+        // Dealer: show computer's bid first, then allow you to choose.
+        competitorBid = (Math.random() < 0.5) ? 0 : [15, 20, 25, 30][Math.floor(Math.random() * 4)];
+        document.getElementById('bidding-message').textContent = "Computer bids " + competitorBid + ".";
+        // Now, if your bid (bid) is higher than competitorBid, you win; otherwise, if you pass (bid 0), computer wins.
+        if (bid === 0) {
+          bidWinner = "competitor";
+          document.getElementById('bidding-message').textContent += " You passed. Computer wins the bid.";
+        } else if (bid > competitorBid) {
+          bidWinner = "player";
+          document.getElementById('bidding-message').textContent += " You outbid the computer (" + bid + " vs. " + competitorBid + ").";
+        } else {
+          bidWinner = "competitor";
+          document.getElementById('bidding-message').textContent += " Your bid is not higher than the computer's; computer wins the bid.";
+        }
+        setTimeout(() => { nextBiddingPhase(); }, 1500);
       }
-      document.getElementById('bidding-message').textContent = message;
-      setTimeout(() => {
+    }
+    // Called after bidding is complete to proceed to trump selection.
+    function nextBiddingPhase() {
+      if (bidWinner === "competitor") {
         gamePhase = "trump";
         updateSections();
-        if (bidWinner === "competitor") {
-          document.getElementById('trump-instructions').textContent = "Competitor is selecting trump suit...";
-          document.getElementById('trump-buttons').classList.add('hidden');
-          setTimeout(autoSelectTrump, 1500);
-        } else {
-          document.getElementById('trump-instructions').textContent = "Select the trump suit:";
-          document.getElementById('trump-buttons').classList.remove('hidden');
-        }
-      }, 1500);
+        document.getElementById('trump-instructions').textContent = "Competitor is selecting trump suit...";
+        document.getElementById('trump-buttons').classList.add('hidden');
+        setTimeout(autoSelectTrump, 1500);
+      } else {
+        gamePhase = "trump";
+        updateSections();
+        document.getElementById('trump-instructions').textContent = "Select the trump suit:";
+        document.getElementById('trump-buttons').classList.remove('hidden');
+      }
+    }
+    
+    // Helper function for dealer bid (when you are dealer)
+    function dealerBid(bid) {
+      placeBid(bid);
     }
     
     /***** Trump Selection Phase *****/
@@ -355,7 +371,7 @@
       updateDrawPhase();
     }
     
-    /***** Kitty Phase (for player win) *****/
+    /***** Kitty Phase (for non-dealer bid win) *****/
     function updateKittyPhase() {
       document.getElementById('trump-section').classList.add('hidden');
       document.getElementById('kitty-section').classList.remove('hidden');
@@ -419,7 +435,7 @@
           : "You have a full 5‑card hand. Click 'Draw Cards' to continue.";
       } else {
         container.style.pointerEvents = "auto";
-        // Now select the cards you want to keep from your 5-card hand.
+        // For computer bid, let you select the cards you want to keep.
         playerHand.forEach((card, index) => {
           const div = document.createElement('div');
           div.className = 'card';
@@ -430,7 +446,7 @@
               div.classList.remove('selected');
             } else {
               const selected = container.querySelectorAll('.selected');
-              if (selected.length < 5) { // Allow up to 5 selections.
+              if (selected.length < 5) {
                 div.classList.add('selected');
               }
             }
@@ -470,9 +486,11 @@
       trickCards = [];
       handPlayedCards = [];
       trickNumber = 1;
-      // Lead for first trick is the bid winner.
+      autoTriggered = false; // Reset auto-trigger flag
+      // Set lead for the first trick to the bid winner.
       trickTurn = bidWinner;
       if (trickTurn === "competitor") {
+        autoTriggered = true;
         setTimeout(competitorPlayCard, 1000);
       }
       document.getElementById('bidding-section').classList.add('hidden');
@@ -497,7 +515,11 @@
       document.getElementById('trick-area').innerHTML = "";
       document.getElementById('trick-info').textContent = "Trick " + trickNumber + " of 5. " +
         (trickTurn === "player" ? "Your turn to lead." : "Computer leads.");
-      // (Do not auto-trigger competitor play here to avoid duplicate plays.)
+      // Auto-trigger computer play only if it hasn't been done already for this trick.
+      if (gamePhase === "trick" && trickTurn === "competitor" && trickCards.length === 0 && !autoTriggered) {
+        autoTriggered = true;
+        setTimeout(competitorPlayCard, 1000);
+      }
     }
     function playPlayerCard(index) {
       if (gamePhase !== "trick" || trickTurn !== "player") return;
@@ -505,13 +527,13 @@
       trickCards.push({ card: card, player: "player" });
       updateTrickArea();
       trickTurn = "competitor";
+      autoTriggered = false;
       setTimeout(competitorPlayCard, 1000);
     }
     function competitorPlayCard() {
       if (competitorHand.length === 0) return;
       let cardToPlay;
       if (trickCards.length > 0) {
-        // Determine led suit.
         let ledSuit = trickCards[0].card.suit;
         // Must follow suit if possible.
         let followCards = competitorHand.filter(card => card.suit === ledSuit);
@@ -520,7 +542,6 @@
           let idx = competitorHand.indexOf(cardToPlay);
           competitorHand.splice(idx, 1);
         } else {
-          // Otherwise, play lowest card overall.
           cardToPlay = competitorHand.reduce((lowest, card) => card.value < lowest.value ? card : lowest, competitorHand[0]);
           let idx = competitorHand.indexOf(cardToPlay);
           competitorHand.splice(idx, 1);
@@ -532,6 +553,7 @@
       trickCards.push({ card: cardToPlay, player: "competitor" });
       updateTrickArea();
       trickTurn = "player";
+      autoTriggered = false;
       setTimeout(evaluateTrick, 1000);
     }
     function updateTrickArea() {
@@ -544,45 +566,35 @@
         trickDiv.appendChild(div);
       });
     }
-    // Evaluate trick using full ranking rules:
+    // Evaluate trick using full ranking rules.
     // 1. If any card is the 5 of trump, it wins automatically.
     // 2. Otherwise, if one card is trump and the other is not, trump wins.
-    // 3. If both cards are trump, compare using getTrumpRank.
+    // 3. If both are trump, compare using getTrumpRank (lower index is better).
     // 4. If neither is trump, compare only cards that follow the led suit using getOffSuitRank.
     function evaluateTrick() {
       if (trickCards.length < 2) return;
       handPlayedCards.push(...trickCards);
       
-      // Check for the 5 of trump.
       let fiveTrump = trickCards.find(entry => entry.card.rank === "5" && isTrump(entry.card));
       let winning;
       if (fiveTrump) {
         winning = fiveTrump;
       } else {
         let ledSuit = trickCards[0].card.suit;
-        // Filter valid cards: trump cards OR cards that follow led suit.
         let validCards = trickCards.filter(e => isTrump(e.card) || e.card.suit === ledSuit);
         if (validCards.length > 0) {
           let trumpCards = validCards.filter(e => isTrump(e.card));
           if (trumpCards.length > 0) {
-            // Compare trump cards using getTrumpRank (lower index is better).
-            winning = trumpCards.reduce((best, curr) => {
-              return (getTrumpRank(curr.card) < getTrumpRank(best.card)) ? curr : best;
-            });
+            winning = trumpCards.reduce((best, curr) => (getTrumpRank(curr.card) < getTrumpRank(best.card)) ? curr : best);
           } else {
-            // Compare off-suit cards using getOffSuitRank.
             let followingCards = validCards.filter(e => e.card.suit === ledSuit);
             if (followingCards.length > 0) {
-              winning = followingCards.reduce((best, curr) => {
-                return (getOffSuitRank(curr.card) < getOffSuitRank(best.card)) ? curr : best;
-              });
+              winning = followingCards.reduce((best, curr) => (getOffSuitRank(curr.card) < getOffSuitRank(best.card)) ? curr : best);
             } else {
-              // Fallback: highest value.
               winning = validCards.reduce((best, curr) => (curr.card.value > best.card.value) ? curr : best);
             }
           }
         } else {
-          // Fallback: highest overall.
           winning = trickCards.reduce((best, curr) => (curr.card.value > best.card.value) ? curr : best);
         }
       }
@@ -618,29 +630,45 @@
       logDiv.appendChild(p);
     }
     
-    /***** End of Hand & Game Over *****/
+    /***** End of Hand & Scoring *****/
+    // Scoring adjustment: if the bidder (the one who made the bid) fails to reach their bid,
+    // they receive negative the bid amount (no credit for trick points). Otherwise, the bidder
+    // receives their bid amount and the opponent receives (30 - bid).
     function endHand() {
       gamePhase = "finished";
       document.getElementById('trick-section').classList.add('hidden');
-      // Determine bonus: among played trump cards, the highest (per getTrumpRank) wins bonus.
-      let trumpCards = handPlayedCards.filter(entry => isTrump(entry.card));
-      let bonusWinner = null;
-      if (trumpCards.length > 0) {
-        let bonusCard = trumpCards.reduce((acc, curr) => (getTrumpRank(curr.card) < getTrumpRank(acc.card)) ? curr : acc);
-        bonusWinner = bonusCard.player;
+      
+      let roundPlayerPoints = 0;
+      let roundCompetitorPoints = 0;
+      
+      if (bidWinner === "player") {
+        // Player was bidder.
+        if ((playerTricks * 5) >= playerBid) {
+          roundPlayerPoints = playerBid;
+          roundCompetitorPoints = 30 - playerBid;
+        } else {
+          roundPlayerPoints = -playerBid;
+          roundCompetitorPoints = competitorTricks * 5;
+        }
       } else {
-        let bonusCard = handPlayedCards.reduce((acc, curr) => (curr.card.value > acc.card.value) ? curr : acc);
-        bonusWinner = bonusCard.player;
+        // Competitor was bidder.
+        if ((competitorTricks * 5) >= competitorBid) {
+          roundCompetitorPoints = competitorBid;
+          roundPlayerPoints = 30 - competitorBid;
+        } else {
+          roundCompetitorPoints = -competitorBid;
+          roundPlayerPoints = playerTricks * 5;
+        }
       }
-      let roundPlayerPoints = playerTricks * 5 + (bonusWinner === "player" ? 5 : 0);
-      let roundCompetitorPoints = competitorTricks * 5 + (bonusWinner === "competitor" ? 5 : 0);
+      
       cumulativePlayerScore += roundPlayerPoints;
       cumulativeCompetitorScore += roundCompetitorPoints;
+      
       let handResult = "Hand " + (++handNumber) + ": You won " + playerTricks + " tricks (" + (playerTricks*5) +
-                       (bonusWinner === "player" ? " + Bonus (5)" : "") + "); " +
-                       "Computer won " + competitorTricks + " tricks (" + (competitorTricks*5) +
-                       (bonusWinner === "competitor" ? " + Bonus (5)" : "") + "). " +
+                       ( (bidWinner==="player" && (playerTricks*5)>=playerBid) || (bidWinner==="competitor" && (competitorTricks*5)>=competitorBid) ? " + Bonus (5)" : "") +
+                       "); Computer won " + competitorTricks + " tricks (" + (competitorTricks*5) + "). " +
                        "Round Total: You " + roundPlayerPoints + " vs. Computer " + roundCompetitorPoints + ".";
+      
       handLogMessages.push(handResult);
       updateScoreboard();
       
@@ -702,6 +730,7 @@
       document.getElementById('kitty-section').classList.add('hidden');
       document.getElementById('draw-section').classList.add('hidden');
       document.getElementById('trick-section').classList.add('hidden');
+      
       if (gamePhase === "bidding") {
         document.getElementById('bidding-section').classList.remove('hidden');
         updateBiddingUI();
