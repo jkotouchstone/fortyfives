@@ -83,7 +83,7 @@
       <div>Your Hand (Deal):</div>
       <div id="player-hand-bidding" class="cards-container"></div>
       <div id="bid-options">
-        <!-- When you are the dealer, your first click will reveal the computer’s bid -->
+        <!-- When you're the dealer, your first click will reveal the computer’s bid -->
         <button onclick="placeBid(0)">Pass</button>
         <button onclick="placeBid(15)">Bid 15</button>
         <button onclick="placeBid(20)">Bid 20</button>
@@ -103,7 +103,7 @@
         <button onclick="selectTrump('♦')">♦</button>
         <button onclick="selectTrump('♣')">♣</button>
       </div>
-      <!-- Show your hand during trump selection -->
+      <!-- Your hand remains visible during trump selection -->
       <div id="trump-selection-hand" class="cards-container"></div>
     </div>
     
@@ -173,6 +173,7 @@
     let trickTurn = null;  // "player" or "competitor"
     let autoTriggered = false; // To ensure computer auto-leads only once per trick
     let dealerBidRevealed = false; // For dealer: whether computer’s bid is shown
+    let playerCardPlayed = false;  // Prevent multiple card plays per trick
     
     let cumulativePlayerScore = 0;
     let cumulativeCompetitorScore = 0;
@@ -302,7 +303,7 @@
     }
     
     /***** Bidding Phase *****/
-    // When you're the dealer, your first click reveals the computer’s bid.
+    // If you're the dealer, your first click reveals the computer’s bid.
     function placeBid(bid) {
       if (isPlayerDealer) {
         if (!dealerBidRevealed) {
@@ -360,18 +361,8 @@
     }
     
     /***** Trump Selection Phase *****/
-    // Display your hand so you can see your cards while selecting trump.
     function updateTrumpSelectionHand() {
       const container = document.getElementById('trump-selection-hand');
-      // If the container doesn't exist yet, create it.
-      if (!container) {
-        const newDiv = document.createElement('div');
-        newDiv.id = "trump-selection-hand";
-        newDiv.className = "cards-container";
-        document.getElementById('trump-section').appendChild(newDiv);
-        updateTrumpSelectionHand();
-        return;
-      }
       container.innerHTML = "";
       playerHand.forEach(card => {
         const div = document.createElement('div');
@@ -384,7 +375,7 @@
       trumpSuit = suit;
       updateTrumpDisplay();
       if (bidWinner === "player") {
-        // Keep your cards visible in trump selection.
+        // Keep your cards visible during trump selection.
         setTimeout(() => {
           gamePhase = "kitty";
           updateSections();
@@ -519,12 +510,14 @@
       trickCards = [];
       handPlayedCards = [];
       trickNumber = 1;
-      autoTriggered = false;
+      // Reset player card flag.
+      playerCardPlayed = false;
       // Set lead for the first trick to the bid winner.
       trickTurn = bidWinner;
       if (trickTurn === "competitor") {
-        autoTriggered = true;
         setTimeout(competitorPlayCard, 1000);
+      } else {
+        updateTrickUI();
       }
       document.getElementById('bidding-section').classList.add('hidden');
       document.getElementById('trump-section').classList.add('hidden');
@@ -542,16 +535,25 @@
         div.className = 'card';
         div.textContent = card.rank + card.suit;
         div.dataset.index = index;
-        div.onclick = () => { if (gamePhase === "trick" && trickTurn === "player") playPlayerCard(index); };
+        div.onclick = () => { 
+          if (gamePhase === "trick" && trickTurn === "player") {
+            if (playerCardPlayed) {
+              alert("You have already played a card this trick!");
+            } else {
+              playPlayerCard(index);
+            }
+          }
+        };
         handDiv.appendChild(div);
       });
       document.getElementById('trick-area').innerHTML = "";
       document.getElementById('trick-info').textContent = "Trick " + trickNumber + " of 5. " +
         (trickTurn === "player" ? "Your turn to lead." : "Computer leads.");
-      // Do not auto-trigger here to prevent duplicate calls.
     }
     function playPlayerCard(index) {
       if (gamePhase !== "trick" || trickTurn !== "player") return;
+      if (playerCardPlayed) return; // Should not happen due to check in onclick.
+      playerCardPlayed = true;
       const card = playerHand.splice(index, 1)[0];
       trickCards.push({ card: card, player: "player" });
       updateTrickArea();
@@ -645,9 +647,14 @@
       appendTrickLog(trickMessage);
       trickCards = [];
       trickNumber++;
-      trickTurn = winning.player;
+      // Reset player card flag for next trick.
+      playerCardPlayed = false;
+      
+      // If both hands are empty, finish the hand; otherwise, if the computer is to lead, trigger its play.
       if (playerHand.length === 0 && competitorHand.length === 0) {
         endHand();
+      } else if (trickTurn === "competitor") {
+        setTimeout(competitorPlayCard, 1000);
       } else {
         updateTrickUI();
       }
@@ -660,7 +667,8 @@
     }
     
     /***** End of Hand & Scoring *****/
-    // Scoring rule: If the bidder does not meet their bid, they receive –bid points.
+    // Scoring: If the bidder does not meet their bid, they receive –bid points.
+    // Otherwise, the bidder receives their bid and the opponent receives their trick points.
     function endHand() {
       gamePhase = "finished";
       document.getElementById('trick-section').classList.add('hidden');
@@ -669,29 +677,19 @@
       let roundCompetitorPoints = 0;
       
       if (bidWinner === "player") {
-        if ((playerTricks * 5) >= playerBid) {
-          roundPlayerPoints = playerBid;
-          roundCompetitorPoints = 30 - playerBid;
-        } else {
-          roundPlayerPoints = -playerBid;
-          roundCompetitorPoints = competitorTricks * 5;
-        }
+        roundPlayerPoints = (playerTricks * 5 >= playerBid ? playerBid : -playerBid);
+        roundCompetitorPoints = competitorTricks * 5;
       } else {
-        if ((competitorTricks * 5) >= competitorBid) {
-          roundCompetitorPoints = competitorBid;
-          roundPlayerPoints = 30 - competitorBid;
-        } else {
-          roundCompetitorPoints = -competitorBid;
-          roundPlayerPoints = playerTricks * 5;
-        }
+        roundCompetitorPoints = (competitorTricks * 5 >= competitorBid ? competitorBid : -competitorBid);
+        roundPlayerPoints = playerTricks * 5;
       }
       
       cumulativePlayerScore += roundPlayerPoints;
       cumulativeCompetitorScore += roundCompetitorPoints;
       
-      let handResult = "Hand " + (++handNumber) + ": You won " + playerTricks + " tricks (" + (playerTricks*5) +
-                       ( ((bidWinner==="player" && (playerTricks*5)>=playerBid) || (bidWinner==="competitor" && (competitorTricks*5)>=competitorBid)) ? " + Bonus (5)" : "" ) +
-                       "); Computer won " + competitorTricks + " tricks (" + (competitorTricks*5) + "). " +
+      let handResult = "Hand " + (++handNumber) + ": You won " + playerTricks + " tricks (" + (playerTricks * 5) +
+                       ( (((bidWinner==="player") && (playerTricks*5)>=playerBid) || ((bidWinner==="competitor") && (competitorTricks*5)>=competitorBid)) ? " + Bonus (5)" : "" ) +
+                       "); Computer won " + competitorTricks + " tricks (" + (competitorTricks * 5) + "). " +
                        "Round Total: You " + roundPlayerPoints + " vs. Computer " + roundCompetitorPoints + ".";
       
       handLogMessages.push(handResult);
