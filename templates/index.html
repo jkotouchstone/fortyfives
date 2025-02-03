@@ -115,7 +115,7 @@
       <button onclick="confirmKittySelection()">Confirm Selection</button>
     </div>
     
-    <!-- Draw Phase (for both competitor win and player win) -->
+    <!-- Draw Phase -->
     <div id="draw-section" class="section hidden">
       <h2>Draw Phase</h2>
       <div>Your Hand:</div>
@@ -218,15 +218,15 @@
     }
     
     /***** Helper: isTrump *****/
-    // Returns true if the card is considered trump.
+    // Returns true if the card is trump.
     function isTrump(card) {
-      // In this game, if trump is not hearts, the Ace of Hearts is still trump.
-      return card.suit === trumpSuit || (card.suit === "♥" && card.rank === "A");
+      // If trump is hearts, every heart is trump.
+      // Otherwise, a card is trump if its suit equals trumpSuit or if it's A♥.
+      return card.suit === trumpSuit || (trumpSuit !== "♥" && card.suit === "♥" && card.rank === "A") || (trumpSuit === "♥" && card.suit === "♥");
     }
     
     /***** Bonus Ranking Function *****/
     function getCardBonusRank(card) {
-      // Only consider trump cards for bonus; if not trump, return -1.
       if (!isTrump(card)) return -1;
       let order;
       if (trumpSuit === "♥") {
@@ -367,14 +367,13 @@
       updateDrawPhase();
     }
     
-    /***** Draw Phase (for both competitor win and player win) *****/
+    /***** Draw Phase *****/
     function updateDrawPhase() {
       document.getElementById('trump-section').classList.add('hidden');
       document.getElementById('draw-section').classList.remove('hidden');
       const container = document.getElementById('draw-hand');
       container.innerHTML = "";
       if (bidWinner === "player") {
-        // For player win: simply display kept cards; no discarding.
         playerHand.forEach(card => {
           const div = document.createElement('div');
           div.className = 'card';
@@ -388,8 +387,8 @@
           ? "You have kept " + playerHand.length + " cards. You need to draw " + needToDraw + " cards. Click 'Draw Cards' to draw them."
           : "You have a full 5‑card hand. Click 'Draw Cards' to continue.";
       } else {
-        // For competitor win: allow discarding.
         container.style.pointerEvents = "auto";
+        // Now let the player select the cards to keep from their current hand.
         playerHand.forEach((card, index) => {
           const div = document.createElement('div');
           div.className = 'card';
@@ -400,14 +399,14 @@
               div.classList.remove('selected');
             } else {
               const selected = container.querySelectorAll('.selected');
-              if (selected.length < 4) { // up to 4 cards
+              if (selected.length < 5) { // Allow selection of up to 5 cards.
                 div.classList.add('selected');
               }
             }
           };
           container.appendChild(div);
         });
-        document.getElementById('draw-phase-instructions').textContent = "Select any cards to discard (0–4) and click 'Draw Cards'.";
+        document.getElementById('draw-phase-instructions').textContent = "Select the cards you want to keep from your hand. The remaining cards will be drawn.";
       }
     }
     function confirmDraw() {
@@ -422,14 +421,11 @@
       } else {
         const container = document.getElementById('draw-hand');
         const selectedDivs = container.querySelectorAll('.selected');
-        let discardIndices = [];
+        let keptCards = [];
         selectedDivs.forEach(div => {
-          discardIndices.push(parseInt(div.dataset.index));
+          keptCards.push(playerHand[parseInt(div.dataset.index)]);
         });
-        discardIndices.sort((a, b) => b - a);
-        discardIndices.forEach(idx => {
-          playerHand.splice(idx, 1);
-        });
+        playerHand = keptCards;
         while (playerHand.length < 5 && deck.length > 0) {
           playerHand.push(deck.pop());
         }
@@ -470,9 +466,7 @@
       document.getElementById('trick-area').innerHTML = "";
       document.getElementById('trick-info').textContent = "Trick " + trickNumber + " of 5. " +
         (trickTurn === "player" ? "Your turn to lead." : "Computer leads.");
-      if (gamePhase === "trick" && trickTurn === "competitor" && trickCards.length === 0) {
-        setTimeout(competitorPlayCard, 1000);
-      }
+      // (Do not auto-call competitorPlayCard here – it is only called in startTrickPlay if needed.)
     }
     function playPlayerCard(index) {
       if (gamePhase !== "trick" || trickTurn !== "player") return;
@@ -484,9 +478,26 @@
     }
     function competitorPlayCard() {
       if (competitorHand.length === 0) return;
-      const idx = Math.floor(Math.random() * competitorHand.length);
-      const card = competitorHand.splice(idx, 1)[0];
-      trickCards.push({ card: card, player: "competitor" });
+      let cardToPlay;
+      if (trickCards.length > 0) {
+        let ledSuit = trickCards[0].card.suit;
+        let followSuitCards = competitorHand.filter(card => card.suit === ledSuit);
+        if (followSuitCards.length > 0) {
+          // Must follow suit: choose lowest card in that suit.
+          cardToPlay = followSuitCards.reduce((lowest, card) => (card.value < lowest.value ? card : lowest), followSuitCards[0]);
+          let idx = competitorHand.indexOf(cardToPlay);
+          competitorHand.splice(idx, 1);
+        } else {
+          // If no card of led suit, play lowest card overall.
+          cardToPlay = competitorHand.reduce((lowest, card) => (card.value < lowest.value ? card : lowest), competitorHand[0]);
+          let idx = competitorHand.indexOf(cardToPlay);
+          competitorHand.splice(idx, 1);
+        }
+      } else {
+        cardToPlay = competitorHand[Math.floor(Math.random() * competitorHand.length)];
+        competitorHand.splice(competitorHand.indexOf(cardToPlay), 1);
+      }
+      trickCards.push({ card: cardToPlay, player: "competitor" });
       updateTrickArea();
       trickTurn = "player";
       setTimeout(evaluateTrick, 1000);
@@ -501,16 +512,16 @@
         trickDiv.appendChild(div);
       });
     }
-    // Updated evaluateTrick with trump rules:
-    // 1. If any played card is the 5 of trump, that card wins immediately.
+    // Updated evaluateTrick() using the following-suit rule:
+    // 1. If any card is the 5 of trump, it wins automatically.
     // 2. Otherwise, if one card is trump and the other is not, trump wins.
-    // 3. If both are trump, compare values.
-    // 4. If neither is trump, then only cards following the led suit are compared.
+    // 3. If both cards are trump, compare using bonus ranking (with the 5 of trump highest).
+    // 4. If neither is trump, only cards that follow the led suit are compared.
     function evaluateTrick() {
       if (trickCards.length < 2) return;
       handPlayedCards.push(...trickCards);
       
-      // Check if any card is the 5 of trump.
+      // Check for the 5 of trump.
       let fiveTrump = trickCards.find(entry => entry.card.rank === "5" && isTrump(entry.card));
       let winning;
       if (fiveTrump) {
@@ -524,7 +535,7 @@
           if (entryIsTrump && !winningIsTrump) {
             winning = entry;
           } else if (entryIsTrump && winningIsTrump) {
-            if (entry.card.value > winning.card.value) {
+            if (getCardBonusRank(entry.card) > getCardBonusRank(winning.card)) {
               winning = entry;
             }
           } else if (!entryIsTrump && !winningIsTrump) {
@@ -546,6 +557,7 @@
       } else {
         competitorTricks++;
       }
+      
       let playerCard = trickCards.find(e => e.player === "player");
       let compCard = trickCards.find(e => e.player === "competitor");
       let trickMessage = "Trick " + trickNumber + ": You played " +
@@ -575,7 +587,6 @@
     function endHand() {
       gamePhase = "finished";
       document.getElementById('trick-section').classList.add('hidden');
-      // Determine bonus: highest-ranking trump card wins bonus; if none, highest overall card.
       let trumpCards = handPlayedCards.filter(entry => isTrump(entry.card));
       let bonusWinner = null;
       if (trumpCards.length > 0) {
