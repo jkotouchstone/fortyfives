@@ -110,7 +110,7 @@
       <div id="trump-selection-hand" class="cards-container"></div>
     </div>
     
-    <!-- Kitty Phase (for non-dealer bid win) -->
+    <!-- Kitty Phase -->
     <div id="kitty-section" class="section hidden">
       <h2>Kitty Phase</h2>
       <div>Your Combined Hand (Your 5 cards + Kitty):</div>
@@ -157,11 +157,28 @@
   </div>
   
   <script>
-    /***** Global Competitor Name *****/
-    // Pick one competitor name at game start and keep it throughout.
+    /***** Global Competitor Name and Bid Calculation *****/
+    // Pick one competitor name at game start and keep it.
     let competitorNames = ["Jasper", "Felix", "Stephen", "Tom", "Sean", "Holly", "Carolyn", "Karen", "Jennifer"];
-    let competitorName = ""; // Set once.
-    let competitorDrawCount = 0; // How many cards competitor draws.
+    let competitorName = "";
+    let competitorDrawCount = 0; // How many cards the competitor draws.
+    
+    // Compute competitor's bid based on its hand strength.
+    function computeCompetitorBid() {
+      // Count "high" cards (value 10 or above) as a rough strength indicator.
+      let highCards = competitorHand.filter(card => card.value >= 10).length;
+      if (highCards >= 5) {
+        return 30;
+      } else if (highCards >= 4) {
+        return 25;
+      } else if (highCards >= 2) {
+        return 20;
+      } else if (highCards === 1) {
+        return 15;
+      } else {
+        return 0;
+      }
+    }
     
     /***** Game State Variables *****/
     let gamePhase = "bidding"; // "bidding", "trump", "kitty", "draw", "trick", "finished"
@@ -284,7 +301,7 @@
       }
       updateDealerInfo();
       updateScoreboard();
-      // Deal 5 cards to each; mark them as original.
+      // Deal 5 cards to each player; tag them as original.
       playerHand = deck.splice(0, 3).concat(deck.splice(0, 2));
       competitorHand = deck.splice(0, 3).concat(deck.splice(0, 2));
       playerHand.forEach(card => card.original = true);
@@ -293,9 +310,9 @@
       kitty = deck.splice(0, 3);
       dealerBidRevealed = false;
       updateBiddingUI();
-      // If you're the dealer, display competitor's bid.
+      // Bidding logic:
       if (isPlayerDealer) {
-        competitorBid = (Math.random() < 0.5) ? 0 : [15,20,25,30][Math.floor(Math.random() * 4)];
+        competitorBid = computeCompetitorBid();
         if (competitorBid === 0) {
           document.getElementById('bidding-message').textContent = "Bagged! You must bid 15 and choose trump.";
           bidWinner = "player";
@@ -393,7 +410,7 @@
       const randomSuit = suits[Math.floor(Math.random() * suits.length)];
       trumpSuit = randomSuit;
       updateTrumpDisplay();
-      // For competitor, add kitty to hand and limit hand to 5 cards.
+      // For competitor, add kitty and limit hand to 5 cards.
       competitorHand = competitorHand.concat(kitty);
       while (competitorHand.length > 5) {
         competitorHand.splice(Math.floor(Math.random() * competitorHand.length), 1);
@@ -454,28 +471,25 @@
       document.getElementById('draw-section').classList.remove('hidden');
       const container = document.getElementById('draw-hand');
       container.innerHTML = "";
-      if (bidWinner === "player") {
-        // Player's draw phase: allow drawing if hand is less than 5.
-        playerHand.forEach(card => {
-          const div = document.createElement('div');
-          div.className = 'card';
-          div.textContent = card.rank + card.suit;
-          container.appendChild(div);
-        });
-        // Let the user click the "Draw Cards" button.
-        const instructions = document.getElementById('draw-phase-instructions');
-        let needToDraw = 5 - playerHand.length;
-        instructions.textContent = needToDraw > 0 
+      // Always allow the player to draw interactively.
+      playerHand.forEach(card => {
+        const div = document.createElement('div');
+        div.className = 'card';
+        div.textContent = card.rank + card.suit;
+        container.appendChild(div);
+      });
+      container.style.pointerEvents = "none";
+      const instructions = document.getElementById('draw-phase-instructions');
+      let needToDraw = 5 - playerHand.length;
+      instructions.textContent = needToDraw > 0 
           ? "You have kept " + playerHand.length + " cards. Click 'Draw Cards' to draw " + needToDraw + " card(s)."
           : "You have a full 5‑card hand. Click 'Draw Cards' to continue.";
-        document.getElementById('competitor-hand-info').textContent = "";
-      } else {
-        // Competitor wins the bid: simulate competitor's draw.
+      // When competitor wins, simulate its draw too.
+      if (bidWinner !== "player") {
         competitorAutoDraw();
         document.getElementById('competitor-hand-info').textContent = competitorName + " drew " + competitorDrawCount + " card(s).";
-        container.innerHTML = "";
-        document.getElementById('draw-phase-instructions').textContent = "Waiting for " + competitorName + "'s draw.";
-        setTimeout(startTrickPlay, 1500);
+      } else {
+        document.getElementById('competitor-hand-info').textContent = "";
       }
     }
     function confirmDraw() {
@@ -514,7 +528,7 @@
       handPlayedCards = [];
       trickNumber = 1;
       playerCardPlayed = false;
-      // The bid winner leads Trick 1.
+      // Bid winner leads Trick 1.
       trickTurn = bidWinner;
       if (trickTurn === "competitor") {
         setTimeout(competitorPlayCard, 1000);
@@ -555,7 +569,7 @@
       });
       document.getElementById('trick-area').innerHTML = "";
       document.getElementById('trick-info').textContent = "Trick " + trickNumber + " of 5. " +
-        (trickTurn === "player" ? "Your turn to play a card." : competitorName + " leads. (" + competitorHand.length + " card(s) drawn)");
+          (trickTurn === "player" ? "Your turn to lead." : competitorName + " leads. (" + competitorHand.length + " card(s) drawn)");
     }
     
     function playPlayerCard(index) {
@@ -638,7 +652,7 @@
         }
       }
       
-      // Winner of the trick leads the next trick.
+      // The winner leads the next trick.
       trickTurn = winning.player;
       if (winning.player === "player") {
         playerTricks++;
@@ -649,17 +663,16 @@
       let playerCard = trickCards.find(e => e.player === "player");
       let compCard = trickCards.find(e => e.player === "competitor");
       let trickMessage = "Trick " + trickNumber + ": You played " +
-                         (playerCard ? (playerCard.card.rank + playerCard.card.suit) : "–") +
-                         ", " + competitorName + " played " +
-                         (compCard ? (compCard.card.rank + compCard.card.suit) : "–") +
-                         ". Winner: " + (winning.player === "player" ? "You" : competitorName) +
-                         " (" + winning.card.rank + winning.card.suit + ").";
+          (playerCard ? (playerCard.card.rank + playerCard.card.suit) : "–") +
+          ", " + competitorName + " played " +
+          (compCard ? (compCard.card.rank + compCard.card.suit) : "–") +
+          ". Winner: " + (winning.player === "player" ? "You" : competitorName) +
+          " (" + winning.card.rank + winning.card.suit + ").";
       appendTrickLog(trickMessage);
       trickCards = [];
       trickNumber++;
       playerCardPlayed = false;
       
-      // Refresh player's hand display so that the card played is no longer shown.
       updateTrickUI();
       
       if (playerHand.length === 0 && competitorHand.length === 0) {
@@ -707,10 +720,10 @@
       cumulativeCompetitorScore += competitorPoints;
       
       let handResult = "Hand " + (++handNumber) + ": You won " + playerTricks + " tricks (" + (playerTricks * 5) +
-                       (bonusWinner === "player" ? " + Bonus (5)" : "") +
-                       "); " + competitorName + " won " + competitorTricks + " tricks (" + (competitorTricks * 5) +
-                       (bonusWinner === "competitor" ? " + Bonus (5)" : "") +
-                       "). Round Total: You " + playerPoints + " vs. " + competitorName + " " + competitorPoints + ".";
+          (bonusWinner === "player" ? " + Bonus (5)" : "") +
+          "); " + competitorName + " won " + competitorTricks + " tricks (" + (competitorTricks * 5) +
+          (bonusWinner === "competitor" ? " + Bonus (5)" : "") +
+          "). Round Total: You " + playerPoints + " vs. " + competitorName + " " + competitorPoints + ".";
       
       handLogMessages.push(handResult);
       updateScoreboard();
