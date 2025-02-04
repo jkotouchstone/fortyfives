@@ -175,20 +175,14 @@
   </div>
   
   <script>
-    /***** Global Competitor Name and Bid Calculation *****/
-    let competitorNames = ["Jasper", "Felix", "Stephen", "Tom", "Sean", "Holly", "Carolyn", "Karen", "Jennifer"];
+    /***** Global Variables and Settings *****/
+    // Updated list of competitor names
+    let competitorNames = ["Chris", "Christine", "Bill", "Henry", "Liam", "John", "Mary", "Patrick", "Brian", "Kevin", "Pete"];
     let competitorName = "";
     let competitorDrawCount = 0; // How many cards competitor draws.
     
-    // Compute competitor's bid based on hand strength (using high card count).
-    function computeCompetitorBid() {
-      let highCards = competitorHand.filter(card => card.value >= 10).length;
-      if (highCards >= 5) return 30;
-      if (highCards === 4) return 25;
-      if (highCards >= 2) return 20;
-      if (highCards === 1) return 15;
-      return 0;
-    }
+    // Global difficulty setting: 'hard' or 'easy'
+    let difficulty = "hard";
     
     /***** Game State Variables *****/
     let gamePhase = "bidding"; // "bidding", "trump", "kitty", "draw", "trick", "finished"
@@ -255,6 +249,7 @@
     }
     
     /***** Helper: isTrump *****/
+    // Note: Ace of Hearts is always trump when trumpSuit is not hearts.
     function isTrump(card) {
       return card.suit === trumpSuit ||
              (trumpSuit !== "♥" && card.suit === "♥" && card.rank === "A") ||
@@ -306,7 +301,7 @@
       if (typeof isPlayerDealer === 'undefined') {
         isPlayerDealer = Math.random() < 0.5;
       }
-      // Reset competitorName for a new game if needed.
+      // Assign competitor name if not already set
       if (!competitorName) {
         competitorName = competitorNames[Math.floor(Math.random() * competitorNames.length)];
         document.getElementById('competitor-name').textContent = competitorName;
@@ -486,7 +481,6 @@
       let needToDraw = 5 - playerHand.length;
       
       if (bidWinner === "player") {
-        // When you win the bid, your hand is fixed; display it and let you click Draw Cards.
         playerHand.forEach(card => {
           const div = document.createElement('div');
           div.className = 'card';
@@ -498,7 +492,6 @@
           ? "You have kept " + playerHand.length + " cards. Click 'Draw Cards' to draw " + needToDraw + " card(s)."
           : "You have a full 5‑card hand. Click 'Draw Cards' to continue.";
       } else {
-        // When the computer wins the bid, allow YOU (the non‐bidder) to choose which cards to keep.
         container.style.pointerEvents = "auto";
         container.innerHTML = "";
         playerHand.forEach((card, index) => {
@@ -518,7 +511,6 @@
         instructions.textContent = "Select the cards you want to keep from your hand. The rest will be replaced.";
       }
       
-      // Always update competitor draw info if competitor wins the bid.
       if (bidWinner !== "player") {
         competitorAutoDraw();
         document.getElementById('competitor-hand-info').textContent = competitorName + " drew " + competitorDrawCount + " card(s).";
@@ -567,14 +559,6 @@
     }
     
     /***** Trick Play Phase *****/
-    function continueTrick() {
-      if (trickCards.length === 2) {
-        setTimeout(evaluateTrick, 500);
-      } else if (trickCards.length === 1 && trickTurn === "competitor") {
-        setTimeout(competitorPlayCard, 500);
-      }
-    }
-    
     function startTrickPlay() {
       gamePhase = "trick";
       trickCards = [];
@@ -635,9 +619,29 @@
       });
     }
     
+    // Enforce the new rule for the human player:
+    // If the lead card is Ace of Hearts, then if the player has any trump cards, they must play one.
+    // Otherwise, if they have any hearts, they must play a heart.
     function playPlayerCard(index) {
       if (gamePhase !== "trick" || trickTurn !== "player") return;
       if (playerCardPlayed) return;
+      
+      let chosenCard = playerHand[index];
+      if (trickCards.length > 0 && trickCards[0].card.rank === "A" && trickCards[0].card.suit === "♥") {
+        let trumpCards = playerHand.filter(card => isTrump(card));
+        if (trumpCards.length > 0) {
+          if (!isTrump(chosenCard)) {
+            alert("You must play a trump card if you have one.");
+            return;
+          }
+        } else {
+          let heartCards = playerHand.filter(card => card.suit === "♥");
+          if (heartCards.length > 0 && chosenCard.suit !== "♥") {
+            alert("You must play a heart card if you have one.");
+            return;
+          }
+        }
+      }
       playerCardPlayed = true;
       const card = playerHand.splice(index, 1)[0];
       trickCards.push({ card: card, player: "player" });
@@ -646,27 +650,74 @@
       continueTrick();
     }
     
+    // Updated competitorPlayCard to enforce the Ace of Hearts rule.
     function competitorPlayCard() {
-      if (trickCards.filter(e => e.player === "competitor").length > 0) return;
       if (competitorHand.length === 0) {
         continueTrick();
         return;
       }
       let cardToPlay;
-      let ledSuit = trickCards[0] ? trickCards[0].card.suit : null;
-      if (ledSuit) {
+      let leadCard = trickCards[0] ? trickCards[0].card : null;
+      if (leadCard && leadCard.rank === "A" && leadCard.suit === "♥") {
+        // If the lead card is Ace of Hearts, enforce: play trump if possible, otherwise play heart if available.
+        let trumpCards = competitorHand.filter(card => isTrump(card));
+        if (trumpCards.length > 0) {
+          if (difficulty === "hard") {
+            let sorted = trumpCards.slice().sort((a, b) => a.value - b.value);
+            let medianIndex = Math.floor(sorted.length / 2);
+            cardToPlay = sorted[medianIndex];
+          } else {
+            cardToPlay = trumpCards.reduce((lowest, card) => card.value < lowest.value ? card : lowest, trumpCards[0]);
+          }
+        } else {
+          let heartCards = competitorHand.filter(card => card.suit === "♥");
+          if (heartCards.length > 0) {
+            if (difficulty === "hard") {
+              let sorted = heartCards.slice().sort((a, b) => a.value - b.value);
+              cardToPlay = sorted[0];
+            } else {
+              cardToPlay = heartCards.reduce((lowest, card) => card.value < lowest.value ? card : lowest, heartCards[0]);
+            }
+          } else {
+            if (difficulty === "hard") {
+              let sorted = competitorHand.slice().sort((a, b) => a.value - b.value);
+              cardToPlay = sorted[0];
+            } else {
+              cardToPlay = competitorHand[Math.floor(Math.random() * competitorHand.length)];
+            }
+          }
+        }
+        competitorHand.splice(competitorHand.indexOf(cardToPlay), 1);
+      } else if (leadCard) {
+        // Regular follow suit behavior.
+        let ledSuit = leadCard.suit;
         let followCards = competitorHand.filter(card => card.suit === ledSuit);
         if (followCards.length > 0) {
-          cardToPlay = followCards.reduce((lowest, card) => card.value < lowest.value ? card : lowest, followCards[0]);
-          let idx = competitorHand.indexOf(cardToPlay);
-          competitorHand.splice(idx, 1);
+          if (difficulty === "hard") {
+            let sorted = followCards.slice().sort((a, b) => a.value - b.value);
+            let medianIndex = Math.floor(sorted.length / 2);
+            cardToPlay = sorted[medianIndex];
+          } else {
+            cardToPlay = followCards.reduce((lowest, card) => card.value < lowest.value ? card : lowest, followCards[0]);
+          }
+          competitorHand.splice(competitorHand.indexOf(cardToPlay), 1);
         } else {
-          cardToPlay = competitorHand.reduce((lowest, card) => card.value < lowest.value ? card : lowest, competitorHand[0]);
-          let idx = competitorHand.indexOf(cardToPlay);
-          competitorHand.splice(idx, 1);
+          if (difficulty === "hard") {
+            let sorted = competitorHand.slice().sort((a, b) => a.value - b.value);
+            cardToPlay = sorted[0];
+          } else {
+            cardToPlay = competitorHand.reduce((lowest, card) => card.value < lowest.value ? card : lowest, competitorHand[0]);
+          }
+          competitorHand.splice(competitorHand.indexOf(cardToPlay), 1);
         }
       } else {
-        cardToPlay = competitorHand[Math.floor(Math.random() * competitorHand.length)];
+        // When leading
+        if (difficulty === "hard") {
+          let sorted = competitorHand.slice().sort((a, b) => a.value - b.value);
+          cardToPlay = sorted[Math.floor(competitorHand.length / 2)];
+        } else {
+          cardToPlay = competitorHand[Math.floor(Math.random() * competitorHand.length)];
+        }
         competitorHand.splice(competitorHand.indexOf(cardToPlay), 1);
       }
       trickCards.push({ card: cardToPlay, player: "competitor" });
@@ -741,6 +792,15 @@
       logDiv.appendChild(p);
     }
     
+    /***** Trick Flow Control *****/
+    function continueTrick() {
+      if (trickCards.length === 2) {
+        setTimeout(evaluateTrick, 500);
+      } else if (trickCards.length === 1 && trickTurn === "competitor") {
+        setTimeout(competitorPlayCard, 500);
+      }
+    }
+    
     /***** End of Hand & Scoring *****/
     function endHand() {
       gamePhase = "finished";
@@ -805,24 +865,25 @@
       gamePhase = "bidding";
       updateTrumpDisplay();
       updateSections();
-      // Reset competitorName to a new opponent on new hand if needed.
-      // Uncomment the next line if you want a new opponent each hand:
+      // Optionally, assign a new competitor name for each hand by uncommenting the next lines:
       // competitorName = "";
+      // document.getElementById('competitor-name').textContent = competitorName;
       dealCards();
     }
     
+    // Updated resetGame to hide the game-over section before restarting.
     function resetGame() {
       cumulativePlayerScore = 0;
       cumulativeCompetitorScore = 0;
       handNumber = 0;
       handLogMessages = [];
-      // Reset competitorName so a new opponent is chosen.
       competitorName = "";
       updateScoreboard();
       resetHandState();
       gamePhase = "bidding";
       updateTrumpDisplay();
       updateSections();
+      document.getElementById('result-section').classList.add('hidden');
       dealCards();
     }
     
@@ -861,16 +922,23 @@
       updateTrumpDisplay();
     }
     
-    /***** Trick Flow Control *****/
-    function continueTrick() {
-      if (trickCards.length === 2) {
-        setTimeout(evaluateTrick, 500);
-      } else if (trickCards.length === 1 && trickTurn === "competitor") {
-        setTimeout(competitorPlayCard, 500);
+    /***** Compute Competitor Bid (Improved) *****/
+    function computeCompetitorBid() {
+      let highCards = competitorHand.filter(card => card.value >= 10).length;
+      let trumpPotential = 0;
+      if (trumpSuit) {
+        trumpPotential = competitorHand.filter(card => card.suit === trumpSuit || (trumpSuit !== "♥" && card.suit === "♥" && card.rank === "A")).length;
       }
+      let bidScore = highCards + (2 * trumpPotential);
+      
+      if (bidScore >= 8) return 30;
+      if (bidScore >= 6) return 25;
+      if (bidScore >= 4) return 20;
+      if (bidScore >= 2) return 15;
+      return 0;
     }
     
-    /***** Initialize Game on Page Load *****/
+    // Initialize Game on Page Load
     window.onload = dealCards;
   </script>
 </body>
