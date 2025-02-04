@@ -5,20 +5,32 @@
   <title>Forty‑Fives Game (Heads‑Up)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    /* Basic styling – adjust as needed */
+    /* Simulate green felt table */
     body {
       font-family: sans-serif;
-      background: #f5f5f5;
+      background-color: #35654d; /* dark green felt */
       margin: 0;
       padding: 20px;
       text-align: center;
+      color: #fff;
     }
     .container {
+      position: relative;
       max-width: 900px;
       margin: auto;
-      background: #fff;
+      background: rgba(0,0,0,0.7);
       padding: 20px;
       border-radius: 8px;
+    }
+    /* Logo for the game – a squished "45" */
+    #logo {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 48px;
+      font-weight: bold;
+      opacity: 0.5;
+      pointer-events: none;
     }
     .section { margin: 20px 0; }
     .hidden { display: none; }
@@ -37,6 +49,8 @@
       margin: 5px;
       cursor: pointer;
       user-select: none;
+      background-color: #fff;
+      color: #000;
     }
     .card.selected { background: #ffeb3b; }
     button {
@@ -47,11 +61,11 @@
     }
     /* Display areas */
     #trump-display { font-weight: bold; margin-bottom: 10px; }
-    #dealer-info { font-weight: bold; margin-bottom: 10px; color: #007; }
+    #dealer-info { font-weight: bold; margin-bottom: 10px; color: #ffeb3b; }
     /* Competitor bid display above player's hand */
-    #competitor-bid { font-size: 16px; font-weight: bold; margin-bottom: 5px; color: #444; }
+    #competitor-bid { font-size: 16px; font-weight: bold; margin-bottom: 5px; color: #ffeb3b; }
     /* Competitor draw info (in Draw Phase) */
-    #competitor-hand-info { font-size: 14px; margin-top: 5px; color: #555; }
+    #competitor-hand-info { font-size: 14px; margin-top: 5px; color: #ffeb3b; }
     /* Trick log area */
     #trick-log {
       margin-top: 10px;
@@ -65,10 +79,11 @@
       font-size: 14px;
       max-height: 150px;
       overflow-y: auto;
+      color: #000;
     }
     /* Scoreboard section */
     #scoreboard-section {
-      border-top: 2px solid #333;
+      border-top: 2px solid #ffeb3b;
       padding-top: 10px;
     }
     /* Draw Phase instructions */
@@ -77,6 +92,8 @@
 </head>
 <body>
   <div class="container">
+    <!-- Logo -->
+    <div id="logo">45</div>
     <!-- Dealer and Trump Display -->
     <div id="dealer-info"></div>
     <div id="trump-display"></div>
@@ -126,7 +143,7 @@
       <h2>Draw Phase</h2>
       <div id="draw-hand" class="cards-container"></div>
       <div id="draw-phase-instructions"></div>
-      <!-- When computer wins the bid, allow interactive selection -->
+      <!-- Interactive selection for non‑bidder -->
       <div id="competitor-hand-info"></div>
       <button id="draw-button" onclick="confirmDraw()">Draw Cards</button>
     </div>
@@ -159,12 +176,11 @@
   
   <script>
     /***** Global Competitor Name and Bid Calculation *****/
-    // Pick one competitor name at game start and keep it.
     let competitorNames = ["Jasper", "Felix", "Stephen", "Tom", "Sean", "Holly", "Carolyn", "Karen", "Jennifer"];
     let competitorName = "";
     let competitorDrawCount = 0; // How many cards competitor draws.
     
-    // Compute competitor's bid based on hand strength.
+    // Compute competitor's bid based on hand strength (using high card count).
     function computeCompetitorBid() {
       let highCards = competitorHand.filter(card => card.value >= 10).length;
       if (highCards >= 5) return 30;
@@ -290,14 +306,14 @@
       if (typeof isPlayerDealer === 'undefined') {
         isPlayerDealer = Math.random() < 0.5;
       }
-      // Set competitorName only once.
+      // Reset competitorName for a new game if needed.
       if (!competitorName) {
         competitorName = competitorNames[Math.floor(Math.random() * competitorNames.length)];
         document.getElementById('competitor-name').textContent = competitorName;
       }
       updateDealerInfo();
       updateScoreboard();
-      // Deal 5 cards to each; mark them as original.
+      // Deal 5 cards to each player; tag them as original.
       playerHand = deck.splice(0, 3).concat(deck.splice(0, 2));
       competitorHand = deck.splice(0, 3).concat(deck.splice(0, 2));
       playerHand.forEach(card => card.original = true);
@@ -461,7 +477,6 @@
     }
     
     /***** Draw Phase *****/
-    // In the draw phase, if the computer wins the bid (bidWinner !== "player") then allow the player to interactively select cards to keep.
     function updateDrawPhase() {
       document.getElementById('trump-section').classList.add('hidden');
       document.getElementById('draw-section').classList.remove('hidden');
@@ -471,7 +486,7 @@
       let needToDraw = 5 - playerHand.length;
       
       if (bidWinner === "player") {
-        // When you win the bid, your hand is fixed and you simply draw automatically.
+        // When you win the bid, your hand is fixed; display it and let you click Draw Cards.
         playerHand.forEach(card => {
           const div = document.createElement('div');
           div.className = 'card';
@@ -483,7 +498,7 @@
           ? "You have kept " + playerHand.length + " cards. Click 'Draw Cards' to draw " + needToDraw + " card(s)."
           : "You have a full 5‑card hand. Click 'Draw Cards' to continue.";
       } else {
-        // When the computer wins the bid, let you select which cards you want to keep.
+        // When the computer wins the bid, allow YOU (the non‐bidder) to choose which cards to keep.
         container.style.pointerEvents = "auto";
         container.innerHTML = "";
         playerHand.forEach((card, index) => {
@@ -503,7 +518,7 @@
         instructions.textContent = "Select the cards you want to keep from your hand. The rest will be replaced.";
       }
       
-      // Always show competitor's draw info (if applicable).
+      // Always update competitor draw info if competitor wins the bid.
       if (bidWinner !== "player") {
         competitorAutoDraw();
         document.getElementById('competitor-hand-info').textContent = competitorName + " drew " + competitorDrawCount + " card(s).";
@@ -511,8 +526,6 @@
         document.getElementById('competitor-hand-info').textContent = "";
       }
     }
-    
-    // When the user clicks "Draw Cards"
     function confirmDraw() {
       if (bidWinner === "player") {
         let required = 5 - playerHand.length;
@@ -520,11 +533,9 @@
           if (deck.length > 0) { playerHand.push(deck.pop()); }
         }
       } else {
-        // For non-bid winner, get the selected cards.
         const container = document.getElementById('draw-hand');
         const selectedDivs = container.querySelectorAll('.selected');
         let keptCards = [];
-        // If no card is selected, assume you keep all.
         if (selectedDivs.length === 0) {
           keptCards = playerHand;
         } else {
@@ -544,7 +555,6 @@
     }
     
     function competitorAutoDraw() {
-      // Competitor keeps all trump cards.
       let kept = competitorHand.filter(card => isTrump(card));
       if (kept.length < 1 && competitorHand.length > 0) {
         kept.push(competitorHand.reduce((a, b) => a.value > b.value ? a : b));
@@ -571,7 +581,6 @@
       handPlayedCards = [];
       trickNumber = 1;
       playerCardPlayed = false;
-      // Bid winner leads Trick 1.
       trickTurn = bidWinner;
       if (trickTurn === "competitor") {
         setTimeout(competitorPlayCard, 1000);
@@ -796,6 +805,9 @@
       gamePhase = "bidding";
       updateTrumpDisplay();
       updateSections();
+      // Reset competitorName to a new opponent on new hand if needed.
+      // Uncomment the next line if you want a new opponent each hand:
+      // competitorName = "";
       dealCards();
     }
     
@@ -804,6 +816,8 @@
       cumulativeCompetitorScore = 0;
       handNumber = 0;
       handLogMessages = [];
+      // Reset competitorName so a new opponent is chosen.
+      competitorName = "";
       updateScoreboard();
       resetHandState();
       gamePhase = "bidding";
