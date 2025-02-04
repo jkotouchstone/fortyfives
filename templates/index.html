@@ -84,7 +84,6 @@
     <!-- Bidding Phase -->
     <div id="bidding-section" class="section">
       <h2>Bidding Phase</h2>
-      <!-- Competitor bid display (for dealer) -->
       <div id="competitor-bid"></div>
       <div>Your Hand (Deal):</div>
       <div id="player-hand-bidding" class="cards-container"></div>
@@ -108,7 +107,6 @@
         <button onclick="selectTrump('♦')">♦</button>
         <button onclick="selectTrump('♣')">♣</button>
       </div>
-      <!-- Your hand remains visible during trump selection -->
       <div id="trump-selection-hand" class="cards-container"></div>
     </div>
     
@@ -126,8 +124,6 @@
     <!-- Draw Phase -->
     <div id="draw-section" class="section hidden">
       <h2>Draw Phase</h2>
-      <!-- In this phase, if you win the bid, you draw interactively;
-           if the competitor wins, the computer auto-draws and its draw count is shown. -->
       <div id="draw-hand" class="cards-container"></div>
       <div id="draw-phase-instructions"></div>
       <div id="competitor-hand-info"></div>
@@ -162,10 +158,10 @@
   
   <script>
     /***** Global Competitor Name *****/
-    // Choose one competitor name at game start and keep it throughout the game.
+    // Pick one competitor name at game start and keep it throughout.
     let competitorNames = ["Jasper", "Felix", "Stephen", "Tom", "Sean", "Holly", "Carolyn", "Karen", "Jennifer"];
     let competitorName = ""; // Set once.
-    let competitorDrawCount = 0; // Number of cards competitor draws.
+    let competitorDrawCount = 0; // How many cards competitor draws.
     
     /***** Game State Variables *****/
     let gamePhase = "bidding"; // "bidding", "trump", "kitty", "draw", "trick", "finished"
@@ -183,8 +179,8 @@
     let handPlayedCards = []; // For bonus determination
     let trickNumber = 1;
     let trickTurn = null; // "player" or "competitor"
-    let dealerBidRevealed = false; // For dealer: whether competitor’s bid is shown
-    let playerCardPlayed = false; // Prevent multiple plays per trick
+    let dealerBidRevealed = false;
+    let playerCardPlayed = false;
     
     let cumulativePlayerScore = 0;
     let cumulativeCompetitorScore = 0;
@@ -288,7 +284,7 @@
       }
       updateDealerInfo();
       updateScoreboard();
-      // Deal 5 cards to each player; mark these as "original"
+      // Deal 5 cards to each; mark them as original.
       playerHand = deck.splice(0, 3).concat(deck.splice(0, 2));
       competitorHand = deck.splice(0, 3).concat(deck.splice(0, 2));
       playerHand.forEach(card => card.original = true);
@@ -397,7 +393,7 @@
       const randomSuit = suits[Math.floor(Math.random() * suits.length)];
       trumpSuit = randomSuit;
       updateTrumpDisplay();
-      // For competitor, add kitty to hand and simulate discarding if needed.
+      // For competitor, add kitty to hand and limit hand to 5 cards.
       competitorHand = competitorHand.concat(kitty);
       while (competitorHand.length > 5) {
         competitorHand.splice(Math.floor(Math.random() * competitorHand.length), 1);
@@ -459,24 +455,24 @@
       const container = document.getElementById('draw-hand');
       container.innerHTML = "";
       if (bidWinner === "player") {
+        // Player's draw phase: allow drawing if hand is less than 5.
         playerHand.forEach(card => {
           const div = document.createElement('div');
           div.className = 'card';
           div.textContent = card.rank + card.suit;
           container.appendChild(div);
         });
-        container.style.pointerEvents = "none";
+        // Let the user click the "Draw Cards" button.
         const instructions = document.getElementById('draw-phase-instructions');
         let needToDraw = 5 - playerHand.length;
         instructions.textContent = needToDraw > 0 
-          ? "You have kept " + playerHand.length + " cards. You need to draw " + needToDraw + " cards. Click 'Draw Cards' to draw them."
+          ? "You have kept " + playerHand.length + " cards. Click 'Draw Cards' to draw " + needToDraw + " card(s)."
           : "You have a full 5‑card hand. Click 'Draw Cards' to continue.";
         document.getElementById('competitor-hand-info').textContent = "";
       } else {
         // Competitor wins the bid: simulate competitor's draw.
         competitorAutoDraw();
         document.getElementById('competitor-hand-info').textContent = competitorName + " drew " + competitorDrawCount + " card(s).";
-        // Hide player's draw area.
         container.innerHTML = "";
         document.getElementById('draw-phase-instructions').textContent = "Waiting for " + competitorName + "'s draw.";
         setTimeout(startTrickPlay, 1500);
@@ -491,7 +487,7 @@
     }
     
     function competitorAutoDraw() {
-      // Let competitor keep all trump cards.
+      // Competitor keeps all trump cards.
       let kept = competitorHand.filter(card => isTrump(card));
       if (kept.length < 1 && competitorHand.length > 0) {
         kept.push(competitorHand.reduce((a, b) => a.value > b.value ? a : b));
@@ -504,7 +500,6 @@
     }
     
     /***** Trick Play Phase *****/
-    // continueTrick() ensures that when exactly one card is in the trick (and it's competitor's turn) or two cards exist the trick is processed.
     function continueTrick() {
       if (trickCards.length === 2) {
         setTimeout(evaluateTrick, 500);
@@ -560,7 +555,7 @@
       });
       document.getElementById('trick-area').innerHTML = "";
       document.getElementById('trick-info').textContent = "Trick " + trickNumber + " of 5. " +
-        (trickTurn === "player" ? "Your turn to lead." : competitorName + " leads. (" + competitorHand.length + " cards drawn)");
+        (trickTurn === "player" ? "Your turn to play a card." : competitorName + " leads. (" + competitorHand.length + " card(s) drawn)");
     }
     
     function playPlayerCard(index) {
@@ -570,7 +565,6 @@
       const card = playerHand.splice(index, 1)[0];
       trickCards.push({ card: card, player: "player" });
       updateTrickArea();
-      // After you play, let competitor lead.
       trickTurn = "competitor";
       continueTrick();
     }
@@ -600,7 +594,6 @@
       }
       trickCards.push({ card: cardToPlay, player: "competitor" });
       updateTrickArea();
-      // Set turn to player so they can lead the next trick.
       trickTurn = "player";
       updateTrickUI();
       continueTrick();
@@ -645,7 +638,7 @@
         }
       }
       
-      // The winner leads the next trick.
+      // Winner of the trick leads the next trick.
       trickTurn = winning.player;
       if (winning.player === "player") {
         playerTricks++;
@@ -666,6 +659,7 @@
       trickNumber++;
       playerCardPlayed = false;
       
+      // Refresh player's hand display so that the card played is no longer shown.
       updateTrickUI();
       
       if (playerHand.length === 0 && competitorHand.length === 0) {
@@ -685,9 +679,6 @@
     }
     
     /***** End of Hand & Scoring *****/
-    // Each trick is 5 points; bonus of 5 goes to the side that wins bonus.
-    // If the bidder meets their bid, round score is their trick points (with bonus);
-    // otherwise the bidder gets –(bid) and the opponent gets their trick points.
     function endHand() {
       gamePhase = "finished";
       document.getElementById('trick-section').classList.add('hidden');
@@ -734,7 +725,6 @@
     }
     
     function nextHand() {
-      // Do not change competitorName between hands.
       isPlayerDealer = !isPlayerDealer;
       updateDealerInfo();
       playerTricks = 0;
@@ -760,7 +750,6 @@
       cumulativeCompetitorScore = 0;
       handNumber = 0;
       handLogMessages = [];
-      // Do not reset competitorName.
       updateScoreboard();
       resetHandState();
       gamePhase = "bidding";
