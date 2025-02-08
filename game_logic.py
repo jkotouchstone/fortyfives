@@ -12,14 +12,16 @@ class Card:
         return f"{self.rank}{self.suit}"
 
     def to_dict(self):
-        # We add a helper to build the image filename.
-        # Assume images are named like "A_Hearts.png", "2_Clubs.png", etc.
-        suit_names = {"♥": "Hearts", "♦": "Diamonds", "♣": "Clubs", "♠": "Spades"}
-        return {
-            "suit": self.suit,
-            "rank": self.rank,
-            "img": f"cards/{self.rank}_{suit_names.get(self.suit, self.suit)}.png"
-        }
+        # Map rank letters to full names.
+        rank_map = {"A": "ace", "J": "jack", "Q": "queen", "K": "king"}
+        # Map suit symbols to words.
+        suit_map = {"♥": "hearts", "♦": "diamonds", "♣": "clubs", "♠": "spades"}
+        # Use the mapped value if available; otherwise, use the rank as-is.
+        rank_str = rank_map.get(self.rank, self.rank)
+        suit_str = suit_map.get(self.suit, self.suit)
+        # Construct the filename following your convention, e.g., "ace_of_hearts.png"
+        img_url = f"cards/{rank_str}_of_{suit_str}.png"
+        return {"suit": self.suit, "rank": self.rank, "img": img_url}
 
 class Deck:
     def __init__(self):
@@ -54,6 +56,7 @@ OFFSUIT_RANKINGS = {
 def is_trump(card, trump_suit):
     if card.suit == trump_suit:
         return True
+    # The Ace of Hearts is always trump.
     if card.suit == "♥" and card.rank == "A":
         return True
     return False
@@ -97,7 +100,7 @@ class Game:
             self.player_order = ["player", names[0], names[1]]
 
         self.bidHistory = {}  # e.g., {"player": "bid 15", "Bill": "Passed"}
-        # Dealer: for 2p, choose randomly; for 3p, start with "player".
+        # Dealer: in 2p choose randomly; in 3p, start with "player".
         if self.mode == "2p":
             self.dealer = "player" if random.random() < 0.5 else self.player_order[1]
         else:
@@ -293,7 +296,6 @@ class Game:
             self.players[p]["score"] += points[p]
         summary = "Hand over. " + " | ".join(f"{p}: {self.players[p]['score']}" for p in self.players)
         self.trickLog.append(summary)
-        # If game over, phase becomes finished.
         if any(self.players[p]["score"] >= 120 for p in self.players):
             self.phase = "finished"
         else:
