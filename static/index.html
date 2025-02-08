@@ -22,7 +22,7 @@
       padding: 20px;
       border-radius: 8px;
     }
-    /* Sections: only one active section is visible */
+    /* Only one phase section is visible */
     .section {
       margin: 20px 0;
       display: none;
@@ -69,6 +69,12 @@
       border-radius: 5px;
       padding: 5px 10px;
       margin: 5px;
+      font-weight: bold;
+    }
+    /* Status message for turn indication */
+    #status-message {
+      font-size: 18px;
+      margin-bottom: 10px;
       font-weight: bold;
     }
     /* Card style: plain text */
@@ -124,14 +130,14 @@
     #won-tricks-section h3 {
       margin-bottom: 10px;
     }
-    /* Scoreboard: always visible */
+    /* Scoreboard (always visible) */
     #scoreboard-section {
       border-top: 2px solid #ffeb3b;
       padding-top: 10px;
       display: block;
     }
     #feedback {
-      background: rgba(255, 255, 255, 0.2);
+      background: rgba(255,255,255,0.2);
       padding: 10px;
       border-radius: 5px;
       margin: 10px auto;
@@ -141,21 +147,6 @@
   </style>
 </head>
 <body>
-  <!-- Tutorial Modal -->
-  <div id="tutorial-modal">
-    <div id="tutorial-content">
-      <h2>Welcome to Forty‑Fives!</h2>
-      <div id="tutorial-step-content">
-        <p>Step 1: This is a demo of how the game works.</p>
-      </div>
-      <div>
-        <button onclick="prevTutorialStep()">Previous</button>
-        <button onclick="nextTutorialStep()">Next</button>
-        <button onclick="closeTutorial()">Close Tutorial</button>
-      </div>
-    </div>
-  </div>
-
   <!-- Game Options Panel -->
   <div id="game-options">
     <h2>Game Options</h2>
@@ -181,24 +172,24 @@
     </p>
     <p>
       <strong>Bidding:</strong><br>
-      - In heads‑up, if you're the dealer, you'll see your opponent's bid (e.g., "Bill Passed" or "Bill bid 15").<br>
-      - In middle positions, you see previous bids before making your own decision.<br>
-      - If everyone passes, the dealer is forced to bid 15 ("bagged").
+      - If you're the dealer, you'll see your opponent's bid (e.g., "Bill Passed" or "Bill bid 15").<br>
+      - When a computer wins the bid, a notification is shown (for example, "Bill wins the bid and has selected ♥ as trump.").<br>
+      - Only the winning bidder gets to select trump and, if you win, select cards from the kitty.
     </p>
     <p>
       <strong>Trump & Trick Play:</strong><br>
-      - The winning bidder selects a trump suit while your cards remain visible.<br>
-      - All cards played in each trick are shown on the table in plain text (e.g., "A♥", "10♦"). When a trick is won, the cards remain on the table until the next trick begins.
+      - The winning bidder names the trump suit while your cards remain visible.<br>
+      - All cards played in a trick are shown on the table in plain text (e.g., "A♥", "10♦"). After a trick is complete, the table is cleared.
     </p>
     <p>
       <strong>Won Tricks:</strong><br>
-      - After winning a trick, the cards are placed face‑down (represented here by an "X") on your side; the opponent's won tricks are similarly shown.
+      - Won tricks are displayed as a count (using "X" to represent a face‑down card) for both you and your opponent(s).
     </p>
     <p>
       <strong>Scoring:</strong><br>
-      - Each trick is worth 5 points (with the bonus trick adding 5 extra points).<br>
-      - If the bidder fails to reach their bid, they lose that many points.<br>
-      - When the game is over, a detailed score sheet with the full trick log is displayed.
+      - Each trick is worth 5 points (with an extra bonus trick worth an additional 5 points).<br>
+      - If the bidder fails to meet their bid, they lose that many points.<br>
+      - When the game is over, a detailed score sheet with a full trick log is displayed.
     </p>
     <button onclick="toggleInstructions()">Hide Detailed Rules</button>
   </div>
@@ -207,9 +198,12 @@
   <div class="container" id="game-container" style="display:none;">
     <!-- Logo -->
     <div id="logo">45</div>
-    <!-- Dealer Indicator (shown in 2p if you're the dealer) -->
+    <!-- Dealer Indicator -->
     <div id="dealer-info"></div>
+    <!-- Trump Display -->
     <div id="trump-display"></div>
+    <!-- Status Message (shows whose turn it is) -->
+    <div id="status-message"></div>
     
     <!-- Bidding Phase -->
     <div id="bidding-section" class="section">
@@ -241,7 +235,7 @@
       </div>
     </div>
     
-    <!-- Kitty Phase -->
+    <!-- Kitty Phase (only visible if you win the bid) -->
     <div id="kitty-section" class="section">
       <h2>Kitty Phase</h2>
       <div>Your Combined Hand (Your 5 cards + Kitty):</div>
@@ -287,7 +281,7 @@
       <button onclick="resetGame()">Play Again</button>
     </div>
     
-    <!-- Scoreboard Section (Always Visible) -->
+    <!-- Scoreboard (always visible) -->
     <div id="scoreboard-section">
       <h2>Scoreboard</h2>
       <div id="scoreboard"></div>
@@ -301,10 +295,10 @@
     let gameState = {};
     let tutorialSteps = [
       "Step 1: Cards are dealt. Each player gets 5 cards and 3 extra cards form the kitty.",
-      "Step 2: During bidding, you'll see all bids (for example, 'Bill Passed' or 'Bill bid 15'). If no bid is yet shown, it means your opponent hasn't bid.",
-      "Step 3: The winning bidder selects the trump suit while your cards remain visible.",
-      "Step 4: In trick play, every card is shown on the table. After a trick is won, the cards remain on the table until the next trick.",
-      "Step 5: Won tricks are tracked and displayed as a count. The game continues until someone reaches 120 points, and then a detailed score sheet is shown."
+      "Step 2: During bidding, you'll see all bids (for example, 'Bill Passed' or 'Bill bid 15'). As the dealer, you should see your opponent’s bid.",
+      "Step 3: The winning bidder selects the trump suit. If a computer wins, a notification (e.g., 'Bill wins the bid and has selected ♥ as trump.') is shown.",
+      "Step 4: In trick play, every card is shown on the table. Once all cards are played, the table is cleared for the next trick.",
+      "Step 5: Won tricks are tracked (displayed as an 'X' for each trick won). The game continues until someone reaches 120 points, and then a detailed score sheet is shown."
     ];
     let currentTutorialStep = 0;
     
@@ -341,7 +335,18 @@
         (state.gamePhase !== "bidding" && state.trumpSuit) ? "Trump Suit: " + state.trumpSuit : "";
       document.getElementById("bidding-message").textContent = state.biddingMessage || "";
       
-      // Dealer indicator: in 2p mode, if you're the dealer.
+      // Set a status message to indicate whose turn it is.
+      if (state.currentTurn) {
+        if (state.currentTurn === "player") {
+          document.getElementById("status-message").textContent = "Your turn!";
+        } else {
+          document.getElementById("status-message").textContent = `Waiting for ${state.currentTurn} to play...`;
+        }
+      } else {
+        document.getElementById("status-message").textContent = "";
+      }
+      
+      // Dealer indicator: if you're the dealer (in 2p mode).
       if (state.dealer && state.computerHandCount !== null && state.dealer === "player") {
         document.getElementById("dealer-info").innerHTML = '<div class="dealer-indicator">Dealer</div>';
       } else {
@@ -384,17 +389,22 @@
           handDiv.appendChild(div);
         });
       } else if (state.gamePhase === "kitty") {
-        document.getElementById("kitty-section").classList.add("visible");
-        let container = document.getElementById("combined-hand");
-        container.innerHTML = "";
-        state.combinedHand.forEach((card, index) => {
-          let div = document.createElement("div");
-          div.className = "card";
-          div.textContent = card.text;
-          div.dataset.index = index;
-          div.onclick = () => div.classList.toggle("selected");
-          container.appendChild(div);
-        });
+        // Show kitty selection only if you won the bid.
+        if (state.bidder === "player") {
+          document.getElementById("kitty-section").classList.add("visible");
+          let container = document.getElementById("combined-hand");
+          container.innerHTML = "";
+          state.combinedHand.forEach((card, index) => {
+            let div = document.createElement("div");
+            div.className = "card";
+            div.textContent = card.text;
+            div.dataset.index = index;
+            div.onclick = () => div.classList.toggle("selected");
+            container.appendChild(div);
+          });
+        } else {
+          // If computer won, kitty selection is skipped.
+        }
       } else if (state.gamePhase === "draw") {
         document.getElementById("draw-section").classList.add("visible");
         let container = document.getElementById("draw-hand");
@@ -419,15 +429,8 @@
           }
           handContainer.appendChild(div);
         });
-        let trickArea = document.getElementById("trick-area");
-        trickArea.innerHTML = "";
-        let trickCards = state.currentTrick.length ? state.currentTrick : state.lastTrick;
-        trickCards.forEach(entry => {
-          let div = document.createElement("div");
-          div.className = "card";
-          div.textContent = entry.card.text;
-          trickArea.appendChild(div);
-        });
+        // Clear the trick area once a trick is completed.
+        document.getElementById("trick-area").innerHTML = "";
         let trickLog = document.getElementById("trick-log");
         trickLog.innerHTML = "";
         (state.trickLog || []).forEach(msg => {
@@ -449,7 +452,7 @@
         for (let i = 0; i < state.wonTricks["player"]; i++) {
           let div = document.createElement("div");
           div.className = "card";
-          div.textContent = "X"; // Placeholder for a face-down card.
+          div.textContent = "X"; // "X" represents a face-down card.
           playerWonDiv.appendChild(div);
         }
         let opponentWonDiv = document.getElementById("opponent-won-tricks");
@@ -478,7 +481,6 @@
           body: JSON.stringify(data)
         });
         let result = await response.json();
-        // If wonTricks is not set in result, set default values.
         if (!result.wonTricks) {
           result.wonTricks = { "player": 0 };
           for (let p in result.bidHistory) {
