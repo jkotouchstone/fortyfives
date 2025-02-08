@@ -22,7 +22,7 @@
       padding: 20px;
       border-radius: 8px;
     }
-    /* Your Cards area always visible and centered */
+    /* "Your Cards" area always visible, centered */
     #your-hand {
       margin-bottom: 20px;
       text-align: center;
@@ -41,7 +41,7 @@
     #game-options, #instructions {
       max-width: 900px;
       margin: 20px auto;
-      background: rgba(255, 255, 255, 0.1);
+      background: rgba(255,255,255,0.1);
       padding: 10px;
       border-radius: 8px;
     }
@@ -84,7 +84,7 @@
       margin-bottom: 10px;
       font-weight: bold;
     }
-    /* Card style with hover effect */
+    /* Card style with hover and selection effects */
     .card {
       display: inline-block;
       width: 60px;
@@ -101,10 +101,10 @@
       transition: background-color 0.2s ease, transform 0.3s ease;
     }
     .card:hover {
-      background-color: #cceeff;  /* Light blue hover */
+      background-color: #cceeff;
     }
     .card.selected {
-      background: #90ee90;  /* Soft light green */
+      background: #90ee90;
       border: 2px solid #000;
       transform: scale(1.1);
     }
@@ -147,7 +147,7 @@
       display: block;
     }
     #feedback {
-      background: rgba(255, 255, 255, 0.2);
+      background: rgba(255,255,255,0.2);
       padding: 10px;
       border-radius: 5px;
       margin: 10px auto;
@@ -184,23 +184,23 @@
       <strong>Bidding:</strong><br>
       - As the dealer, you'll see your opponent's bid (e.g., "Bill Passed" or "Bill bid 15") in the Bid History.<br>
       - When a computer wins the bid, a notification is displayed (e.g., "Bill wins the bid and has selected ♥ as trump.").<br>
-      - Only the winning bidder gets to select trump and, if you win, choose cards from the kitty.
+      - Only the winning bidder gets to select trump and (if you win) choose cards from the kitty.
     </p>
     <p>
       <strong>Trump & Trick Play:</strong><br>
       - The winning bidder names the trump suit while your cards remain visible in the “Your Cards” area.<br>
-      - In each trick, every card played is shown (e.g., "A♥", "10♦"). The Trick Area displays the current trick or, if no trick is in progress, the last trick’s cards until the next trick begins.
+      - In each trick, every card played is shown in the Trick Area. If no trick is active, the last trick’s cards remain visible until the next trick begins.
     </p>
     <p>
       <strong>Card Strength and Rankings:</strong><br>
       - In the trump suit, the order (strongest to weakest) is: 5, J, A, K, Q, 10, 9, 8, 7, 6, 4, 3, 2.<br>
       - In off-trump suits, the order is: K, Q, J, 10, 9, 8, 7, 6, 5, 4, 3, 2, A.<br>
       - (Note: The Ace of Hearts is always trump.)<br>
-      - In tutorial mode, you'll learn additional details about why certain cards win or lose a trick.
+      - In tutorial mode, you'll receive additional explanations on why certain cards win or lose a trick.
     </p>
     <p>
       <strong>Won Tricks:</strong><br>
-      - Won tricks are tracked and displayed as an "X" for each trick won for both you and your opponent(s).
+      - Won tricks are tracked and displayed as an "X" for each trick won for both you and your opponent.
     </p>
     <p>
       <strong>Scoring:</strong><br>
@@ -235,10 +235,10 @@
     <!-- Status Message -->
     <div id="status-message"></div>
     
-    <!-- Always Visible Your Cards Area -->
+    <!-- "Your Cards" Area (always visible; updated based on phase) -->
     <div id="your-hand"></div>
     
-    <!-- Phase-Specific Sections -->
+    <!-- Phase-Specific Sections (only for additional UI elements) -->
     <!-- Bidding Phase -->
     <div id="bidding-section" class="section">
       <h2>Bidding Phase</h2>
@@ -264,20 +264,16 @@
       </div>
     </div>
     
-    <!-- Kitty Phase (only if you win the bid) -->
+    <!-- Kitty Phase: In this phase, "Your Cards" area is updated to show the combined hand -->
     <div id="kitty-section" class="section">
       <h2>Kitty Phase</h2>
-      <div id="combined-hand" class="cards-container"></div>
-      <div id="kitty-instructions">
-        Click the cards you want to keep (up to 5 cards).
-      </div>
-      <button onclick="confirmKitty()">Confirm Selection</button>
+      <div id="kitty-instructions">Click the cards you want to keep (up to 5 cards) from your combined hand.</div>
+      <button onclick="confirmKitty()">Confirm Kitty Selection</button>
     </div>
     
-    <!-- Draw Phase (with selectable cards) -->
+    <!-- Draw Phase: In this phase, "Your Cards" area shows the draw hand -->
     <div id="draw-section" class="section">
       <h2>Draw Phase</h2>
-      <div id="draw-hand" class="cards-container"></div>
       <div id="draw-phase-instructions">Select the cards you want to keep. Unselected cards will be replaced.</div>
       <button onclick="confirmDraw()">Draw Cards</button>
     </div>
@@ -320,11 +316,12 @@
     let gameState = {};
     let tutorialSteps = [
       "Step 1: Cards are dealt. Each player gets 5 cards and 3 extra cards form the kitty. Your cards are always visible in the 'Your Cards' area.",
-      "Step 2: During bidding, you'll see all bids (e.g., 'Bill Passed' or 'Bill bid 15') in the Bid History. As the dealer, you can view your opponent’s bid.",
+      "Step 2: During bidding, you'll see all bids (e.g., 'Bill Passed' or 'Bill bid 15') in the Bid History. As the dealer, you see your opponent’s bid.",
       "Step 3: The winning bidder selects the trump suit. If a computer wins, you'll see a notification (e.g., 'Bill wins the bid and has selected ♥ as trump.').",
-      "Step 4: In kitty selection (if you win the bid), click on the cards you want to keep. Selected cards are highlighted in soft green. In the draw phase, select which cards to keep before drawing replacements.",
-      "Step 5: In trick play, every card played is shown in the Trick Area. Hover over a card to see a hover effect; when you click a card it is played. Card strength is determined by: For trump, 5, J, A, K, Q, 10, 9, 8, 7, 6, 4, 3, 2; for off-trump, K, Q, J, 10, 9, 8, 7, 6, 5, 4, 3, 2, A. (The Ace of Hearts is always trump.)",
-      "Step 6: Won tricks are tracked and displayed as an 'X' for each trick won. The game continues until someone reaches 120 points, then a detailed score sheet is shown."
+      "Step 4: In kitty selection (if you win the bid), the 'Your Cards' area updates to show your combined hand. Click on the cards you want to keep; selected cards are highlighted in soft green.",
+      "Step 5: In draw phase, the 'Your Cards' area updates to show your current hand for selection. Select which cards to keep before drawing replacement cards.",
+      "Step 6: In trick play, every card played is shown in the Trick Area. Hover over a card for a hover effect; click a card to play it. Card strength is determined by: For trump, 5, J, A, K, Q, 10, 9, 8, 7, 6, 4, 3, 2; for off-trump, K, Q, J, 10, 9, 8, 7, 6, 5, 4, 3, 2, A. (The Ace of Hearts is always trump.)",
+      "Step 7: Won tricks are tracked and displayed as an 'X' for each trick won. The game continues until someone reaches 120 points, then a detailed score sheet is shown."
     ];
     let currentTutorialStep = 0;
     
@@ -354,14 +351,15 @@
       document.getElementById("tutorial-modal").style.display = "none";
     }
     
-    // Always update the "Your Cards" area.
-    function updateYourHand(hand) {
+    // Update "Your Cards" area based on provided array.
+    function updateYourHand(handArray) {
       let container = document.getElementById("your-hand");
       container.innerHTML = "<strong>Your Cards:</strong> ";
-      hand.forEach(card => {
+      handArray.forEach((card, index) => {
         let div = document.createElement("div");
         div.className = "card";
         div.textContent = card.text;
+        div.dataset.index = index;
         container.appendChild(div);
       });
     }
@@ -369,14 +367,20 @@
     // Update UI based on game state.
     function updateUI(state) {
       gameState = state;
-      // Update Your Cards area.
-      updateYourHand(state.playerHand);
+      // Update "Your Cards" area based on phase.
+      if (state.gamePhase === "kitty" && state.bidder === "player" && state.combinedHand) {
+        updateYourHand(state.combinedHand);
+      } else if (state.gamePhase === "draw" && state.drawHand) {
+        updateYourHand(state.drawHand);
+      } else {
+        updateYourHand(state.playerHand);
+      }
       
       document.getElementById("trump-display").textContent =
         (state.gamePhase !== "bidding" && state.trumpSuit) ? "Trump Suit: " + state.trumpSuit : "";
       document.getElementById("bidding-message").textContent = state.biddingMessage || "";
       
-      // Update status message.
+      // Status message.
       if (state.currentTurn) {
         document.getElementById("status-message").textContent = (state.currentTurn === "player") ? "Your turn!" : `Waiting for ${state.currentTurn} to play...`;
       } else {
@@ -398,8 +402,8 @@
       }
       bhDiv.innerHTML = "Bids:<br>" + bids;
       
-      // Hide all phase sections.
-      let sections = ["bidding-section", "trump-section", "kitty-section", "draw-section", "trick-section", "result-section", "won-tricks-section"];
+      // Hide all phase-specific sections.
+      let sections = ["bidding-section", "trump-section", "draw-section", "trick-section", "result-section", "won-tricks-section"];
       sections.forEach(id => document.getElementById(id).classList.remove("visible"));
       
       // Show the active phase.
@@ -407,50 +411,10 @@
         document.getElementById("bidding-section").classList.add("visible");
       } else if (state.gamePhase === "trump") {
         document.getElementById("trump-section").classList.add("visible");
-      } else if (state.gamePhase === "kitty") {
-        if (state.bidder === "player") {
-          document.getElementById("kitty-section").classList.add("visible");
-          let container = document.getElementById("combined-hand");
-          container.innerHTML = "";
-          if (state.combinedHand) {
-            state.combinedHand.forEach((card, index) => {
-              let div = document.createElement("div");
-              div.className = "card";
-              div.textContent = card.text;
-              div.dataset.index = index;
-              div.onclick = () => div.classList.toggle("selected");
-              container.appendChild(div);
-            });
-          } else {
-            state.playerHand.forEach(card => {
-              let div = document.createElement("div");
-              div.className = "card";
-              div.textContent = card.text;
-              container.appendChild(div);
-            });
-            state.kitty.forEach(card => {
-              let div = document.createElement("div");
-              div.className = "card";
-              div.textContent = card.text;
-              container.appendChild(div);
-            });
-          }
-        }
-      } else if (state.gamePhase === "draw") {
-        document.getElementById("draw-section").classList.add("visible");
-        let container = document.getElementById("draw-hand");
-        container.innerHTML = "";
-        state.drawHand.forEach((card, index) => {
-          let div = document.createElement("div");
-          div.className = "card";
-          div.textContent = card.text;
-          div.dataset.index = index;
-          div.onclick = () => div.classList.toggle("selected");
-          container.appendChild(div);
-        });
       } else if (state.gamePhase === "trick") {
         document.getElementById("trick-section").classList.add("visible");
         let trickArea = document.getElementById("trick-area");
+        // Show current trick; if none, show last trick.
         let trickCards = (state.currentTrick.length > 0) ? state.currentTrick : state.lastTrick;
         trickArea.innerHTML = "";
         trickCards.forEach(entry => {
@@ -472,7 +436,7 @@
         document.getElementById("score-sheet").textContent = state.scoreSheet || "";
       }
       
-      // Update Won Tricks Section.
+      // Show Won Tricks Section.
       if (state.gamePhase === "trick" || state.gamePhase === "finished") {
         document.getElementById("won-tricks-section").classList.add("visible");
         let playerWonDiv = document.getElementById("player-won-tricks");
@@ -538,7 +502,8 @@
     }
     
     function confirmKitty() {
-      let container = document.getElementById("combined-hand");
+      // In kitty phase, "your-hand" now shows the combined hand.
+      let container = document.getElementById("your-hand");
       let selectedDivs = container.querySelectorAll(".selected");
       let indices = [];
       selectedDivs.forEach(div => indices.push(parseInt(div.dataset.index)));
@@ -546,7 +511,8 @@
     }
     
     function confirmDraw() {
-      let container = document.getElementById("draw-hand");
+      // In draw phase, "your-hand" now shows the draw hand.
+      let container = document.getElementById("your-hand");
       let selectedDivs = container.querySelectorAll(".selected");
       let indices = [];
       selectedDivs.forEach(div => indices.push(parseInt(div.dataset.index)));
