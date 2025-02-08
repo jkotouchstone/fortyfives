@@ -58,13 +58,10 @@
       display: inline-block;
       background: #fff;
       color: #000;
-      border-radius: 50%;
-      width: 60px;
-      height: 30px;
-      line-height: 30px;
-      text-align: center;
+      border-radius: 5px;
+      padding: 5px 10px;
+      margin: 5px;
       font-weight: bold;
-      margin-left: 10px;
     }
     #logo {
       position: absolute;
@@ -144,38 +141,35 @@
       <ol>
         <li>
           <strong>Cards & Setup:</strong><br>
-          You and your opponents each get 5 cards. Three extra cards (the kitty) are set aside.
+          Everyone gets 5 cards. Three extra cards (the kitty) are set aside.
         </li>
         <li>
           <strong>Bidding:</strong><br>
-          Everyone bids a number (15, 20, 25, or 30) based on how many points they think they can win.
-          The highest bidder gets to choose the trump suit.
+          Each player bids a number (15, 20, 25, or 30). You can see what others bid (if you’re not first). If all pass, the dealer is forced to bid 15.
         </li>
         <li>
           <strong>Trump Suit:</strong><br>
-          The trump suit is extra powerful. Cards in trump beat cards in other suits.
-          Also, the Ace of Hearts is always trump!
+          The winning bidder chooses a trump suit. (Even while choosing, you still see your cards so you remember what you hold.)
         </li>
         <li>
           <strong>Kitty & Discard:</strong><br>
-          The bid winner adds the kitty to their hand and then chooses their best 5 cards.
+          The bid winner adds the kitty to their hand and then picks their best 5 cards.
         </li>
         <li>
           <strong>Drawing:</strong><br>
-          If you have fewer than 5 cards after discarding, you draw extra cards.
+          If you have fewer than 5 cards, you draw extra cards.
         </li>
         <li>
           <strong>Trick Play:</strong><br>
-          In each trick, every player plays one card. The winner of the trick (the highest card based on the rules) gets 5 points. The winner of a trick leads the next trick.
+          Each trick, every player plays one card. The winner of the trick (determined by trump and following suit) gets 5 points and leads the next trick.
         </li>
         <li>
           <strong>Scoring:</strong><br>
-          If you were the bidder and don’t get as many points as you bid, you lose that many points.
-          The game keeps going until someone reaches 120 points.
+          If the bidder doesn’t make their bid, they lose that many points. The game goes on until someone reaches 120 points.
         </li>
       </ol>
       <p>
-        Watch the examples on the screen as the computer explains its moves in simple words.
+        Watch as you see the cards played by all players (even the computer), and follow the bid history shown on the screen.
       </p>
       <button onclick="closeTutorial()">Close Tutorial</button>
     </div>
@@ -206,14 +200,19 @@
       Then, you play cards round by round. The player who wins a trick leads the next trick.
     </p>
     <p>
-      <strong>Key Points:</strong><br>
-      - Each trick is 5 points (the bonus trick adds 5 extra points).<br>
-      - The bid winner must reach or beat their bid or lose that many points.<br>
-      - In heads-up, a small white “Dealer” button appears if you are the dealer.<br>
-      - In three-way play, you compete against two computer players.
+      <strong>Bidding:</strong><br>
+      - In heads‑up, if you’re the dealer you will see the computer’s bid. If you’re in middle position (or dealer in 3‑player), you can see the previous bids to decide your bid.<br>
+      - If everyone passes, the dealer is “bagged” and forced to bid 15.
     </p>
     <p>
-      The computer will explain its moves in simple words, such as “I played a trump card because it beats the other card.”
+      <strong>Trump & Trick Play:</strong><br>
+      - The winning bidder selects a trump suit. During trump selection, your cards stay on the screen.<br>
+      - Each trick is worth 5 points; the winner of a trick leads the next trick. You see every card played (including the computer’s).<br>
+      - The Ace of Hearts is always trump.
+    </p>
+    <p>
+      <strong>Scoring:</strong><br>
+      - If the bidder fails to meet their bid, they lose that many points. The game continues until someone reaches 120 points.
     </p>
     <button onclick="toggleInstructions()">Hide Detailed Rules</button>
   </div>
@@ -222,7 +221,7 @@
   <div class="container" id="game-container" style="display:none;">
     <!-- Logo -->
     <div id="logo">45</div>
-    <!-- Dealer Indicator (for 2p only) -->
+    <!-- Dealer Indicator (only shown in heads-up if you are the dealer) -->
     <div id="dealer-info"></div>
     <div id="trump-display"></div>
     
@@ -240,11 +239,16 @@
         <button onclick="placeBid(30)">Bid 30</button>
       </div>
       <div id="bidding-message"></div>
+      <!-- Display bid history if available -->
+      <div id="bid-history"></div>
     </div>
     
     <!-- Trump Selection Phase -->
     <div id="trump-section" class="section hidden">
       <h2>Trump Selection</h2>
+      <!-- Keep your cards visible while selecting trump -->
+      <div>Your Hand:</div>
+      <div id="player-hand-trump" class="cards-container"></div>
       <div id="trump-buttons" class="cards-container">
         <button onclick="selectTrump('♠')">♠</button>
         <button onclick="selectTrump('♥')">♥</button>
@@ -278,7 +282,7 @@
       <div id="trick-info"></div>
       <div>Your Hand:</div>
       <div id="player-hand-trick" class="cards-container"></div>
-      <div>Trick Area:</div>
+      <div>Trick Area (cards played by all):</div>
       <div id="trick-area" class="cards-container"></div>
       <div id="trick-log"></div>
     </div>
@@ -301,7 +305,7 @@
   </div>
   
   <script>
-    let gameState = {};  // Current game state from the server
+    let gameState = {};
 
     // Tutorial Modal Functions
     function openTutorial() {
@@ -314,35 +318,55 @@
     // Update UI based on game state.
     function updateUI(state) {
       gameState = state;
+      // Do not show trump suit if in bidding phase.
       document.getElementById('trump-display').textContent =
-        state.trumpSuit ? "Trump Suit: " + state.trumpSuit : "";
-      document.getElementById('bidding-message').textContent =
-        state.biddingMessage || "";
+        (state.gamePhase !== "bidding" && state.trumpSuit) ? "Trump Suit: " + state.trumpSuit : "";
+      document.getElementById('bidding-message').textContent = state.biddingMessage || "";
       
-      // Show dealer indicator for heads-up mode if the player is the dealer.
-      if (state.dealer && !state.computerHandCount && state.dealer === "player") {
+      // Dealer indicator (in 2p mode, if you are the dealer).
+      if (state.dealer && state.computerHandCount !== null && state.dealer === "player") {
         document.getElementById('dealer-info').innerHTML = '<div class="dealer-indicator">Dealer</div>';
       } else {
         document.getElementById('dealer-info').innerHTML = "";
       }
       
-      // Hide all phase sections
+      // Show bid history if available.
+      if (state.bidHistory) {
+        let bhDiv = document.getElementById('bid-history');
+        bhDiv.innerHTML = "Bids: " + JSON.stringify(state.bidHistory);
+      }
+
+      // Hide all phase sections.
       ["bidding-section", "trump-section", "kitty-section", "draw-section", "trick-section", "result-section"]
         .forEach(id => document.getElementById(id).classList.add("hidden"));
-      
+
+      // Bidding phase.
       if(state.gamePhase === "bidding") {
         document.getElementById('bidding-section').classList.remove("hidden");
         let container = document.getElementById('player-hand-bidding');
         container.innerHTML = "";
-        state.playerHand.forEach((card, index) => {
+        state.playerHand.forEach(card => {
           let div = document.createElement('div');
           div.className = 'card';
           div.textContent = card.rank + card.suit;
           container.appendChild(div);
         });
-      } else if(state.gamePhase === "trump") {
+      }
+      // Trump selection phase.
+      else if(state.gamePhase === "trump") {
         document.getElementById('trump-section').classList.remove("hidden");
-      } else if(state.gamePhase === "kitty") {
+        // Show player's hand so they can remember what they have.
+        let handDiv = document.getElementById('player-hand-trump');
+        handDiv.innerHTML = "";
+        state.playerHand.forEach(card => {
+          let div = document.createElement('div');
+          div.className = 'card';
+          div.textContent = card.rank + card.suit;
+          handDiv.appendChild(div);
+        });
+      }
+      // Kitty phase.
+      else if(state.gamePhase === "kitty") {
         document.getElementById('kitty-section').classList.remove("hidden");
         let container = document.getElementById('combined-hand');
         container.innerHTML = "";
@@ -354,7 +378,9 @@
           div.onclick = () => div.classList.toggle('selected');
           container.appendChild(div);
         });
-      } else if(state.gamePhase === "draw") {
+      }
+      // Draw phase.
+      else if(state.gamePhase === "draw") {
         document.getElementById('draw-section').classList.remove("hidden");
         let container = document.getElementById('draw-hand');
         container.innerHTML = "";
@@ -364,9 +390,10 @@
           div.textContent = card.rank + card.suit;
           container.appendChild(div);
         });
-        document.getElementById('draw-phase-instructions').textContent =
-          state.drawInstructions || "";
-      } else if(state.gamePhase === "trick") {
+        document.getElementById('draw-phase-instructions').textContent = state.drawInstructions || "";
+      }
+      // Trick play phase.
+      else if(state.gamePhase === "trick") {
         document.getElementById('trick-section').classList.remove("hidden");
         let handContainer = document.getElementById('player-hand-trick');
         handContainer.innerHTML = "";
@@ -387,7 +414,6 @@
           div.textContent = entry.card.rank + entry.card.suit;
           trickArea.appendChild(div);
         });
-        document.getElementById('trick-info').textContent = "";
         let trickLog = document.getElementById('trick-log');
         trickLog.innerHTML = "";
         (state.trickLog || []).forEach(msg => {
@@ -395,7 +421,9 @@
           p.textContent = msg;
           trickLog.appendChild(p);
         });
-      } else if(state.gamePhase === "finished") {
+      }
+      // Finished phase.
+      else if(state.gamePhase === "finished") {
         document.getElementById('result-section').classList.remove("hidden");
         document.getElementById('result-message').textContent = state.scoreboard || "";
       }
