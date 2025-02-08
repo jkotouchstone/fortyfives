@@ -34,7 +34,7 @@
     #game-options, #instructions {
       max-width: 900px;
       margin: 20px auto;
-      background: rgba(255, 255, 255, 0.1);
+      background: rgba(255,255,255,0.1);
       padding: 10px;
       border-radius: 8px;
     }
@@ -47,7 +47,7 @@
       position: fixed;
       top: 0; left: 0;
       width: 100%; height: 100%;
-      background: rgba(0, 0, 0, 0.8);
+      background: rgba(0,0,0,0.8);
       display: none;
       align-items: center;
       justify-content: center;
@@ -173,25 +173,47 @@
     <p>
       <strong>Bidding:</strong><br>
       - If you're the dealer, you'll see your opponent's bid (e.g., "Bill Passed" or "Bill bid 15").<br>
-      - When a computer wins the bid, a notification is shown (for example, "Bill wins the bid and has selected ♥ as trump.").<br>
-      - Only the winning bidder gets to select trump and, if you win, select cards from the kitty.
+      - When a computer wins the bid, a notification is shown (e.g., "Bill wins the bid and has selected ♥ as trump.").<br>
+      - Only the winning bidder gets to select trump and (if you win) choose cards from the kitty.
     </p>
     <p>
       <strong>Trump & Trick Play:</strong><br>
       - The winning bidder names the trump suit while your cards remain visible.<br>
-      - All cards played in a trick are shown on the table in plain text (e.g., "A♥", "10♦"). After a trick is complete, the table is cleared.
+      - In each trick, all played cards are shown in plain text (e.g., "A♥", "10♦"). Once a trick is complete, the table is cleared for the next trick.
+    </p>
+    <p>
+      <strong>Card Strength and Rankings:</strong><br>
+      - In the trump suit, the ranking (from strongest to weakest) is: 5, J, A, K, Q, 10, 9, 8, 7, 6, 4, 3, 2.<br>
+      - In the off-trump suits, the ranking is: K, Q, J, 10, 9, 8, 7, 6, 5, 4, 3, 2, A.<br>
+      - Note that the Ace of Hearts is always trump, regardless of the declared trump suit.<br>
+      - In the tutorial, you will learn why certain cards win or lose a trick based on these rankings.
     </p>
     <p>
       <strong>Won Tricks:</strong><br>
-      - Won tricks are displayed as a count (using "X" to represent a face‑down card) for both you and your opponent(s).
+      - Won tricks are tracked and displayed as a count (using "X" to represent a face‑down card) for both you and your opponent(s).
     </p>
     <p>
       <strong>Scoring:</strong><br>
-      - Each trick is worth 5 points (with an extra bonus trick worth an additional 5 points).<br>
+      - Each trick is worth 5 points (with an extra bonus trick adding 5 additional points).<br>
       - If the bidder fails to meet their bid, they lose that many points.<br>
-      - When the game is over, a detailed score sheet with a full trick log is displayed.
+      - When the game is over, a detailed score sheet with the full trick log is displayed.
     </p>
     <button onclick="toggleInstructions()">Hide Detailed Rules</button>
+  </div>
+  
+  <!-- Tutorial Modal -->
+  <div id="tutorial-modal">
+    <div id="tutorial-content">
+      <h2>Welcome to Forty‑Fives!</h2>
+      <div id="tutorial-step-content">
+        <p>Step 1: Cards are dealt. Each player gets 5 cards and 3 extra cards form the kitty.</p>
+      </div>
+      <div>
+        <button onclick="prevTutorialStep()">Previous</button>
+        <button onclick="nextTutorialStep()">Next</button>
+        <button onclick="closeTutorial()">Close Tutorial</button>
+      </div>
+    </div>
   </div>
   
   <!-- Main Game Container -->
@@ -202,7 +224,7 @@
     <div id="dealer-info"></div>
     <!-- Trump Display -->
     <div id="trump-display"></div>
-    <!-- Status Message (shows whose turn it is) -->
+    <!-- Status Message -->
     <div id="status-message"></div>
     
     <!-- Bidding Phase -->
@@ -235,7 +257,7 @@
       </div>
     </div>
     
-    <!-- Kitty Phase (only visible if you win the bid) -->
+    <!-- Kitty Phase (only if you win the bid) -->
     <div id="kitty-section" class="section">
       <h2>Kitty Phase</h2>
       <div>Your Combined Hand (Your 5 cards + Kitty):</div>
@@ -246,11 +268,11 @@
       <button onclick="confirmKitty()">Confirm Selection</button>
     </div>
     
-    <!-- Draw Phase -->
+    <!-- Draw Phase (allows selection of cards to keep) -->
     <div id="draw-section" class="section">
       <h2>Draw Phase</h2>
       <div id="draw-hand" class="cards-container"></div>
-      <div id="draw-phase-instructions"></div>
+      <div id="draw-phase-instructions">Select the cards you want to keep. Unselected cards will be replaced.</div>
       <button onclick="confirmDraw()">Draw Cards</button>
     </div>
     
@@ -294,11 +316,12 @@
   <script>
     let gameState = {};
     let tutorialSteps = [
-      "Step 1: Cards are dealt. Each player gets 5 cards and 3 extra cards form the kitty.",
+      "Step 1: Cards are dealt. Each player gets 5 cards and 3 extra cards form the kitty. Your cards are always visible at every phase.",
       "Step 2: During bidding, you'll see all bids (for example, 'Bill Passed' or 'Bill bid 15'). As the dealer, you should see your opponent’s bid.",
-      "Step 3: The winning bidder selects the trump suit. If a computer wins, a notification (e.g., 'Bill wins the bid and has selected ♥ as trump.') is shown.",
-      "Step 4: In trick play, every card is shown on the table. Once all cards are played, the table is cleared for the next trick.",
-      "Step 5: Won tricks are tracked (displayed as an 'X' for each trick won). The game continues until someone reaches 120 points, and then a detailed score sheet is shown."
+      "Step 3: The winning bidder selects the trump suit. If a computer wins, you'll see a notification (e.g., 'Bill wins the bid and has selected ♥ as trump.').",
+      "Step 4: In kitty selection (if you win the bid), click on the cards you want to keep. Selected cards are highlighted. In the draw phase, you can similarly select which cards to keep.",
+      "Step 5: In trick play, every card is shown on the table. After the trick is complete, the table is cleared for the next trick. Card strength is determined by the following rankings: For trump, the order is 5, J, A, K, Q, 10, 9, 8, 7, 6, 4, 3, 2. For off-trump, the order is K, Q, J, 10, 9, 8, 7, 6, 5, 4, 3, 2, A. The Ace of Hearts is always trump.",
+      "Step 6: Won tricks are tracked (displayed as an 'X' for each trick won). The game continues until someone reaches 120 points, and then a detailed score sheet is shown."
     ];
     let currentTutorialStep = 0;
     
@@ -389,33 +412,47 @@
           handDiv.appendChild(div);
         });
       } else if (state.gamePhase === "kitty") {
-        // Show kitty selection only if you won the bid.
         if (state.bidder === "player") {
           document.getElementById("kitty-section").classList.add("visible");
           let container = document.getElementById("combined-hand");
           container.innerHTML = "";
-          state.combinedHand.forEach((card, index) => {
-            let div = document.createElement("div");
-            div.className = "card";
-            div.textContent = card.text;
-            div.dataset.index = index;
-            div.onclick = () => div.classList.toggle("selected");
-            container.appendChild(div);
-          });
-        } else {
-          // If computer won, kitty selection is skipped.
+          if (state.combinedHand) {
+            state.combinedHand.forEach((card, index) => {
+              let div = document.createElement("div");
+              div.className = "card";
+              div.textContent = card.text;
+              div.dataset.index = index;
+              div.onclick = () => div.classList.toggle("selected");
+              container.appendChild(div);
+            });
+          } else {
+            state.playerHand.forEach(card => {
+              let div = document.createElement("div");
+              div.className = "card";
+              div.textContent = card.text;
+              container.appendChild(div);
+            });
+            state.kitty.forEach(card => {
+              let div = document.createElement("div");
+              div.className = "card";
+              div.textContent = card.text;
+              container.appendChild(div);
+            });
+          }
         }
       } else if (state.gamePhase === "draw") {
         document.getElementById("draw-section").classList.add("visible");
         let container = document.getElementById("draw-hand");
         container.innerHTML = "";
-        state.drawHand.forEach(card => {
+        state.drawHand.forEach((card, index) => {
           let div = document.createElement("div");
           div.className = "card";
           div.textContent = card.text;
+          div.dataset.index = index;
+          div.onclick = () => div.classList.toggle("selected");
           container.appendChild(div);
         });
-        document.getElementById("draw-phase-instructions").textContent = state.drawInstructions || "";
+        document.getElementById("draw-phase-instructions").textContent = "Select the cards you want to keep. Unselected cards will be replaced.";
       } else if (state.gamePhase === "trick") {
         document.getElementById("trick-section").classList.add("visible");
         let handContainer = document.getElementById("player-hand-trick");
@@ -429,7 +466,7 @@
           }
           handContainer.appendChild(div);
         });
-        // Clear the trick area once a trick is completed.
+        // Clear the trick area so that completed trick cards are removed.
         document.getElementById("trick-area").innerHTML = "";
         let trickLog = document.getElementById("trick-log");
         trickLog.innerHTML = "";
@@ -518,7 +555,11 @@
     }
     
     function confirmDraw() {
-      callAPI("/confirm_draw", "POST", {});
+      let container = document.getElementById("draw-hand");
+      let selectedDivs = container.querySelectorAll(".selected");
+      let indices = [];
+      selectedDivs.forEach(div => indices.push(parseInt(div.dataset.index)));
+      callAPI("/confirm_draw", "POST", { keptIndices: indices });
     }
     
     function playCard(cardIndex) {
