@@ -1,14 +1,20 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from game_logic import Game
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder="static")
 current_game = None  # Global game instance
+
+@app.route("/")
+def index():
+    # Serve the index.html from the static folder
+    return send_from_directory(app.static_folder, "index.html")
 
 @app.route("/start_game", methods=["POST"])
 def start_game():
     global current_game
     data = request.get_json()
     mode = data.get("mode", "2p")
+    # Pass the instructional (tutorial) flag so the game logic may adjust feedback if desired.
     instructional = data.get("instructional", False)
     current_game = Game(mode=mode, instructional=instructional)
     return jsonify(current_game.to_dict())
