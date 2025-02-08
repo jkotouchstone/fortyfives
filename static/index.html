@@ -5,7 +5,7 @@
   <title>45's Game - Learn & Play</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    /* --- Basic Styles --- */
+    /* Basic styles */
     body {
       font-family: sans-serif;
       background-color: #35654d;
@@ -22,7 +22,6 @@
       padding: 20px;
       border-radius: 8px;
     }
-    /* --- Panels for Options and Instructions --- */
     #game-options, #instructions {
       max-width: 900px;
       margin: 20px auto;
@@ -35,7 +34,7 @@
       font-size: 14px;
       display: none;
     }
-    /* --- Tutorial Modal --- */
+    /* Tutorial Modal */
     #tutorial-modal {
       position: fixed;
       top: 0; left: 0;
@@ -54,15 +53,15 @@
       max-width: 600px;
       text-align: left;
     }
-    /* --- Dealer Indicator & Logo --- */
+    /* Dealer indicator */
     .dealer-indicator {
       display: inline-block;
-      background: white;
-      color: black;
+      background: #fff;
+      color: #000;
       border-radius: 50%;
-      width: 50px;
-      height: 50px;
-      line-height: 50px;
+      width: 60px;
+      height: 30px;
+      line-height: 30px;
       text-align: center;
       font-weight: bold;
       margin-left: 10px;
@@ -103,11 +102,10 @@
       font-size: 16px;
       cursor: pointer;
     }
-    /* --- Display Areas --- */
+    /* Display areas */
     #trump-display { font-weight: bold; margin-bottom: 10px; }
     #dealer-info { margin-bottom: 10px; }
     #competitor-bid { font-size: 16px; font-weight: bold; margin-bottom: 5px; color: #ffeb3b; }
-    #competitor-hand-info { font-size: 14px; margin-top: 5px; color: #ffeb3b; }
     #trick-log {
       margin-top: 10px;
       text-align: left;
@@ -146,35 +144,38 @@
       <ol>
         <li>
           <strong>Cards & Setup:</strong><br>
-          You and the computer each get 5 cards, and 3 extra cards (the kitty) are set aside.
+          You and your opponents each get 5 cards. Three extra cards (the kitty) are set aside.
         </li>
         <li>
           <strong>Bidding:</strong><br>
-          You guess how many points you can win by choosing 15, 20, 25, or 30. The computer also bids. The higher bid wins, and that person gets to choose the special trump suit.
+          Everyone bids a number (15, 20, 25, or 30) based on how many points they think they can win.
+          The highest bidder gets to choose the trump suit.
         </li>
         <li>
           <strong>Trump Suit:</strong><br>
-          The trump suit is extra powerful and beats other suits. Remember: the Ace of Hearts is always trump!
+          The trump suit is extra powerful. Cards in trump beat cards in other suits.
+          Also, the Ace of Hearts is always trump!
         </li>
         <li>
           <strong>Kitty & Discard:</strong><br>
-          The winner of the bid adds the kitty to their hand, then picks their best 5 cards.
+          The bid winner adds the kitty to their hand and then chooses their best 5 cards.
         </li>
         <li>
-          <strong>Drawing Cards:</strong><br>
-          If you have less than 5 cards after discarding, you draw extra cards.
+          <strong>Drawing:</strong><br>
+          If you have fewer than 5 cards after discarding, you draw extra cards.
         </li>
         <li>
-          <strong>Playing Tricks:</strong><br>
-          In each trick, both you and the computer play one card. The winner of the trick gets 5 points, and sometimes a bonus trick gives 5 extra points.
+          <strong>Trick Play:</strong><br>
+          In each trick, every player plays one card. The winner of the trick (the highest card based on the rules) gets 5 points. The winner of a trick leads the next trick.
         </li>
         <li>
           <strong>Scoring:</strong><br>
-          If you were the bidder and don’t get as many points as you bid, you lose that many points instead! The game goes on until someone reaches 120 points.
+          If you were the bidder and don’t get as many points as you bid, you lose that many points.
+          The game keeps going until someone reaches 120 points.
         </li>
       </ol>
       <p>
-        Watch the examples on the screen as the computer explains its moves.
+        Watch the examples on the screen as the computer explains its moves in simple words.
       </p>
       <button onclick="closeTutorial()">Close Tutorial</button>
     </div>
@@ -186,7 +187,7 @@
     <label for="mode-select">Select Game Mode:</label>
     <select id="mode-select">
       <option value="2p">2-Player (You vs. Computer)</option>
-      <!-- Additional modes can be added later -->
+      <option value="3p">Three-Way Cut-Throat (You vs. 2 Computers)</option>
     </select>
     <label>
       <input type="checkbox" id="instruction-mode"> Enable Tutorial Mode
@@ -201,17 +202,18 @@
     <h3>Detailed Rules & Strategies for Forty‑Fives</h3>
     <p>
       <strong>Overview:</strong><br>
-      Forty‑Fives is a fun card game where you try to win tricks and score points. You and the computer bid on how many points you can win, then play cards each trick. Follow the suit if you can, and remember that trump cards (the suit chosen by the winner of the bid) beat other cards!
+      Forty‑Fives is a trick-taking game. You bid on how many points you think you can win.
+      Then, you play cards round by round. The player who wins a trick leads the next trick.
     </p>
     <p>
-      <strong>Important Points:</strong><br>
-      - Each trick is worth 5 points.<br>
-      - The bonus trick gives you 5 extra points.<br>
-      - If you win the bid, you must meet or beat your bid or lose that many points.<br>
-      - The game continues until someone reaches 120 points.
+      <strong>Key Points:</strong><br>
+      - Each trick is 5 points (the bonus trick adds 5 extra points).<br>
+      - The bid winner must reach or beat their bid or lose that many points.<br>
+      - In heads-up, a small white “Dealer” button appears if you are the dealer.<br>
+      - In three-way play, you compete against two computer players.
     </p>
     <p>
-      The computer will guide you through example hands and explain why it makes its moves in simple words.
+      The computer will explain its moves in simple words, such as “I played a trump card because it beats the other card.”
     </p>
     <button onclick="toggleInstructions()">Hide Detailed Rules</button>
   </div>
@@ -220,9 +222,8 @@
   <div class="container" id="game-container" style="display:none;">
     <!-- Logo -->
     <div id="logo">45</div>
-    <!-- Dealer and Trump Display -->
+    <!-- Dealer Indicator (for 2p only) -->
     <div id="dealer-info"></div>
-    <div id="dealer-indicator"></div>
     <div id="trump-display"></div>
     
     <!-- Bidding Phase -->
@@ -300,12 +301,9 @@
   </div>
   
   <script>
-    /***** Global Variables *****/
     let gameState = {};  // Current game state from the server
 
-    // ----------------------------
     // Tutorial Modal Functions
-    // ----------------------------
     function openTutorial() {
       document.getElementById("tutorial-modal").style.display = "flex";
     }
@@ -313,25 +311,30 @@
       document.getElementById("tutorial-modal").style.display = "none";
     }
 
-    // ----------------------------
-    // UI Update Function
-    // ----------------------------
+    // Update UI based on game state.
     function updateUI(state) {
       gameState = state;
       document.getElementById('trump-display').textContent =
         state.trumpSuit ? "Trump Suit: " + state.trumpSuit : "";
       document.getElementById('bidding-message').textContent =
         state.biddingMessage || "";
-
+      
+      // Show dealer indicator for heads-up mode if the player is the dealer.
+      if (state.dealer && !state.computerHandCount && state.dealer === "player") {
+        document.getElementById('dealer-info').innerHTML = '<div class="dealer-indicator">Dealer</div>';
+      } else {
+        document.getElementById('dealer-info').innerHTML = "";
+      }
+      
       // Hide all phase sections
       ["bidding-section", "trump-section", "kitty-section", "draw-section", "trick-section", "result-section"]
         .forEach(id => document.getElementById(id).classList.add("hidden"));
-
+      
       if(state.gamePhase === "bidding") {
         document.getElementById('bidding-section').classList.remove("hidden");
         let container = document.getElementById('player-hand-bidding');
         container.innerHTML = "";
-        state.playerHand.forEach(card => {
+        state.playerHand.forEach((card, index) => {
           let div = document.createElement('div');
           div.className = 'card';
           div.textContent = card.rank + card.suit;
@@ -378,13 +381,13 @@
         });
         let trickArea = document.getElementById('trick-area');
         trickArea.innerHTML = "";
-        state.trickCards.forEach(entry => {
+        state.currentTrick.forEach(entry => {
           let div = document.createElement('div');
           div.className = 'card';
           div.textContent = entry.card.rank + entry.card.suit;
           trickArea.appendChild(div);
         });
-        document.getElementById('trick-info').textContent = state.trickInfo || "";
+        document.getElementById('trick-info').textContent = "";
         let trickLog = document.getElementById('trick-log');
         trickLog.innerHTML = "";
         (state.trickLog || []).forEach(msg => {
@@ -400,9 +403,7 @@
       document.getElementById('feedback').textContent = state.feedback || "";
     }
 
-    // ----------------------------
-    // Helper API Call Function
-    // ----------------------------
+    // Helper function to call API endpoints.
     async function callAPI(endpoint, method = "POST", data = {}) {
       try {
         let response = await fetch(endpoint, {
@@ -417,9 +418,7 @@
       }
     }
 
-    // ----------------------------
-    // Game Control Functions
-    // ----------------------------
+    // Game control functions.
     function startGame() {
       let mode = document.getElementById('mode-select').value;
       let instructional = document.getElementById('instruction-mode').checked;
