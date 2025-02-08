@@ -93,7 +93,7 @@ class Game:
             self.player_order = ["player", names[0], names[1]]
 
         self.bidHistory = {}  # e.g., {"player": "bid 15", "Bill": "Passed"}
-        # Dealer: for 2p, choose randomly; for 3p, start with player.
+        # Dealer: for 2p choose randomly; for 3p, start with player.
         if self.mode == "2p":
             self.dealer = "player" if random.random() < 0.5 else self.player_order[1]
         else:
@@ -196,7 +196,7 @@ class Game:
     def select_trump(self, suit):
         if self.phase == "trump":
             self.trump_suit = suit
-            # If player wins the bid, move to kitty selection; if computer wins, skip kitty.
+            # If you win the bid, move to kitty selection; if a computer wins, skip kitty.
             if self.bidder == "player":
                 self.phase = "kitty"
             else:
@@ -217,8 +217,12 @@ class Game:
             self.phase = "draw"
         return
 
-    def confirm_draw(self):
+    def confirm_draw(self, keptIndices=None):
+        # In the draw phase, allow the player to select cards to keep (highlighted) and replace the rest.
         if self.bidder == "player":
+            if keptIndices is not None:
+                kept_cards = [self.players["player"]["hand"][i] for i in keptIndices if i < len(self.players["player"]["hand"])]
+                self.players["player"]["hand"] = kept_cards
             while len(self.players["player"]["hand"]) < 5 and len(self.deck.cards) > 0:
                 self.players["player"]["hand"].append(self.deck.deal(1)[0])
         self.phase = "trick"
@@ -245,9 +249,9 @@ class Game:
         return
 
     def auto_play(self):
-        # Reduce delay to 0.5 seconds.
+        # Delay computer moves by 0.5 seconds.
         while self.currentTurn != "player" and len(self.currentTrick) < len(self.player_order):
-            time.sleep(0.5)  # 0.5-second delay
+            time.sleep(0.5)
             available = self.players[self.currentTurn]["hand"]
             if not available:
                 break
@@ -262,7 +266,7 @@ class Game:
         self.trickLog.append(trick_summary)
         self.players[winner]["tricks"].append(self.currentTrick.copy())
         # Clear the trick area immediately after a trick finishes.
-        self.lastTrick = []  # No cards remain on the table.
+        self.lastTrick = []  
         self.currentTrick = []
         self.currentTurn = winner  # Winner leads next trick.
         if all(len(self.players[p]["hand"]) == 0 for p in self.players):
