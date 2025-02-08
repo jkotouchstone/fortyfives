@@ -12,17 +12,8 @@ class Card:
         return f"{self.rank}{self.suit}"
 
     def to_dict(self):
-        # Map face card letters to full lowercase names.
-        rank_map = {"A": "ace", "J": "jack", "Q": "queen", "K": "king"}
-        # Map suit symbols to full lowercase names.
-        suit_map = {"♥": "hearts", "♦": "diamonds", "♣": "clubs", "♠": "spades"}
-        # If rank is a face card, convert it; otherwise, use the number as-is.
-        rank_str = rank_map.get(self.rank, self.rank)
-        suit_str = suit_map.get(self.suit, self.suit)
-        # Construct the image filename in the format: "rank_of_suit.png"
-        # For example: "ace_of_hearts.png", "10_of_clubs.png", etc.
-        img_url = f"cards/{rank_str}_of_{suit_str}.png"
-        return {"suit": self.suit, "rank": self.rank, "img": img_url}
+        # Instead of an image URL, we return a text representation.
+        return {"suit": self.suit, "rank": self.rank, "text": f"{self.rank}{self.suit}"}
 
 class Deck:
     def __init__(self):
@@ -57,6 +48,7 @@ OFFSUIT_RANKINGS = {
 def is_trump(card, trump_suit):
     if card.suit == trump_suit:
         return True
+    # Ace of hearts is always trump.
     if card.suit == "♥" and card.rank == "A":
         return True
     return False
@@ -78,7 +70,7 @@ class Game:
         self.instructional = instructional
         self.deck = None
 
-        # Define computer names from a rotation.
+        # Define computer names.
         computer_names = ["Jack", "Jennifer", "Patrick", "John", "Liam", "Mary",
                           "Jasper", "Felix", "Holly", "Tom", "Karen", "Stephen",
                           "Leona", "Bill", "Christine", "Chris", "Henry"]
@@ -100,19 +92,19 @@ class Game:
             self.player_order = ["player", names[0], names[1]]
 
         self.bidHistory = {}  # e.g., {"player": "bid 15", "Bill": "Passed"}
-        # Dealer: for 2p, choose randomly; for 3p, start with "player".
+        # Dealer: in 2p, choose randomly; in 3p, start with player.
         if self.mode == "2p":
             self.dealer = "player" if random.random() < 0.5 else self.player_order[1]
         else:
             self.dealer = "player"
         self.kitty = []
         self.trump_suit = None
-        self.phase = "bidding"  # bidding, trump, kitty, draw, trick, finished
+        self.phase = "bidding"  # phases: bidding, trump, kitty, draw, trick, finished
         self.biddingMessage = ""
         self.currentTrick = []   # Cards played in the current trick
-        self.lastTrick = []      # The last trick played (to display on the table)
+        self.lastTrick = []      # Last trick played (to display on table)
         self.trickLog = []       # Summaries for each trick and hand
-        self.currentTurn = None  # Who’s turn to play
+        self.currentTurn = None  # Whose turn it is to play
         self.bidder = None       # Who won the bid
         self.bid = 0             # Winning bid value
         self.deal_hands()
@@ -260,7 +252,7 @@ class Game:
         trick_summary += f". Winner: {winner}."
         self.trickLog.append(trick_summary)
         self.players[winner]["tricks"].append(self.currentTrick.copy())
-        self.lastTrick = self.currentTrick.copy()  # Save for display.
+        self.lastTrick = self.currentTrick.copy()  # Save last trick for display.
         self.currentTrick = []
         self.currentTurn = winner  # Winner leads next trick.
         if all(len(self.players[p]["hand"]) == 0 for p in self.players):
