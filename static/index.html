@@ -21,7 +21,7 @@
       padding: 20px;
       border-radius: 8px;
     }
-    /* "Your Cards" area (fixed and centered) */
+    /* "Your Cards" area (fixed and unique) */
     #your-hand {
       margin-bottom: 20px;
       text-align: center;
@@ -40,7 +40,7 @@
     #game-options, #instructions {
       max-width: 900px;
       margin: 20px auto;
-      background: rgba(255, 255, 255, 0.1);
+      background: rgba(255,255,255,0.1);
       padding: 10px;
       border-radius: 8px;
     }
@@ -155,11 +155,11 @@
       padding-top: 10px;
       display: block;
     }
-    /* New: Game Notes area below the scoreboard */
+    /* Game Notes area for computer activity (placed above the scoreboard) */
     #game-notes {
       margin-top: 10px;
       text-align: left;
-      background: rgba(255, 255, 255, 0.1);
+      background: rgba(255,255,255,0.1);
       padding: 10px;
       border-radius: 5px;
       font-size: 14px;
@@ -168,7 +168,7 @@
       margin-right: auto;
     }
     #feedback {
-      background: rgba(255, 255, 255, 0.2);
+      background: rgba(255,255,255,0.2);
       padding: 10px;
       border-radius: 5px;
       margin: 10px auto;
@@ -199,35 +199,34 @@
     <h3>Detailed Rules & Strategies for Forty‑Fives</h3>
     <p>
       <strong>Overview:</strong><br>
-      Forty‑Fives is a trick‑taking game. You bid on how many points you can win and then play cards round by round. The winner of a trick leads the next trick.
+      Forty‑Fives is a trick‑taking game. You bid on how many points you can win and then play cards round by round. The winner of each trick leads the next.
     </p>
     <p>
       <strong>Bidding:</strong><br>
-      - As the dealer, you'll see your opponent's bid (e.g., "Bill: bid 20" or "Bill: Passed") in the Bid History.<br>
-      - When a computer wins the bid, a notification (e.g., "Bill wins the bid and has selected ♥ as trump.") is displayed.<br>
-      - Only the winning bidder gets to select trump and (if you win) choose cards from the kitty.
+      - As the dealer, you’ll see both bids (e.g., "Player: bid 15" and "Bill: bid 20") in the Bid History.<br>
+      - When the computer wins the bid, a notification (e.g., "Bill wins the bid and has selected ♥ as trump.") is displayed at the top.
     </p>
     <p>
       <strong>Trump & Trick Play:</strong><br>
-      - The winning bidder names the trump suit while your cards remain visible in the “Your Cards” area.<br>
-      - In trick play, every card played is shown in the Trick Area. If no trick is active, the last trick’s cards remain visible until the next trick begins.
+      - The winning bidder selects the trump suit while your cards remain visible in the “Your Cards” area.<br>
+      - In trick play, each card played is shown in the Trick Area. If no trick is active, the last trick remains visible until the next begins.
     </p>
     <p>
-      <strong>Card Strength and Rankings:</strong><br>
-      - In the trump suit, the order is: 5, J, A, K, Q, 10, 9, 8, 7, 6, 4, 3, 2.<br>
-      - In off‑trump suits, the order is: K, Q, J, 10, 9, 8, 7, 6, 5, 4, 3, 2, A.<br>
-      - (Note: The Ace of Hearts is always trump.)<br>
-      - In tutorial mode, additional explanations will help you understand why certain cards win or lose a trick.
+      <strong>Kitty & Draw Phases:</strong><br>
+      - If you win the bid, you first select trump then enter the Kitty phase, where your combined hand (your hand + the kitty) is displayed for you to choose which cards to keep.<br>
+      - After confirming kitty selection, the Draw phase begins. Here you select which cards to keep, and the game replaces unselected cards until you have 5 cards.
     </p>
     <p>
-      <strong>Won Tricks:</strong><br>
-      - Won tricks are tracked and displayed as an "X" for each trick won for both you and your opponent.
+      <strong>Card Rankings:</strong><br>
+      - Trump order (strongest to weakest): 5, J, A, K, Q, 10, 9, 8, 7, 6, 4, 3, 2.<br>
+      - Off‑trump order: K, Q, J, 10, 9, 8, 7, 6, 5, 4, 3, 2, A.<br>
+      - (Note: The Ace of Hearts is always trump.)
     </p>
     <p>
-      <strong>Scoring:</strong><br>
-      - Each trick is worth 5 points (with a bonus trick adding 5 points).<br>
-      - If the bidder fails to meet their bid, they lose that many points.<br>
-      - When the game is over, a detailed score sheet with the full trick log is displayed.
+      <strong>Won Tricks & Scoring:</strong><br>
+      - Each trick is worth 5 points (bonus trick adds 5 points).<br>
+      - Won tricks are displayed as an "X" for each trick won.<br>
+      - When the game is over (someone reaches 120 points), a detailed score sheet is shown.
     </p>
     <button onclick="toggleInstructions()">Hide Detailed Rules</button>
   </div>
@@ -237,7 +236,7 @@
     <div id="tutorial-content">
       <h2>Welcome to Forty‑Fives!</h2>
       <div id="tutorial-step-content">
-        <p>Step 1: Cards are dealt. Each player gets 5 cards and 3 extra cards form the kitty. Your cards appear in the "Your Cards" area.</p>
+        <p>Step 1: Cards are dealt. Your 5 cards appear in the "Your Cards" area and 3 extra cards form the kitty.</p>
       </div>
       <div>
         <button onclick="prevTutorialStep()">Previous</button>
@@ -256,7 +255,7 @@
     <!-- Status Message -->
     <div id="status-message"></div>
 
-    <!-- "Your Cards" Area (always visible; updated based on phase) -->
+    <!-- "Your Cards" Area (fixed, single container) -->
     <div id="your-hand"></div>
 
     <!-- Phase-Specific Sections -->
@@ -285,7 +284,7 @@
       </div>
     </div>
 
-    <!-- Kitty Phase (for player bidder only) -->
+    <!-- Kitty Phase (only for player bidder) -->
     <div id="kitty-section" class="section">
       <h2>Kitty Phase</h2>
       <div id="kitty-instructions">Select the cards you want to keep from your combined hand.</div>
@@ -329,7 +328,7 @@
       <div id="scoreboard"></div>
     </div>
 
-    <!-- New: Game Notes area (displays computer actions) -->
+    <!-- Game Notes (displays computer activity, shown at the top) -->
     <div id="game-notes"></div>
 
     <!-- Feedback Area -->
@@ -339,13 +338,13 @@
   <script>
     let gameState = {};
     let tutorialSteps = [
-      "Step 1: Cards are dealt. Each player gets 5 cards and 3 extra cards form the kitty. Your cards appear in the 'Your Cards' area.",
-      "Step 2: During bidding, you'll see both bids (e.g., 'Player: bid 15' and 'Bill: bid 20') in the Bid History.",
-      "Step 3: The winning bidder selects trump. If a computer wins, you'll see a message indicating its bid and trump selection.",
-      "Step 4: In kitty selection (if you win the bid), the 'Your Cards' area updates to show your combined hand. Click on the cards you want to keep; selected cards turn soft green.",
-      "Step 5: In draw phase, the 'Your Cards' area updates to show your current hand for selection. Choose which cards to keep before drawing replacement cards.",
-      "Step 6: In trick play, all played cards are shown in the Trick Area. Hover over a card for a hover effect; click a card to play it. Card strength is determined by trump and off‑trump rankings.",
-      "Step 7: Won tricks are tracked and displayed as an 'X' for each trick won. The game continues until someone reaches 120 points, then a detailed score sheet is shown."
+      "Step 1: Cards are dealt. Your 5 cards appear in the 'Your Cards' area and 3 extra cards form the kitty.",
+      "Step 2: During bidding, both bids (e.g., 'Player: bid 15' and 'Bill: bid 20') are displayed in the Bid History.",
+      "Step 3: The winning bidder selects trump. If the computer wins, its bid and trump selection are shown at the top.",
+      "Step 4: In kitty selection (if you win the bid), the 'Your Cards' area updates to show your combined hand. Click the cards you want to keep (they will highlight in soft green).",
+      "Step 5: In draw phase, the 'Your Cards' area shows your draw hand. Select which cards to keep; unselected cards will be replaced.",
+      "Step 6: In trick play, all cards played are shown in the Trick Area. Hover over a card for a hover effect; click a card to play it. The winner of each trick leads the next trick.",
+      "Step 7: Game Notes at the top display all computer activity. Won tricks are shown as an 'X' for each trick won. The game continues until someone reaches 120 points."
     ];
     let currentTutorialStep = 0;
 
@@ -375,7 +374,7 @@
       document.getElementById("tutorial-modal").style.display = "none";
     }
 
-    // Update the "Your Cards" area using a single container.
+    // Update the "Your Cards" area (single container used in all phases).
     function updateYourHand(handArray) {
       let container = document.getElementById("your-hand");
       container.innerHTML = "<strong>Your Cards:</strong> ";
@@ -383,17 +382,16 @@
         let div = document.createElement("div");
         div.className = "card";
         div.textContent = card.text;
-        // Add data-index for selection in kitty/draw phases.
-        div.dataset.index = index;
+        div.dataset.index = index;  // Used for selection in kitty and draw phases.
         container.appendChild(div);
       });
     }
 
-    // Update UI based on game state.
+    // Update the UI based on the game state.
     function updateUI(state) {
       gameState = state;
       
-      // Update "Your Cards" area based on the current phase.
+      // Update "Your Cards" area based on phase.
       if (state.gamePhase === "kitty" && state.bidder === "player" && state.combinedHand) {
         updateYourHand(state.combinedHand);
       } else if (state.gamePhase === "draw" && state.drawHand) {
@@ -432,7 +430,7 @@
       let sections = ["bidding-section", "trump-section", "draw-section", "trick-section", "result-section", "won-tricks-section"];
       sections.forEach(id => document.getElementById(id).classList.remove("visible"));
       
-      // Show the active phase.
+      // Show active phase section.
       if (state.gamePhase === "bidding") {
         document.getElementById("bidding-section").classList.add("visible");
       } else if (state.gamePhase === "trump") {
@@ -442,7 +440,6 @@
       } else if (state.gamePhase === "trick") {
         document.getElementById("trick-section").classList.add("visible");
         let trickArea = document.getElementById("trick-area");
-        // Show current trick if available; otherwise, show last trick.
         let trickCards = (state.currentTrick.length > 0) ? state.currentTrick : state.lastTrick;
         trickArea.innerHTML = "";
         trickCards.forEach(entry => {
@@ -491,7 +488,7 @@
       // Always update the scoreboard.
       document.getElementById("scoreboard").textContent = state.scoreboard || "";
       
-      // Update Game Notes (display computer activity).
+      // Update Game Notes (display computer actions at the top).
       let gnDiv = document.getElementById("game-notes");
       if (state.gameNotes && state.gameNotes.length > 0) {
         gnDiv.innerHTML = "<strong>Game Notes:</strong><br>" + state.gameNotes.join("<br>");
@@ -566,11 +563,7 @@
     
     function toggleInstructions() {
       let instrDiv = document.getElementById("instructions");
-      if (instrDiv.style.display === "none" || instrDiv.style.display === "") {
-        instrDiv.style.display = "block";
-      } else {
-        instrDiv.style.display = "none";
-      }
+      instrDiv.style.display = (instrDiv.style.display === "none" || instrDiv.style.display === "") ? "block" : "none";
     }
   </script>
 </body>
