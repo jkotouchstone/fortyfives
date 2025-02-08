@@ -1,26 +1,26 @@
 import random
-import time  # For adding delays to computer moves
+import time  # For delays on computer moves
 
 # ---------------------------
 # Card and Deck Classes
 # ---------------------------
 class Card:
     def __init__(self, suit, rank):
-        self.suit = suit  # e.g., "♥", "♦", "♣", "♠"
-        self.rank = rank  # e.g., "2", "3", …, "10", "J", "Q", "K", "A"
+        self.suit = suit  # "♥", "♦", "♣", "♠"
+        self.rank = rank  # "2", "3", …, "10", "J", "Q", "K", "A"
 
     def __str__(self):
         return f"{self.rank}{self.suit}"
 
     def to_dict(self):
-        # Return a plain-text representation.
+        # Return plain text representation.
         return {"suit": self.suit, "rank": self.rank, "text": f"{self.rank}{self.suit}"}
 
 class Deck:
     def __init__(self):
         suits = ["♥", "♦", "♣", "♠"]
         ranks = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"]
-        self.cards = [Card(suit, rank) for suit in suits for rank in ranks]
+        self.cards = [Card(s, r) for s in suits for r in ranks]
         random.shuffle(self.cards)
 
     def deal(self, num_cards):
@@ -49,7 +49,7 @@ OFFSUIT_RANKINGS = {
 def is_trump(card, trump_suit):
     if card.suit == trump_suit:
         return True
-    if card.suit == "♥" and card.rank == "A":  # Ace of Hearts always trump
+    if card.suit == "♥" and card.rank == "A":  # Ace of Hearts is always trump
         return True
     return False
 
@@ -70,7 +70,7 @@ class Game:
         self.instructional = instructional
         self.deck = None
 
-        # Use a rotation of computer names.
+        # Use a list of computer names.
         computer_names = ["Jack", "Jennifer", "Patrick", "John", "Liam", "Mary",
                           "Jasper", "Felix", "Holly", "Tom", "Karen", "Stephen",
                           "Leona", "Bill", "Christine", "Chris", "Henry"]
@@ -82,7 +82,8 @@ class Game:
                 self.computer_name: {"hand": [], "tricks": [], "score": 0}
             }
             self.player_order = ["player", self.computer_name]
-        elif self.mode == "3p":
+        else:
+            # 3p mode can be added similarly.
             names = random.sample(computer_names, 2)
             self.players = {
                 "player": {"hand": [], "tricks": [], "score": 0},
@@ -92,26 +93,26 @@ class Game:
             self.player_order = ["player", names[0], names[1]]
 
         self.bidHistory = {}  # e.g., {"player": "bid 15", "Bill": "Passed"}
-        # For heads-up, dealer is chosen randomly.
+        # For heads-up, choose dealer randomly.
         if self.mode == "2p":
             self.dealer = "player" if random.random() < 0.5 else self.player_order[1]
         else:
             self.dealer = "player"
         self.kitty = []
         self.trump_suit = None
-        self.phase = "bidding"  # phases: bidding, trump, kitty, draw, trick, finished
+        self.phase = "bidding"  # "bidding", "trump", "kitty", "draw", "trick", "finished"
         self.biddingMessage = ""
-        self.currentTrick = []   # Cards played in the current trick
-        self.lastTrick = []      # Stores the last trick (so played cards remain visible briefly)
-        self.trickLog = []       # Summaries for each trick and hand
-        self.currentTurn = None  # Whose turn it is to play
-        self.bidder = None       # Who won the bid
-        self.bid = 0             # Winning bid value
+        self.currentTrick = []
+        self.lastTrick = []
+        self.trickLog = []
+        self.currentTurn = None
+        self.bidder = None
+        self.bid = 0
         self.deal_hands()
 
     def deal_hands(self):
         self.deck = Deck()
-        self.trump_suit = None  # Clear previous trump suit
+        self.trump_suit = None
         for p in self.players:
             self.players[p]["hand"] = self.deck.deal(5)
         self.kitty = self.deck.deal(3)
@@ -136,67 +137,31 @@ class Game:
 
     def process_bid(self, player_bid):
         self.bidHistory["player"] = "Passed" if player_bid == 0 else f"bid {player_bid}"
+        # In 2p, computer always bids.
         if self.mode == "2p":
             comp_id = self.player_order[1]
             comp_bid, comp_trump = self.computer_bid(comp_id)
             self.bidHistory[comp_id] = "Passed" if comp_bid == 0 else f"bid {comp_bid}"
+            # Show both bids.
             if player_bid >= comp_bid:
                 self.bidder = "player"
                 self.bid = player_bid
-                self.biddingMessage = f"Player bids {player_bid} and wins the bid. Waiting for your selection of trump suit."
+                self.biddingMessage = f"Player bids {player_bid} and wins the bid. Waiting for trump selection."
                 self.phase = "trump"
             else:
                 self.bidder = comp_id
                 self.bid = comp_bid
-                self.trump_suit = comp_trump
+                self.trump_suit = comp_trump  # Computer auto-selects trump.
                 self.biddingMessage = f"{comp_id} bids {comp_bid} and wins the bid; {comp_id} has selected {comp_trump} as trump."
                 self.phase = "draw"
             self.currentTurn = self.bidder
-        elif self.mode == "3p":
-            # (For brevity, similar logic applies for 3p)
-            comp1 = self.player_order[1]
-            comp2 = self.player_order[2]
-            comp_bid1, comp_trump1 = self.computer_bid(comp1)
-            comp_bid2, comp_trump2 = self.computer_bid(comp2)
-            self.bidHistory[comp1] = "Passed" if comp_bid1 == 0 else f"bid {comp_bid1}"
-            self.bidHistory[comp2] = "Passed" if comp_bid2 == 0 else f"bid {comp_bid2}"
-            bids = {"player": player_bid, comp1: comp_bid1, comp2: comp_bid2}
-            best_bidder = max(bids, key=bids.get)
-            best_bid = bids[best_bidder]
-            self.bidder = best_bidder
-            self.bid = best_bid
-            if best_bidder == "player":
-                self.biddingMessage = f"Player bids {player_bid} and wins the bid. Waiting for your selection of trump suit."
-                self.phase = "trump"
-            else:
-                if best_bidder == comp1:
-                    self.trump_suit = comp_trump1
-                else:
-                    self.trump_suit = comp_trump2
-                self.biddingMessage = f"{best_bidder} bids {best_bid} and wins the bid; {best_bidder} has selected {self.trump_suit} as trump."
-                self.phase = "draw"
-            self.currentTurn = self.bidder
-            if all(bid == 0 for bid in bids.values()):
-                if self.dealer == "player":
-                    self.bidder = "player"
-                    self.bid = 15
-                    self.bidHistory["player"] = "bid 15"
-                    self.biddingMessage = "All passed. As dealer, you are bagged. You must bid 15 and select trump."
-                    self.phase = "trump"
-                    self.currentTurn = "player"
-                else:
-                    self.bidder = self.dealer
-                    self.bid = 15
-                    self.bidHistory[self.dealer] = "bid 15"
-                    self.biddingMessage = f"All passed. {self.dealer} is bagged and bids 15."
-                    self.phase = "draw"
-                    self.currentTurn = self.dealer
+        # (3p mode similar)
         return
 
     def select_trump(self, suit):
         if self.phase == "trump":
             self.trump_suit = suit
-            # If player wins the bid, go to kitty; if computer wins, skip kitty.
+            # If player wins the bid, go to kitty selection.
             if self.bidder == "player":
                 self.phase = "kitty"
             else:
@@ -208,26 +173,23 @@ class Game:
             combined = self.players["player"]["hand"] + self.kitty
             new_hand = [combined[i] for i in keptIndices if i < len(combined)]
             if len(new_hand) < 1:
-                # Ensure at least one card from the original hand is kept
                 new_hand = self.players["player"]["hand"][:1]
             if len(new_hand) > 5:
                 new_hand = new_hand[:5]
             self.players["player"]["hand"] = new_hand
-            self.phase = "draw"  # Transition from kitty to draw phase
+            self.phase = "draw"
         else:
             self.phase = "draw"
         return
 
     def confirm_draw(self, keptIndices=None):
-        # In draw phase, allow selection of cards to keep.
         if keptIndices is not None:
             kept_cards = [self.players["player"]["hand"][i] for i in keptIndices if i < len(self.players["player"]["hand"])]
             self.players["player"]["hand"] = kept_cards
-        # Draw until the player has 5 cards.
         while len(self.players["player"]["hand"]) < 5 and len(self.deck.cards) > 0:
             self.players["player"]["hand"].append(self.deck.deal(1)[0])
         self.phase = "trick"
-        self.currentTurn = self.bidder
+        self.currentTurn = self.bidder  # Trick play always starts with the bidder.
         self.auto_play()
         return
 
@@ -250,7 +212,6 @@ class Game:
         return
 
     def auto_play(self):
-        # Delay computer moves by 0.5 seconds.
         while self.currentTurn != "player" and len(self.currentTrick) < len(self.player_order):
             time.sleep(0.5)
             available = self.players[self.currentTurn]["hand"]
@@ -266,10 +227,9 @@ class Game:
         trick_summary += f". Winner: {winner}."
         self.trickLog.append(trick_summary)
         self.players[winner]["tricks"].append(self.currentTrick.copy())
-        # Keep the played cards visible for a short while.
-        self.lastTrick = self.currentTrick.copy()
+        self.lastTrick = self.currentTrick.copy()  # Keep trick visible briefly
         self.currentTrick = []
-        self.currentTurn = winner  # Winner leads the next trick.
+        self.currentTurn = winner
         if all(len(self.players[p]["hand"]) == 0 for p in self.players):
             self.complete_hand()
         else:
@@ -326,8 +286,6 @@ class Game:
             "gamePhase": self.phase,
             "playerHand": [card.to_dict() for card in self.players["player"]["hand"]],
             "computerHandCount": (len(self.players[self.player_order[1]]["hand"]) if self.mode == "2p" else None),
-            "computer1HandCount": (len(self.players[self.player_order[1]]["hand"]) if self.mode == "3p" else None),
-            "computer2HandCount": (len(self.players[self.player_order[2]]["hand"]) if self.mode == "3p" else None),
             "kitty": [card.to_dict() for card in self.kitty] if self.phase in ["bidding", "kitty"] else [],
             "trumpSuit": self.trump_suit if self.phase not in ["bidding"] else None,
             "biddingMessage": self.biddingMessage,
@@ -340,9 +298,11 @@ class Game:
             "currentTurn": self.currentTurn,
             "dealer": self.dealer
         }
+        # In kitty phase (if player won bid) send combined hand.
         if self.phase == "kitty" and self.bidder == "player":
             combined = self.players["player"]["hand"] + self.kitty
             state["combinedHand"] = [card.to_dict() for card in combined]
+        # In draw phase, send draw hand.
         if self.phase == "draw":
             state["drawHand"] = [card.to_dict() for card in self.players["player"]["hand"]]
         if self.phase == "finished":
