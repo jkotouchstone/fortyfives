@@ -1,5 +1,5 @@
 import random
-import time  # Used to add a delay for computer moves
+import time  # For adding delay for computer moves
 
 # ---------------------------
 # Card and Deck Classes
@@ -13,7 +13,7 @@ class Card:
         return f"{self.rank}{self.suit}"
 
     def to_dict(self):
-        # For plain-text version, return a "text" field.
+        # For the plain-text version, return the text representation.
         return {"suit": self.suit, "rank": self.rank, "text": f"{self.rank}{self.suit}"}
 
 class Deck:
@@ -93,7 +93,7 @@ class Game:
             self.player_order = ["player", names[0], names[1]]
 
         self.bidHistory = {}  # e.g., {"player": "bid 15", "Bill": "Passed"}
-        # Dealer: for 2p choose randomly; for 3p, start with player.
+        # Dealer: for 2p, choose randomly; for 3p, start with player.
         if self.mode == "2p":
             self.dealer = "player" if random.random() < 0.5 else self.player_order[1]
         else:
@@ -196,7 +196,7 @@ class Game:
     def select_trump(self, suit):
         if self.phase == "trump":
             self.trump_suit = suit
-            # If you win the bid, move to kitty selection; if a computer wins, skip kitty.
+            # If you win the bid, you must select kitty; if computer wins, skip kitty.
             if self.bidder == "player":
                 self.phase = "kitty"
             else:
@@ -218,13 +218,13 @@ class Game:
         return
 
     def confirm_draw(self, keptIndices=None):
-        # In the draw phase, allow the player to select cards to keep (highlighted) and replace the rest.
-        if self.bidder == "player":
-            if keptIndices is not None:
-                kept_cards = [self.players["player"]["hand"][i] for i in keptIndices if i < len(self.players["player"]["hand"])]
-                self.players["player"]["hand"] = kept_cards
-            while len(self.players["player"]["hand"]) < 5 and len(self.deck.cards) > 0:
-                self.players["player"]["hand"].append(self.deck.deal(1)[0])
+        # Allow the player to select which cards to keep in draw phase (similar to kitty).
+        if keptIndices is not None:
+            kept_cards = [self.players["player"]["hand"][i] for i in keptIndices if i < len(self.players["player"]["hand"])]
+            self.players["player"]["hand"] = kept_cards
+        # Draw replacement cards until the player has 5 cards.
+        while len(self.players["player"]["hand"]) < 5 and len(self.deck.cards) > 0:
+            self.players["player"]["hand"].append(self.deck.deal(1)[0])
         self.phase = "trick"
         self.currentTurn = self.bidder
         self.auto_play()
@@ -271,6 +271,11 @@ class Game:
         self.currentTurn = winner  # Winner leads next trick.
         if all(len(self.players[p]["hand"]) == 0 for p in self.players):
             self.complete_hand()
+        else:
+            # Add a 0.5-second delay before the computer leads if it's not your turn.
+            if self.currentTurn != "player":
+                time.sleep(0.5)
+                self.auto_play()
         return
 
     def evaluate_trick(self, trick):
