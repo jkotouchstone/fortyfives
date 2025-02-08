@@ -22,6 +22,19 @@
       padding: 20px;
       border-radius: 8px;
     }
+    /* Game Options and Instruction Panels */
+    #game-options, #instructions {
+      max-width: 900px;
+      margin: 20px auto;
+      background: rgba(255,255,255,0.1);
+      padding: 10px;
+      border-radius: 8px;
+    }
+    #instructions {
+      text-align: left;
+      font-size: 14px;
+      display: none; /* hidden by default; toggled via button */
+    }
     /* Logo for the game – a squished "45" */
     #logo {
       position: absolute;
@@ -88,10 +101,55 @@
     }
     /* Draw Phase instructions */
     #draw-phase-instructions { margin-top: 10px; font-style: italic; }
+    /* Feedback area for Instruction Mode */
+    #feedback {
+      background: rgba(255,255,255,0.2);
+      padding: 10px;
+      border-radius: 5px;
+      margin: 10px auto;
+      max-width: 800px;
+      font-size: 14px;
+    }
   </style>
 </head>
 <body>
-  <div class="container">
+  <!-- Game Options Panel -->
+  <div id="game-options">
+    <h2>Game Options</h2>
+    <label for="mode-select">Select Game Mode:</label>
+    <select id="mode-select">
+      <option value="2p">2-Player (You vs. Computer)</option>
+      <option value="3p">3-Player (You vs. Two Computers)</option>
+    </select>
+    <label>
+      <input type="checkbox" id="instruction-mode"> Instruction Mode
+    </label>
+    <button onclick="startGame()">Start Game</button>
+    <button onclick="toggleInstructions()">Show Instructions</button>
+  </div>
+  
+  <!-- Instructions Panel (Hidden by Default) -->
+  <div id="instructions">
+    <h3>How to Play 45's</h3>
+    <p>
+      45's is a trick-taking card game with unique trump and off‑suit rankings.
+      <br><br>
+      <strong>Bidding:</strong> Your bid is based on “top cards” in your hand:
+      a lone 5 forces a bid of 20, and having at least two key cards (Jack, Ace of Hearts, non‑Hearts Ace, or King) also results in a bid of 20.
+      <br><br>
+      <strong>Trump:</strong> The trump suit is determined by the winning bidder. Remember that the Ace of Hearts is always trump.
+      <br><br>
+      <strong>Trick Play:</strong> If any trump card is played, the highest trump wins the trick; otherwise, the highest card of the lead suit wins.
+      <br><br>
+      <strong>Instruction Mode:</strong> When enabled, you'll receive extra feedback after your moves comparing your decision to an optimal strategy.
+      <br><br>
+      Enjoy learning and playing 45's!
+    </p>
+    <button onclick="toggleInstructions()">Hide Instructions</button>
+  </div>
+  
+  <!-- Main Game Container -->
+  <div class="container" id="game-container" style="display:none;">
     <!-- Logo -->
     <div id="logo">45</div>
     <!-- Dealer and Trump Display -->
@@ -172,6 +230,9 @@
       <div id="scoreboard">You: 0 | <span id="competitor-name">Competitor</span>: 0</div>
       <div id="hand-log"></div>
     </div>
+    
+    <!-- Feedback Area (for Instruction Mode) -->
+    <div id="feedback"></div>
   </div>
   
   <script>
@@ -179,13 +240,18 @@
     let competitorNames = ["Chris", "Christine", "Bill", "Henry", "Liam", "John", "Mary", "Patrick", "Brian", "Kevin", "Pete"];
     let competitorName = "";
     let competitorDrawCount = 0; // Number of cards competitor draws.
-    let difficulty = "hard"; // Global difficulty setting: 'hard' or 'easy'
+    let difficulty = "hard"; // 'hard' or 'easy'
+    
+    // Mode settings (set via game options)
+    let selectedMode = "2p"; // Default: 2-player (human vs. computer)
+    let instructionalMode = false;
     
     /***** Game State Variables *****/
     let gamePhase = "bidding"; // "bidding", "trump", "kitty", "draw", "trick", "finished"
     let deck = [];
     let playerHand = [];
     let competitorHand = [];
+    let secondComputerHand = [];  // For 3-player mode
     let kitty = [];
     let trumpSuit = null;
     let playerBid = 0;
@@ -193,15 +259,17 @@
     let bidWinner = null; // "player" or "competitor"
     let playerTricks = 0;
     let competitorTricks = 0;
+    let secondComputerTricks = 0;  // For 3-player mode
     let trickCards = []; // Array of { card, player }
     let handPlayedCards = []; // For bonus determination
     let trickNumber = 1;
-    let trickTurn = null; // "player" or "competitor"
+    let trickTurn = null; // "player", "competitor", or "secondComputer"
     let dealerBidRevealed = false;
     let playerCardPlayed = false;
     
     let cumulativePlayerScore = 0;
     let cumulativeCompetitorScore = 0;
+    let cumulativeSecondComputerScore = 0; // For 3-player mode
     let handNumber = 0;
     let handLogMessages = [];
     
@@ -233,6 +301,7 @@
     }
     function updateTrumpDisplay() {
       const display = document.getElementById('trump-display');
+      // If trumpSuit is null, the display is empty.
       display.textContent = trumpSuit ? "Trump Suit: " + trumpSuit : "";
     }
     function updateDealerInfo() {
@@ -241,19 +310,19 @@
     }
     function updateScoreboard() {
       const scoreboard = document.getElementById('scoreboard');
-      scoreboard.textContent = "You: " + cumulativePlayerScore + " | " + competitorName + ": " + cumulativeCompetitorScore;
+      let scoreText = "You: " + cumulativePlayerScore + " | " + competitorName + ": " + cumulativeCompetitorScore;
+      if(selectedMode === "3p") {
+        scoreText += " | Second Computer: " + cumulativeSecondComputerScore;
+      }
+      scoreboard.textContent = scoreText;
       const handLogDiv = document.getElementById('hand-log');
       handLogDiv.innerHTML = handLogMessages.map(msg => "<div>" + msg + "</div>").join("");
     }
     
     /***** Updated Trump/Off‑Suit Logic *****/
-    // Ace of Hearts is always trump regardless of trumpSuit.
     function isTrump(card) {
       return card.suit === trumpSuit || (card.suit === "♥" && card.rank === "A");
     }
-    
-    // For trump cards, use the updated ranking orders.
-    // Lower index = stronger card.
     function getTrumpRank(card) {
       let order;
       if (trumpSuit === "♥") {
@@ -277,8 +346,6 @@
       }
       return -1;
     }
-    
-    // For off‑suit cards, use the updated ranking orders.
     function getOffSuitRank(card) {
       let order;
       if (card.suit === "♥") {
@@ -293,8 +360,12 @@
       return order.indexOf(card.rank);
     }
     
-    /***** Initial Deal (on page load) *****/
+    /***** Initial Deal (on game start) *****/
     function dealCards() {
+      // Clear trump selection from previous hand.
+      trumpSuit = null;
+      updateTrumpDisplay();
+      
       deck = createDeck();
       shuffle(deck);
       if (typeof isPlayerDealer === 'undefined') {
@@ -306,16 +377,25 @@
       }
       updateDealerInfo();
       updateScoreboard();
-      // Deal 5 cards to each player (marking original deal)...
+      
+      // Deal 5 cards to each player (marking original deal).
       playerHand = deck.splice(0, 3).concat(deck.splice(0, 2));
       competitorHand = deck.splice(0, 3).concat(deck.splice(0, 2));
       playerHand.forEach(card => card.original = true);
       competitorHand.forEach(card => card.original = true);
+      
+      // For 3-player mode, deal a second computer hand.
+      if(selectedMode === "3p") {
+        secondComputerHand = deck.splice(0, 5);
+        secondComputerHand.forEach(card => card.original = true);
+      }
+      
       // Kitty gets 3 cards.
       kitty = deck.splice(0, 3);
       dealerBidRevealed = false;
       updateBiddingUI();
-      // Bidding logic:
+      
+      // Bidding logic.
       if (isPlayerDealer) {
         competitorBid = computeCompetitorBid();
         if (competitorBid === 0) {
@@ -601,7 +681,7 @@
       });
       updateTrickArea();
       document.getElementById('trick-info').textContent = "Trick " + trickNumber + " of 5. " +
-          (trickTurn === "player" ? "Your turn to play a card." : competitorName + " leads. (" + competitorHand.length + " card(s) drawn)");
+          (trickTurn === "player" ? "Your turn to play a card." : competitorName + " leads.");
     }
     
     function updateTrickArea() {
@@ -615,7 +695,7 @@
       });
     }
     
-    // Enforce the rule: if the lead card is A♥ then a player with a trump must play one.
+    // Enforce rule: if the lead card is A♥ then a player with a trump must play one.
     function playPlayerCard(index) {
       if (gamePhase !== "trick" || trickTurn !== "player") return;
       if (playerCardPlayed) return;
@@ -642,9 +722,14 @@
       updateTrickArea();
       trickTurn = "competitor";
       continueTrick();
+      
+      // In Instruction Mode, you could compare the player's move to an optimal strategy.
+      if (instructionalMode) {
+        document.getElementById('feedback').textContent = "Feedback: Evaluate your move against the optimal strategy...";
+      }
     }
     
-    // Competitor play logic (enforcing the Ace of Hearts rule when required)
+    // Competitor play logic.
     function competitorPlayCard() {
       if (competitorHand.length === 0) {
         continueTrick();
@@ -729,7 +814,6 @@
         winning = fiveTrump;
       } else {
         let ledSuit = trickCards[0].card.suit;
-        // Only consider cards that are either trump or follow the lead suit.
         let validCards = trickCards.filter(e => isTrump(e.card) || e.card.suit === ledSuit);
         if (validCards.length > 0) {
           let trumpCards = validCards.filter(e => isTrump(e.card));
@@ -769,8 +853,11 @@
       playerCardPlayed = false;
       
       updateTrickUI();
+      
+      // When no cards remain (end of hand), delay the transition.
       if (playerHand.length === 0 && competitorHand.length === 0) {
-        endHand();
+        let delay = (trickNumber === 6 && winning.player === "competitor") ? 3000 : 1500;
+        setTimeout(endHand, delay);
       } else if (trickTurn === "competitor") {
         setTimeout(competitorPlayCard, 500);
       } else {
@@ -848,7 +935,9 @@
       trickCards = [];
       handPlayedCards = [];
       trickNumber = 1;
+      // Clear trump selection for the new hand.
       trumpSuit = null;
+      updateTrumpDisplay();
       playerBid = 0;
       competitorBid = 0;
       bidWinner = null;
@@ -856,9 +945,7 @@
       document.getElementById('bidding-message').textContent = "";
       document.getElementById('competitor-bid').textContent = "";
       gamePhase = "bidding";
-      updateTrumpDisplay();
       updateSections();
-      // Optionally, you can assign a new competitor name for each hand.
       dealCards();
     }
     
@@ -871,6 +958,7 @@
       updateScoreboard();
       resetHandState();
       gamePhase = "bidding";
+      trumpSuit = null;
       updateTrumpDisplay();
       updateSections();
       document.getElementById('result-section').classList.add('hidden');
@@ -914,7 +1002,7 @@
     
     /***** Compute Competitor Bid (Updated Bidding Logic) *****/
     function computeCompetitorBid() {
-      // Check for key cards in the competitor's hand.
+      // Check for key cards in competitor's hand.
       let has5 = competitorHand.some(card => card.rank === "5");
       let hasJack = competitorHand.some(card => card.rank === "J");
       let hasAceHearts = competitorHand.some(card => card.rank === "A" && card.suit === "♥");
@@ -957,8 +1045,32 @@
       return bidValue;
     }
     
-    // Initialize Game on Page Load
-    window.onload = dealCards;
+    /***** Game Options & Instruction Functions *****/
+    function startGame() {
+      // Read selected game mode and Instruction Mode.
+      selectedMode = document.getElementById('mode-select').value;
+      instructionalMode = document.getElementById('instruction-mode').checked;
+      // Hide options panel and show main game container.
+      document.getElementById('game-options').style.display = "none";
+      document.getElementById('game-container').style.display = "block";
+      document.getElementById('feedback').textContent = "";
+      dealCards();
+    }
+    
+    function toggleInstructions() {
+      let instrDiv = document.getElementById('instructions');
+      if (instrDiv.style.display === "none" || instrDiv.style.display === "") {
+        instrDiv.style.display = "block";
+      } else {
+        instrDiv.style.display = "none";
+      }
+    }
+    
+    // Initialize Game Options on Page Load.
+    window.onload = function() {
+      document.getElementById('game-options').style.display = "block";
+      document.getElementById('game-container').style.display = "none";
+    }
   </script>
 </body>
 </html>
