@@ -6,7 +6,6 @@ current_game = None  # Global game instance
 
 @app.route("/")
 def index():
-    # Serve the index.html page.
     return send_from_directory(app.static_folder, "index.html")
 
 @app.route("/start_game", methods=["POST"])
@@ -65,7 +64,8 @@ def play_trick():
     cardIndex = data.get("cardIndex")
     if cardIndex is None:
         return jsonify({"error": "cardIndex required."})
-    current_game.play_trick(cardIndex)
+    # Assume the human is "player".
+    current_game.play_card("player", cardIndex)
     return jsonify(current_game.to_dict())
 
 @app.route("/reset_game", methods=["POST"])
