@@ -12,14 +12,15 @@ class Card:
         return f"{self.rank}{self.suit}"
 
     def to_dict(self):
-        # Map rank letters to full names.
+        # Map face card letters to full lowercase names.
         rank_map = {"A": "ace", "J": "jack", "Q": "queen", "K": "king"}
-        # Map suit symbols to words.
+        # Map suit symbols to full lowercase names.
         suit_map = {"♥": "hearts", "♦": "diamonds", "♣": "clubs", "♠": "spades"}
-        # Use the mapped value if available; otherwise, use the rank as-is.
+        # If rank is a face card, convert it; otherwise, use the number as-is.
         rank_str = rank_map.get(self.rank, self.rank)
         suit_str = suit_map.get(self.suit, self.suit)
-        # Construct the filename following your convention, e.g., "ace_of_hearts.png"
+        # Construct the image filename in the format: "rank_of_suit.png"
+        # For example: "ace_of_hearts.png", "10_of_clubs.png", etc.
         img_url = f"cards/{rank_str}_of_{suit_str}.png"
         return {"suit": self.suit, "rank": self.rank, "img": img_url}
 
@@ -56,7 +57,6 @@ OFFSUIT_RANKINGS = {
 def is_trump(card, trump_suit):
     if card.suit == trump_suit:
         return True
-    # The Ace of Hearts is always trump.
     if card.suit == "♥" and card.rank == "A":
         return True
     return False
@@ -100,7 +100,7 @@ class Game:
             self.player_order = ["player", names[0], names[1]]
 
         self.bidHistory = {}  # e.g., {"player": "bid 15", "Bill": "Passed"}
-        # Dealer: in 2p choose randomly; in 3p, start with "player".
+        # Dealer: for 2p, choose randomly; for 3p, start with "player".
         if self.mode == "2p":
             self.dealer = "player" if random.random() < 0.5 else self.player_order[1]
         else:
