@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify, send_from_directory
 from game_logic import Game
 
 app = Flask(__name__, static_folder="static")
-current_game = None  # Global game instance
+current_game = None
 
 @app.route("/")
 def index():
@@ -64,7 +64,7 @@ def play_trick():
     cardIndex = data.get("cardIndex")
     if cardIndex is None:
         return jsonify({"error": "cardIndex required."})
-    # Assume the human is "player".
+    # Human is always "player"
     current_game.play_card("player", cardIndex)
     return jsonify(current_game.to_dict())
 
