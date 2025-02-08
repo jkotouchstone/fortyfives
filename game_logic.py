@@ -6,14 +6,14 @@ import time  # For adding delays to computer moves
 # ---------------------------
 class Card:
     def __init__(self, suit, rank):
-        self.suit = suit  # "♥", "♦", "♣", "♠"
-        self.rank = rank  # "2", "3", …, "10", "J", "Q", "K", "A"
+        self.suit = suit  # e.g., "♥", "♦", "♣", "♠"
+        self.rank = rank  # e.g., "2", "3", …, "10", "J", "Q", "K", "A"
 
     def __str__(self):
         return f"{self.rank}{self.suit}"
 
     def to_dict(self):
-        # Plain-text version: return a dictionary with a "text" field.
+        # For the plain-text version, return a "text" field.
         return {"suit": self.suit, "rank": self.rank, "text": f"{self.rank}{self.suit}"}
 
 class Deck:
@@ -93,7 +93,7 @@ class Game:
             self.player_order = ["player", names[0], names[1]]
 
         self.bidHistory = {}  # For example: {"player": "bid 15", "Bill": "Passed"}
-        # Dealer: in 2p choose randomly; in 3p, start with player.
+        # Dealer: for 2p choose randomly; for 3p, start with player.
         if self.mode == "2p":
             self.dealer = "player" if random.random() < 0.5 else self.player_order[1]
         else:
@@ -103,7 +103,7 @@ class Game:
         self.phase = "bidding"  # phases: bidding, trump, kitty, draw, trick, finished
         self.biddingMessage = ""
         self.currentTrick = []   # Cards played in the current trick
-        self.lastTrick = []      # Keep last trick so that played cards remain visible briefly
+        self.lastTrick = []      # Stores the most recent trick so that played cards are visible until the next trick
         self.trickLog = []       # Summaries for each trick and hand
         self.currentTurn = None  # Whose turn it is to play
         self.bidder = None       # Who won the bid
@@ -144,13 +144,14 @@ class Game:
             if player_bid >= comp_bid:
                 self.bidder = "player"
                 self.bid = player_bid
-                self.biddingMessage = f"You {self.bidHistory['player']} vs {comp_id} {self.bidHistory[comp_id]}. You win the bid. Select trump."
+                # Updated messaging for clarity.
+                self.biddingMessage = f"Player bids {player_bid} and wins the bid. Waiting for your selection of trump suit."
                 self.phase = "trump"
             else:
                 self.bidder = comp_id
                 self.bid = comp_bid
                 self.trump_suit = comp_trump
-                self.biddingMessage = f"{comp_id} wins the bid and has selected {comp_trump} as trump."
+                self.biddingMessage = f"{comp_id} bids {comp_bid} and wins the bid; {comp_id} has selected {comp_trump} as trump."
                 self.phase = "draw"
             self.currentTurn = self.bidder
         elif self.mode == "3p":
@@ -166,14 +167,14 @@ class Game:
             self.bidder = best_bidder
             self.bid = best_bid
             if best_bidder == "player":
-                self.biddingMessage = f"Bids: player {self.bidHistory['player']}, {comp1} {self.bidHistory[comp1]}, {comp2} {self.bidHistory[comp2]}. You win the bid. Select trump."
+                self.biddingMessage = f"Player bids {player_bid} and wins the bid. Waiting for your selection of trump suit."
                 self.phase = "trump"
             else:
                 if best_bidder == comp1:
                     self.trump_suit = comp_trump1
                 else:
                     self.trump_suit = comp_trump2
-                self.biddingMessage = f"{best_bidder} wins the bid and has selected {self.trump_suit} as trump."
+                self.biddingMessage = f"{best_bidder} bids {best_bid} and wins the bid; {best_bidder} has selected {self.trump_suit} as trump."
                 self.phase = "draw"
             self.currentTurn = self.bidder
             if all(bid == 0 for bid in bids.values()):
@@ -196,7 +197,7 @@ class Game:
     def select_trump(self, suit):
         if self.phase == "trump":
             self.trump_suit = suit
-            # If you win the bid, proceed to kitty selection; if computer wins, skip kitty.
+            # Transition: if player wins the bid, go to kitty; if computer wins, skip kitty.
             if self.bidder == "player":
                 self.phase = "kitty"
             else:
@@ -212,16 +213,18 @@ class Game:
             if len(new_hand) > 5:
                 new_hand = new_hand[:5]
             self.players["player"]["hand"] = new_hand
+            # After kitty selection, automatically transition to the draw phase.
             self.phase = "draw"
         else:
             self.phase = "draw"
         return
 
     def confirm_draw(self, keptIndices=None):
-        # In draw phase, allow selection (like in kitty)
+        # In the draw phase, allow the player to select which cards to keep (like in kitty).
         if keptIndices is not None:
             kept_cards = [self.players["player"]["hand"][i] for i in keptIndices if i < len(self.players["player"]["hand"])]
             self.players["player"]["hand"] = kept_cards
+        # Draw replacement cards until the player has 5 cards.
         while len(self.players["player"]["hand"]) < 5 and len(self.deck.cards) > 0:
             self.players["player"]["hand"].append(self.deck.deal(1)[0])
         self.phase = "trick"
@@ -264,7 +267,7 @@ class Game:
         trick_summary += f". Winner: {winner}."
         self.trickLog.append(trick_summary)
         self.players[winner]["tricks"].append(self.currentTrick.copy())
-        # Instead of clearing played cards immediately, store them in lastTrick
+        # Store the played cards so they remain visible until the next trick begins.
         self.lastTrick = self.currentTrick.copy()
         self.currentTrick = []
         self.currentTurn = winner  # Winner leads next trick.
@@ -303,7 +306,7 @@ class Game:
             points[self.bidder] = -self.bid
         for p in self.players:
             self.players[p]["score"] += points[p]
-        summary = "Hand over. " + " | ".join(f"{p}: {self.players[p]['score']}" for p in self.players)
+        summary = "Hand over. " + " | ".join(f"{'Player' if p=='player' else p}: {self.players[p]['score']}" for p in self.players)
         self.trickLog.append(summary)
         if any(self.players[p]["score"] >= 120 for p in self.players):
             self.phase = "finished"
@@ -334,7 +337,7 @@ class Game:
             "lastTrick": [{"player": entry["player"], "card": entry["card"].to_dict()} for entry in self.lastTrick],
             "trickLog": self.trickLog,
             "wonTricks": wonTricks,
-            "scoreboard": " | ".join(f"{p}: {self.players[p]['score']}" for p in self.players),
+            "scoreboard": " | ".join(f"{'Player' if p=='player' else p}: {self.players[p]['score']}" for p in self.players),
             "currentTurn": self.currentTurn,
             "dealer": self.dealer
         }
