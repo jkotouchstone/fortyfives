@@ -141,21 +141,41 @@
   <!-- Tutorial Modal -->
   <div id="tutorial-modal">
     <div id="tutorial-content">
-      <h2>Welcome to 45's Game Tutorial</h2>
-      <p>
-        45's is a trick-taking game with unique trump and off‑suit rankings.
-      </p>
+      <h2>Welcome to Forty‑Fives!</h2>
+      <p><strong>How to Play:</strong></p>
       <ol>
-        <li><strong>Bidding:</strong> Based on the top cards in your hand, you bid a number of points. A lone "5" or multiple key cards may force higher bids.</li>
-        <li><strong>Trump Selection:</strong> The winner of the bid chooses the trump suit.</li>
-        <li><strong>Kitty Phase:</strong> After bidding, you combine your hand with three extra cards (the kitty) and select which cards to keep.</li>
-        <li><strong>Draw Phase:</strong> You then draw cards to complete your hand.</li>
-        <li><strong>Trick Play:</strong> Each trick, both you and the computer play a card. The highest card (based on trump and suit) wins the trick.</li>
+        <li>
+          <strong>Cards & Setup:</strong><br>
+          You and the computer each get 5 cards, and 3 extra cards (the kitty) are set aside.
+        </li>
+        <li>
+          <strong>Bidding:</strong><br>
+          You guess how many points you can win by choosing 15, 20, 25, or 30. The computer also bids. The higher bid wins, and that person gets to choose the special trump suit.
+        </li>
+        <li>
+          <strong>Trump Suit:</strong><br>
+          The trump suit is extra powerful and beats other suits. Remember: the Ace of Hearts is always trump!
+        </li>
+        <li>
+          <strong>Kitty & Discard:</strong><br>
+          The winner of the bid adds the kitty to their hand, then picks their best 5 cards.
+        </li>
+        <li>
+          <strong>Drawing Cards:</strong><br>
+          If you have less than 5 cards after discarding, you draw extra cards.
+        </li>
+        <li>
+          <strong>Playing Tricks:</strong><br>
+          In each trick, both you and the computer play one card. The winner of the trick gets 5 points, and sometimes a bonus trick gives 5 extra points.
+        </li>
+        <li>
+          <strong>Scoring:</strong><br>
+          If you were the bidder and don’t get as many points as you bid, you lose that many points instead! The game goes on until someone reaches 120 points.
+        </li>
       </ol>
       <p>
-        Watch these sample hands and see examples of bidding and trick play in action.
+        Watch the examples on the screen as the computer explains its moves.
       </p>
-      <!-- (You could embed images, animations, or even videos here) -->
       <button onclick="closeTutorial()">Close Tutorial</button>
     </div>
   </div>
@@ -166,7 +186,7 @@
     <label for="mode-select">Select Game Mode:</label>
     <select id="mode-select">
       <option value="2p">2-Player (You vs. Computer)</option>
-      <!-- You can add additional modes later -->
+      <!-- Additional modes can be added later -->
     </select>
     <label>
       <input type="checkbox" id="instruction-mode"> Enable Tutorial Mode
@@ -176,12 +196,22 @@
     <button onclick="toggleInstructions()">Show Detailed Rules</button>
   </div>
   
-  <!-- Detailed Instructions Panel (for additional help) -->
+  <!-- Detailed Instructions Panel -->
   <div id="instructions">
-    <h3>Detailed Rules & Strategies for 45's</h3>
+    <h3>Detailed Rules & Strategies for Forty‑Fives</h3>
     <p>
-      Here you can learn more about optimal bidding, trump selection, and trick-taking strategies.
-      The computer will guide you through sample hands and explain its moves.
+      <strong>Overview:</strong><br>
+      Forty‑Fives is a fun card game where you try to win tricks and score points. You and the computer bid on how many points you can win, then play cards each trick. Follow the suit if you can, and remember that trump cards (the suit chosen by the winner of the bid) beat other cards!
+    </p>
+    <p>
+      <strong>Important Points:</strong><br>
+      - Each trick is worth 5 points.<br>
+      - The bonus trick gives you 5 extra points.<br>
+      - If you win the bid, you must meet or beat your bid or lose that many points.<br>
+      - The game continues until someone reaches 120 points.
+    </p>
+    <p>
+      The computer will guide you through example hands and explain why it makes its moves in simple words.
     </p>
     <button onclick="toggleInstructions()">Hide Detailed Rules</button>
   </div>
@@ -228,7 +258,7 @@
       <div>Your Combined Hand (Your 5 cards + Kitty):</div>
       <div id="combined-hand" class="cards-container"></div>
       <div id="kitty-instructions">
-        Select up to 5 cards to keep.
+        Click the cards you want to keep (up to 5 cards).
       </div>
       <button onclick="confirmKitty()">Confirm Selection</button>
     </div>
@@ -271,7 +301,7 @@
   
   <script>
     /***** Global Variables *****/
-    let gameState = {};  // Will hold the current game state returned by the server
+    let gameState = {};  // Current game state from the server
 
     // ----------------------------
     // Tutorial Modal Functions
