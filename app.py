@@ -20,7 +20,7 @@ def start_game():
 @app.route("/bid", methods=["POST"])
 def bid():
     global current_game
-    if current_game is None:
+    if not current_game:
         return jsonify({"error": "No game started."})
     data = request.get_json()
     player_bid = data.get("bid", 0)
@@ -30,7 +30,7 @@ def bid():
 @app.route("/select_trump", methods=["POST"])
 def select_trump():
     global current_game
-    if current_game is None:
+    if not current_game:
         return jsonify({"error": "No game started."})
     data = request.get_json()
     trump = data.get("trump")
@@ -40,7 +40,7 @@ def select_trump():
 @app.route("/confirm_kitty", methods=["POST"])
 def confirm_kitty():
     global current_game
-    if current_game is None:
+    if not current_game:
         return jsonify({"error": "No game started."})
     data = request.get_json()
     keptIndices = data.get("keptIndices", [])
@@ -50,7 +50,7 @@ def confirm_kitty():
 @app.route("/confirm_draw", methods=["POST"])
 def confirm_draw():
     global current_game
-    if current_game is None:
+    if not current_game:
         return jsonify({"error": "No game started."})
     data = request.get_json()
     keptIndices = data.get("keptIndices", None)
@@ -60,7 +60,7 @@ def confirm_draw():
 @app.route("/play_trick", methods=["POST"])
 def play_trick():
     global current_game
-    if current_game is None:
+    if not current_game:
         return jsonify({"error": "No game started."})
     data = request.get_json()
     cardIndex = data.get("cardIndex")
@@ -78,7 +78,7 @@ def reset_game():
 @app.route("/state", methods=["GET"])
 def state():
     global current_game
-    if current_game is None:
+    if not current_game:
         return jsonify({"error": "No game started."})
     return jsonify(current_game.to_dict())
 
