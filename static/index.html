@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>45's Game - Learn & Play</title>
+  <title>Card Game - Learn & Play</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    /* Basic styles */
+    /* Use a medium felt green background */
     body {
       font-family: sans-serif;
-      background-color: #35654d;
+      background-color: #4CAF50;  /* Medium felt green */
       margin: 0;
       padding: 20px;
       text-align: center;
@@ -18,14 +18,14 @@
       position: relative;
       max-width: 900px;
       margin: auto;
-      background: rgba(0,0,0,0.7);
+      background: rgba(0, 0, 0, 0.7);
       padding: 20px;
       border-radius: 8px;
     }
-    /* Your Cards area always visible */
+    /* Your Cards area always visible and centered */
     #your-hand {
       margin-bottom: 20px;
-      text-align: left;
+      text-align: center;
       padding: 5px;
       border-bottom: 1px solid #fff;
     }
@@ -41,7 +41,7 @@
     #game-options, #instructions {
       max-width: 900px;
       margin: 20px auto;
-      background: rgba(255,255,255,0.1);
+      background: rgba(255, 255, 255, 0.1);
       padding: 10px;
       border-radius: 8px;
     }
@@ -84,7 +84,7 @@
       margin-bottom: 10px;
       font-weight: bold;
     }
-    /* Card style: plain text */
+    /* Card style: plain text with hover effect */
     .card {
       display: inline-block;
       width: 60px;
@@ -100,9 +100,8 @@
       user-select: none;
       transition: background-color 0.2s ease, transform 0.3s ease;
     }
-    /* Hover effect on cards */
     .card:hover {
-      background-color: #cceeff;
+      background-color: #cceeff;  /* Light blue hover */
     }
     .card.selected {
       background: #90ee90;  /* Soft light green */
@@ -148,7 +147,7 @@
       display: block;
     }
     #feedback {
-      background: rgba(255,255,255,0.2);
+      background: rgba(255, 255, 255, 0.2);
       padding: 10px;
       border-radius: 5px;
       margin: 10px auto;
@@ -190,18 +189,18 @@
     <p>
       <strong>Trump & Trick Play:</strong><br>
       - The winning bidder names the trump suit while your cards remain visible in the “Your Cards” area.<br>
-      - In each trick, every card played is shown (e.g., "A♥", "10♦"). After the trick is complete, the trick area shows the last trick's cards until the next trick begins.
+      - In each trick, every card played is shown (e.g., "A♥", "10♦"). After a trick is complete, the Trick Area shows the last trick’s cards until the next trick begins.
     </p>
     <p>
       <strong>Card Strength and Rankings:</strong><br>
       - In the trump suit, the order from strongest to weakest is: 5, J, A, K, Q, 10, 9, 8, 7, 6, 4, 3, 2.<br>
       - In off-trump suits, the order is: K, Q, J, 10, 9, 8, 7, 6, 5, 4, 3, 2, A.<br>
       - (Note: The Ace of Hearts is always trump.)<br>
-      - In tutorial mode, you'll learn why certain cards win or lose a trick based on these rankings.
+      - In tutorial mode, you'll receive additional explanations on why certain cards win or lose a trick.
     </p>
     <p>
       <strong>Won Tricks:</strong><br>
-      - Won tricks are tracked and displayed as an "X" for each trick won for you and your opponent(s).
+      - Won tricks are tracked and displayed as an “X” for each trick won for you and your opponent(s).
     </p>
     <p>
       <strong>Scoring:</strong><br>
@@ -229,8 +228,8 @@
   
   <!-- Main Game Container -->
   <div class="container" id="game-container" style="display:none;">
-    <!-- Logo -->
-    <div id="logo">45</div>
+    <!-- Removed the "45" logo -->
+    
     <!-- Dealer Indicator -->
     <div id="dealer-info"></div>
     <!-- Trump Display -->
@@ -238,7 +237,7 @@
     <!-- Status Message -->
     <div id="status-message"></div>
     
-    <!-- Always Visible Your Cards Area -->
+    <!-- Your Cards: Always Visible and Centered -->
     <div id="your-hand"></div>
     
     <!-- Phase-Specific Sections -->
@@ -323,10 +322,10 @@
     let gameState = {};
     let tutorialSteps = [
       "Step 1: Cards are dealt. Each player gets 5 cards and 3 extra cards form the kitty. Your cards are always visible in the 'Your Cards' area.",
-      "Step 2: During bidding, you'll see all bids (e.g., 'Bill Passed' or 'Bill bid 15') in the Bid History. As the dealer, you see your opponent’s bid.",
+      "Step 2: During bidding, you'll see all bids (e.g., 'Bill Passed' or 'Bill bid 15') in the Bid History. As the dealer, you can view your opponent’s bid.",
       "Step 3: The winning bidder selects the trump suit. If a computer wins, you'll see a notification (e.g., 'Bill wins the bid and has selected ♥ as trump.').",
       "Step 4: In kitty selection (if you win the bid), click on the cards you want to keep. Selected cards are highlighted in soft green. In the draw phase, select which cards to keep before drawing replacements.",
-      "Step 5: In trick play, every card played is shown in the Trick Area. Hover over your cards to see a hover effect; when you click a card it is played and appears in the Trick Area. Card strength is determined by: For trump, 5, J, A, K, Q, 10, 9, 8, 7, 6, 4, 3, 2; off-trump, K, Q, J, 10, 9, 8, 7, 6, 5, 4, 3, 2, A. (The Ace of Hearts is always trump.)",
+      "Step 5: In trick play, every card played is shown in the Trick Area. When you hover over a card, its appearance changes; when you click a card, it is played. Card strength is determined by: For trump, the order is 5, J, A, K, Q, 10, 9, 8, 7, 6, 4, 3, 2; for off-trump, the order is K, Q, J, 10, 9, 8, 7, 6, 5, 4, 3, 2, A. (The Ace of Hearts is always trump.)",
       "Step 6: Won tricks are tracked and displayed as an 'X' for each trick won. The game continues until someone reaches 120 points, then a detailed score sheet is shown."
     ];
     let currentTutorialStep = 0;
@@ -379,21 +378,21 @@
         (state.gamePhase !== "bidding" && state.trumpSuit) ? "Trump Suit: " + state.trumpSuit : "";
       document.getElementById("bidding-message").textContent = state.biddingMessage || "";
       
-      // Status message for turn.
+      // Set status message.
       if (state.currentTurn) {
         document.getElementById("status-message").textContent = (state.currentTurn === "player") ? "Your turn!" : `Waiting for ${state.currentTurn} to play...`;
       } else {
         document.getElementById("status-message").textContent = "";
       }
       
-      // Dealer indicator (in 2p mode if you're the dealer).
+      // Dealer indicator.
       if (state.dealer && state.computerHandCount !== null && state.dealer === "player") {
         document.getElementById("dealer-info").innerHTML = '<div class="dealer-indicator">Dealer</div>';
       } else {
         document.getElementById("dealer-info").innerHTML = "";
       }
       
-      // Bid History always visible.
+      // Update bid history.
       let bhDiv = document.getElementById("bid-history");
       let bids = "";
       for (let p in state.bidHistory) {
@@ -405,7 +404,7 @@
       let sections = ["bidding-section", "trump-section", "kitty-section", "draw-section", "trick-section", "result-section", "won-tricks-section"];
       sections.forEach(id => document.getElementById(id).classList.remove("visible"));
       
-      // Show phase-specific sections.
+      // Show active phase.
       if (state.gamePhase === "bidding") {
         document.getElementById("bidding-section").classList.add("visible");
       } else if (state.gamePhase === "trump") {
@@ -454,7 +453,7 @@
       } else if (state.gamePhase === "trick") {
         document.getElementById("trick-section").classList.add("visible");
         let trickArea = document.getElementById("trick-area");
-        // Display current trick if available; otherwise, display last trick.
+        // Show current trick if available; if not, show last trick.
         let trickCards = (state.currentTrick.length > 0) ? state.currentTrick : state.lastTrick;
         trickArea.innerHTML = "";
         trickCards.forEach(entry => {
@@ -476,7 +475,7 @@
         document.getElementById("score-sheet").textContent = state.scoreSheet || "";
       }
       
-      // Show won tricks section if in trick phase or finished.
+      // Show won tricks section.
       if (state.gamePhase === "trick" || state.gamePhase === "finished") {
         document.getElementById("won-tricks-section").classList.add("visible");
         let playerWonDiv = document.getElementById("player-won-tricks");
@@ -500,7 +499,7 @@
         }
       }
       
-      // Scoreboard is always visible.
+      // Always update the scoreboard.
       document.getElementById("scoreboard").textContent = state.scoreboard || "";
       document.getElementById("feedback").textContent = state.feedback || "";
     }
