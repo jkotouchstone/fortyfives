@@ -18,11 +18,11 @@
       position: relative;
       max-width: 900px;
       margin: auto;
-      background: rgba(0,0,0,0.7);
+      background: rgba(0, 0, 0, 0.7);
       padding: 20px;
       border-radius: 8px;
     }
-    /* Sections: only one visible at a time */
+    /* Sections: only one active section is visible */
     .section {
       margin: 20px 0;
       display: none;
@@ -30,10 +30,11 @@
     .section.visible {
       display: block;
     }
+    /* Game options and instructions */
     #game-options, #instructions {
       max-width: 900px;
       margin: 20px auto;
-      background: rgba(255,255,255,0.1);
+      background: rgba(255, 255, 255, 0.1);
       padding: 10px;
       border-radius: 8px;
     }
@@ -70,7 +71,7 @@
       margin: 5px;
       font-weight: bold;
     }
-    /* Card style: plain text representation */
+    /* Card style: plain text */
     .card {
       display: inline-block;
       width: 60px;
@@ -87,9 +88,10 @@
       transition: transform 0.3s ease;
     }
     .card.selected {
+      background: #ffeb3b;
+      border: 2px solid #000;
       transform: scale(1.1);
     }
-    /* Buttons */
     button {
       padding: 10px 15px;
       margin: 5px;
@@ -114,6 +116,7 @@
       overflow-y: auto;
       color: #000;
     }
+    /* Won Tricks Section */
     #won-tricks-section {
       margin-top: 20px;
       display: none;
@@ -121,12 +124,14 @@
     #won-tricks-section h3 {
       margin-bottom: 10px;
     }
+    /* Scoreboard: always visible */
     #scoreboard-section {
       border-top: 2px solid #ffeb3b;
       padding-top: 10px;
+      display: block;
     }
     #feedback {
-      background: rgba(255,255,255,0.2);
+      background: rgba(255, 255, 255, 0.2);
       padding: 10px;
       border-radius: 5px;
       margin: 10px auto;
@@ -136,8 +141,6 @@
   </style>
 </head>
 <body>
-  <!-- Theme selector is removed for simplicity in this version -->
-
   <!-- Tutorial Modal -->
   <div id="tutorial-modal">
     <div id="tutorial-content">
@@ -178,8 +181,8 @@
     </p>
     <p>
       <strong>Bidding:</strong><br>
-      - In heads‑up, if you're the dealer, you'll see your opponent's bid (for example, "Bill Passed" or "Bill bid 15").<br>
-      - In middle positions, you see previous bids before deciding your own.<br>
+      - In heads‑up, if you're the dealer, you'll see your opponent's bid (e.g., "Bill Passed" or "Bill bid 15").<br>
+      - In middle positions, you see previous bids before making your own decision.<br>
       - If everyone passes, the dealer is forced to bid 15 ("bagged").
     </p>
     <p>
@@ -189,13 +192,13 @@
     </p>
     <p>
       <strong>Won Tricks:</strong><br>
-      - After winning a trick, the cards are placed face‑down on your side (shown as a count or a generic symbol). The opponent's won tricks are similarly tracked.
+      - After winning a trick, the cards are placed face‑down (represented here by an "X") on your side; the opponent's won tricks are similarly shown.
     </p>
     <p>
       <strong>Scoring:</strong><br>
-      - Each trick is worth 5 points (the bonus trick adds 5 extra points).<br>
+      - Each trick is worth 5 points (with the bonus trick adding 5 extra points).<br>
       - If the bidder fails to reach their bid, they lose that many points.<br>
-      - When the game is over, a detailed score sheet with the trick log is displayed.
+      - When the game is over, a detailed score sheet with the full trick log is displayed.
     </p>
     <button onclick="toggleInstructions()">Hide Detailed Rules</button>
   </div>
@@ -204,7 +207,7 @@
   <div class="container" id="game-container" style="display:none;">
     <!-- Logo -->
     <div id="logo">45</div>
-    <!-- Dealer Indicator (only shown in 2p if you're the dealer) -->
+    <!-- Dealer Indicator (shown in 2p if you're the dealer) -->
     <div id="dealer-info"></div>
     <div id="trump-display"></div>
     
@@ -284,8 +287,8 @@
       <button onclick="resetGame()">Play Again</button>
     </div>
     
-    <!-- Scoreboard Section -->
-    <div id="scoreboard-section" class="section">
+    <!-- Scoreboard Section (Always Visible) -->
+    <div id="scoreboard-section">
       <h2>Scoreboard</h2>
       <div id="scoreboard"></div>
     </div>
@@ -298,10 +301,10 @@
     let gameState = {};
     let tutorialSteps = [
       "Step 1: Cards are dealt. Each player gets 5 cards and 3 extra cards form the kitty.",
-      "Step 2: During bidding, you'll see all bids (for example, 'Bill Passed' or 'Bill bid 15').",
+      "Step 2: During bidding, you'll see all bids (for example, 'Bill Passed' or 'Bill bid 15'). If no bid is yet shown, it means your opponent hasn't bid.",
       "Step 3: The winning bidder selects the trump suit while your cards remain visible.",
-      "Step 4: In trick play, every card is shown on the table in text form (e.g., 'A♥'). The winner takes the trick.",
-      "Step 5: The game continues until someone reaches 120 points, and then a detailed score sheet is shown."
+      "Step 4: In trick play, every card is shown on the table. After a trick is won, the cards remain on the table until the next trick.",
+      "Step 5: Won tricks are tracked and displayed as a count. The game continues until someone reaches 120 points, and then a detailed score sheet is shown."
     ];
     let currentTutorialStep = 0;
     
@@ -338,7 +341,7 @@
         (state.gamePhase !== "bidding" && state.trumpSuit) ? "Trump Suit: " + state.trumpSuit : "";
       document.getElementById("bidding-message").textContent = state.biddingMessage || "";
       
-      // Dealer indicator: In 2p mode, if you're the dealer.
+      // Dealer indicator: in 2p mode, if you're the dealer.
       if (state.dealer && state.computerHandCount !== null && state.dealer === "player") {
         document.getElementById("dealer-info").innerHTML = '<div class="dealer-indicator">Dealer</div>';
       } else {
@@ -446,7 +449,7 @@
         for (let i = 0; i < state.wonTricks["player"]; i++) {
           let div = document.createElement("div");
           div.className = "card";
-          div.textContent = "X"; // Use "X" or any placeholder for a card back.
+          div.textContent = "X"; // Placeholder for a face-down card.
           playerWonDiv.appendChild(div);
         }
         let opponentWonDiv = document.getElementById("opponent-won-tricks");
@@ -462,6 +465,7 @@
         }
       }
       
+      // Scoreboard is always visible.
       document.getElementById("scoreboard").textContent = state.scoreboard || "";
       document.getElementById("feedback").textContent = state.feedback || "";
     }
@@ -474,6 +478,13 @@
           body: JSON.stringify(data)
         });
         let result = await response.json();
+        // If wonTricks is not set in result, set default values.
+        if (!result.wonTricks) {
+          result.wonTricks = { "player": 0 };
+          for (let p in result.bidHistory) {
+            if (p !== "player") result.wonTricks[p] = 0;
+          }
+        }
         updateUI(result);
       } catch (err) {
         console.error("API call error:", err);
