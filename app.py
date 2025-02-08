@@ -64,7 +64,6 @@ def play_trick():
     cardIndex = data.get("cardIndex")
     if cardIndex is None:
         return jsonify({"error": "cardIndex required."})
-    # Human is always "player"
     current_game.play_card("player", cardIndex)
     return jsonify(current_game.to_dict())
 
