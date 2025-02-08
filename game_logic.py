@@ -13,7 +13,7 @@ class Card:
         return f"{self.rank}{self.suit}"
 
     def to_dict(self):
-        # For the plain-text version, return a "text" field.
+        # Return a plain-text representation.
         return {"suit": self.suit, "rank": self.rank, "text": f"{self.rank}{self.suit}"}
 
 class Deck:
@@ -49,8 +49,7 @@ OFFSUIT_RANKINGS = {
 def is_trump(card, trump_suit):
     if card.suit == trump_suit:
         return True
-    # Ace of Hearts is always trump.
-    if card.suit == "♥" and card.rank == "A":
+    if card.suit == "♥" and card.rank == "A":  # Ace of Hearts always trump
         return True
     return False
 
@@ -71,7 +70,7 @@ class Game:
         self.instructional = instructional
         self.deck = None
 
-        # Define computer names.
+        # Use a rotation of computer names.
         computer_names = ["Jack", "Jennifer", "Patrick", "John", "Liam", "Mary",
                           "Jasper", "Felix", "Holly", "Tom", "Karen", "Stephen",
                           "Leona", "Bill", "Christine", "Chris", "Henry"]
@@ -92,8 +91,8 @@ class Game:
             }
             self.player_order = ["player", names[0], names[1]]
 
-        self.bidHistory = {}  # For example: {"player": "bid 15", "Bill": "Passed"}
-        # Dealer: for 2p choose randomly; for 3p, start with player.
+        self.bidHistory = {}  # e.g., {"player": "bid 15", "Bill": "Passed"}
+        # For heads-up, dealer is chosen randomly.
         if self.mode == "2p":
             self.dealer = "player" if random.random() < 0.5 else self.player_order[1]
         else:
@@ -103,7 +102,7 @@ class Game:
         self.phase = "bidding"  # phases: bidding, trump, kitty, draw, trick, finished
         self.biddingMessage = ""
         self.currentTrick = []   # Cards played in the current trick
-        self.lastTrick = []      # Stores the most recent trick so that played cards are visible until the next trick
+        self.lastTrick = []      # Stores the last trick (so played cards remain visible briefly)
         self.trickLog = []       # Summaries for each trick and hand
         self.currentTurn = None  # Whose turn it is to play
         self.bidder = None       # Who won the bid
@@ -112,7 +111,7 @@ class Game:
 
     def deal_hands(self):
         self.deck = Deck()
-        self.trump_suit = None  # Clear trump suit from previous hand
+        self.trump_suit = None  # Clear previous trump suit
         for p in self.players:
             self.players[p]["hand"] = self.deck.deal(5)
         self.kitty = self.deck.deal(3)
@@ -144,7 +143,6 @@ class Game:
             if player_bid >= comp_bid:
                 self.bidder = "player"
                 self.bid = player_bid
-                # Updated messaging for clarity.
                 self.biddingMessage = f"Player bids {player_bid} and wins the bid. Waiting for your selection of trump suit."
                 self.phase = "trump"
             else:
@@ -155,6 +153,7 @@ class Game:
                 self.phase = "draw"
             self.currentTurn = self.bidder
         elif self.mode == "3p":
+            # (For brevity, similar logic applies for 3p)
             comp1 = self.player_order[1]
             comp2 = self.player_order[2]
             comp_bid1, comp_trump1 = self.computer_bid(comp1)
@@ -197,7 +196,7 @@ class Game:
     def select_trump(self, suit):
         if self.phase == "trump":
             self.trump_suit = suit
-            # Transition: if player wins the bid, go to kitty; if computer wins, skip kitty.
+            # If player wins the bid, go to kitty; if computer wins, skip kitty.
             if self.bidder == "player":
                 self.phase = "kitty"
             else:
@@ -209,22 +208,22 @@ class Game:
             combined = self.players["player"]["hand"] + self.kitty
             new_hand = [combined[i] for i in keptIndices if i < len(combined)]
             if len(new_hand) < 1:
+                # Ensure at least one card from the original hand is kept
                 new_hand = self.players["player"]["hand"][:1]
             if len(new_hand) > 5:
                 new_hand = new_hand[:5]
             self.players["player"]["hand"] = new_hand
-            # After kitty selection, automatically transition to the draw phase.
-            self.phase = "draw"
+            self.phase = "draw"  # Transition from kitty to draw phase
         else:
             self.phase = "draw"
         return
 
     def confirm_draw(self, keptIndices=None):
-        # In the draw phase, allow the player to select which cards to keep (like in kitty).
+        # In draw phase, allow selection of cards to keep.
         if keptIndices is not None:
             kept_cards = [self.players["player"]["hand"][i] for i in keptIndices if i < len(self.players["player"]["hand"])]
             self.players["player"]["hand"] = kept_cards
-        # Draw replacement cards until the player has 5 cards.
+        # Draw until the player has 5 cards.
         while len(self.players["player"]["hand"]) < 5 and len(self.deck.cards) > 0:
             self.players["player"]["hand"].append(self.deck.deal(1)[0])
         self.phase = "trick"
@@ -267,10 +266,10 @@ class Game:
         trick_summary += f". Winner: {winner}."
         self.trickLog.append(trick_summary)
         self.players[winner]["tricks"].append(self.currentTrick.copy())
-        # Store the played cards so they remain visible until the next trick begins.
+        # Keep the played cards visible for a short while.
         self.lastTrick = self.currentTrick.copy()
         self.currentTrick = []
-        self.currentTurn = winner  # Winner leads next trick.
+        self.currentTurn = winner  # Winner leads the next trick.
         if all(len(self.players[p]["hand"]) == 0 for p in self.players):
             self.complete_hand()
         else:
