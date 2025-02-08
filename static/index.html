@@ -5,10 +5,10 @@
   <title>Card Game - Learn & Play</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    /* Use a medium felt green background */
+    /* Medium felt green background */
     body {
       font-family: sans-serif;
-      background-color: #4CAF50;  /* Medium felt green */
+      background-color: #4CAF50;
       margin: 0;
       padding: 20px;
       text-align: center;
@@ -84,7 +84,7 @@
       margin-bottom: 10px;
       font-weight: bold;
     }
-    /* Card style: plain text with hover effect */
+    /* Card style with hover effect */
     .card {
       display: inline-block;
       width: 60px;
@@ -184,23 +184,23 @@
       <strong>Bidding:</strong><br>
       - As the dealer, you'll see your opponent's bid (e.g., "Bill Passed" or "Bill bid 15") in the Bid History.<br>
       - When a computer wins the bid, a notification is displayed (e.g., "Bill wins the bid and has selected ♥ as trump.").<br>
-      - Only the winning bidder gets to select trump and (if you win) choose cards from the kitty.
+      - Only the winning bidder gets to select trump and, if you win, choose cards from the kitty.
     </p>
     <p>
       <strong>Trump & Trick Play:</strong><br>
       - The winning bidder names the trump suit while your cards remain visible in the “Your Cards” area.<br>
-      - In each trick, every card played is shown (e.g., "A♥", "10♦"). After a trick is complete, the Trick Area shows the last trick’s cards until the next trick begins.
+      - In each trick, every card played is shown (e.g., "A♥", "10♦"). The Trick Area displays the current trick or, if no trick is in progress, the last trick’s cards until the next trick begins.
     </p>
     <p>
       <strong>Card Strength and Rankings:</strong><br>
-      - In the trump suit, the order from strongest to weakest is: 5, J, A, K, Q, 10, 9, 8, 7, 6, 4, 3, 2.<br>
+      - In the trump suit, the order (strongest to weakest) is: 5, J, A, K, Q, 10, 9, 8, 7, 6, 4, 3, 2.<br>
       - In off-trump suits, the order is: K, Q, J, 10, 9, 8, 7, 6, 5, 4, 3, 2, A.<br>
       - (Note: The Ace of Hearts is always trump.)<br>
-      - In tutorial mode, you'll receive additional explanations on why certain cards win or lose a trick.
+      - In tutorial mode, you'll learn additional details about why certain cards win or lose a trick.
     </p>
     <p>
       <strong>Won Tricks:</strong><br>
-      - Won tricks are tracked and displayed as an “X” for each trick won for you and your opponent(s).
+      - Won tricks are tracked and displayed as an "X" for each trick won for both you and your opponent(s).
     </p>
     <p>
       <strong>Scoring:</strong><br>
@@ -228,8 +228,6 @@
   
   <!-- Main Game Container -->
   <div class="container" id="game-container" style="display:none;">
-    <!-- Removed the "45" logo -->
-    
     <!-- Dealer Indicator -->
     <div id="dealer-info"></div>
     <!-- Trump Display -->
@@ -237,7 +235,7 @@
     <!-- Status Message -->
     <div id="status-message"></div>
     
-    <!-- Your Cards: Always Visible and Centered -->
+    <!-- Always Visible Your Cards Area -->
     <div id="your-hand"></div>
     
     <!-- Phase-Specific Sections -->
@@ -325,7 +323,7 @@
       "Step 2: During bidding, you'll see all bids (e.g., 'Bill Passed' or 'Bill bid 15') in the Bid History. As the dealer, you can view your opponent’s bid.",
       "Step 3: The winning bidder selects the trump suit. If a computer wins, you'll see a notification (e.g., 'Bill wins the bid and has selected ♥ as trump.').",
       "Step 4: In kitty selection (if you win the bid), click on the cards you want to keep. Selected cards are highlighted in soft green. In the draw phase, select which cards to keep before drawing replacements.",
-      "Step 5: In trick play, every card played is shown in the Trick Area. When you hover over a card, its appearance changes; when you click a card, it is played. Card strength is determined by: For trump, the order is 5, J, A, K, Q, 10, 9, 8, 7, 6, 4, 3, 2; for off-trump, the order is K, Q, J, 10, 9, 8, 7, 6, 5, 4, 3, 2, A. (The Ace of Hearts is always trump.)",
+      "Step 5: In trick play, every card played is shown in the Trick Area. Hover over a card to see a hover effect; when you click a card it is played. Card strength is determined by: For trump, 5, J, A, K, Q, 10, 9, 8, 7, 6, 4, 3, 2; for off-trump, K, Q, J, 10, 9, 8, 7, 6, 5, 4, 3, 2, A. (The Ace of Hearts is always trump.)",
       "Step 6: Won tricks are tracked and displayed as an 'X' for each trick won. The game continues until someone reaches 120 points, then a detailed score sheet is shown."
     ];
     let currentTutorialStep = 0;
@@ -356,7 +354,7 @@
       document.getElementById("tutorial-modal").style.display = "none";
     }
     
-    // Always update "Your Cards" area.
+    // Always update the "Your Cards" area.
     function updateYourHand(hand) {
       let container = document.getElementById("your-hand");
       container.innerHTML = "<strong>Your Cards:</strong> ";
@@ -371,14 +369,14 @@
     // Update UI based on game state.
     function updateUI(state) {
       gameState = state;
-      // Always update your hand.
+      // Update Your Cards area.
       updateYourHand(state.playerHand);
       
       document.getElementById("trump-display").textContent =
         (state.gamePhase !== "bidding" && state.trumpSuit) ? "Trump Suit: " + state.trumpSuit : "";
       document.getElementById("bidding-message").textContent = state.biddingMessage || "";
       
-      // Set status message.
+      // Update status message.
       if (state.currentTurn) {
         document.getElementById("status-message").textContent = (state.currentTurn === "player") ? "Your turn!" : `Waiting for ${state.currentTurn} to play...`;
       } else {
@@ -404,7 +402,7 @@
       let sections = ["bidding-section", "trump-section", "kitty-section", "draw-section", "trick-section", "result-section", "won-tricks-section"];
       sections.forEach(id => document.getElementById(id).classList.remove("visible"));
       
-      // Show active phase.
+      // Show the active phase.
       if (state.gamePhase === "bidding") {
         document.getElementById("bidding-section").classList.add("visible");
       } else if (state.gamePhase === "trump") {
@@ -453,7 +451,6 @@
       } else if (state.gamePhase === "trick") {
         document.getElementById("trick-section").classList.add("visible");
         let trickArea = document.getElementById("trick-area");
-        // Show current trick if available; if not, show last trick.
         let trickCards = (state.currentTrick.length > 0) ? state.currentTrick : state.lastTrick;
         trickArea.innerHTML = "";
         trickCards.forEach(entry => {
@@ -475,7 +472,7 @@
         document.getElementById("score-sheet").textContent = state.scoreSheet || "";
       }
       
-      // Show won tricks section.
+      // Update Won Tricks Section.
       if (state.gamePhase === "trick" || state.gamePhase === "finished") {
         document.getElementById("won-tricks-section").classList.add("visible");
         let playerWonDiv = document.getElementById("player-won-tricks");
