@@ -1,5 +1,9 @@
 import random
 
+# ---------------------------
+# Card and Deck Classes
+# ---------------------------
+
 class Card:
     def __init__(self, suit, rank):
         self.suit = suit
@@ -20,13 +24,10 @@ class Deck:
             raise ValueError("Not enough cards to deal.")
         return [self.cards.pop() for _ in range(num_cards)]
 
-# --------------------------
-# Ranking orders definitions
-# --------------------------
-
-# When a suit is trump, the trump ranking for that suit is used.
-# Notice that in trump rankings, the Ace of hearts is “special”:
-# if hearts is not the trump suit, A♥ is represented as "A♥" in the ranking list.
+# ---------------------------
+# Ranking Definitions
+# ---------------------------
+# Trump ranking orders for each trump suit.
 TRUMP_RANKINGS = {
     "Diamonds": ["5", "J", "A♥", "A", "K", "Q", "10", "9", "8", "7", "6", "4", "3", "2"],
     "Hearts":   ["5", "J", "A", "K", "Q", "10", "9", "8", "7", "6", "4", "3", "2"],
@@ -35,7 +36,6 @@ TRUMP_RANKINGS = {
 }
 
 # Off-suit ranking orders for cards that are not trump.
-# (Recall that A♥ is always trump, so if hearts isn’t trump you never consider it off-suit.)
 OFFSUIT_RANKINGS = {
     "Diamonds": ["K", "Q", "J", "10", "9", "8", "7", "6", "5", "4", "3", "2", "A"],
     "Hearts":   ["K", "Q", "J", "10", "9", "8", "7", "6", "5", "4", "3", "2", "A"],
@@ -43,15 +43,14 @@ OFFSUIT_RANKINGS = {
     "Spades":   ["K", "Q", "J", "A", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
 }
 
-# --------------------------
-# Helper functions
-# --------------------------
+# ---------------------------
+# Helper Functions for Trick Evaluation
+# ---------------------------
 
 def is_trump(card, trump_suit):
     """
-    Determines if a card is trump.
-    A card is trump if its suit matches the trump suit or if it is the Ace of Hearts (A♥),
-    which is always considered part of the trump suit.
+    A card is trump if its suit matches the trump suit or if it is the Ace of Hearts.
+    (Ace of Hearts is always considered part of the trump suit.)
     """
     if card.suit == trump_suit:
         return True
@@ -61,34 +60,28 @@ def is_trump(card, trump_suit):
 
 def get_trump_value(card, trump_suit):
     """
-    Returns a numeric value for a trump card.
-    The higher the value, the stronger the card.
-    
-    It uses the trump ranking list for the given trump suit. Note that if the trump suit
-    is "Hearts", the Ace of hearts is looked up as "A" (since the trump ranking for hearts
-    uses "A"), but for any other trump suit, Ace of hearts is represented by "A♥".
-    
-    The ranking lists are ordered best-to-worst.
+    Return a numeric value for a trump card based on the trump ranking order.
+    The higher the value, the stronger the card. (Here we invert the index so that a lower index means a stronger card.)
     """
     ranking = TRUMP_RANKINGS[trump_suit]
+    # For Ace of Hearts, choose the appropriate token.
     if card.rank == "A" and card.suit == "Hearts":
         token = "A" if trump_suit == "Hearts" else "A♥"
     else:
         token = card.rank
-    # Compute value so that the best card gets the highest number.
     return len(ranking) - ranking.index(token)
 
 def get_offsuit_value(card):
     """
-    Returns a numeric value for an off-suit card using the off-suit ranking.
+    Return a numeric value for an off-suit card using the off-suit ranking order.
     Higher value means a stronger card.
     """
     ranking = OFFSUIT_RANKINGS[card.suit]
     return len(ranking) - ranking.index(card.rank)
 
-# --------------------------
+# ---------------------------
 # Game Class
-# --------------------------
+# ---------------------------
 
 class Game:
     def __init__(self):
@@ -98,7 +91,7 @@ class Game:
             "computer": {"hand": [], "score": 0, "tricks": []}
         }
         self.dealer = "computer"
-        self.trump_suit = None  # To be set when bidding is complete.
+        self.trump_suit = None
         self.current_bid = None
         self.phase = "bidding"
         self.kitty = []
@@ -119,42 +112,51 @@ class Game:
 
     def computer_bid(self):
         """
-        Evaluates the computer's hand strength and returns a bid value along with a preferred trump suit.
-        (This remains largely unchanged from your original code.)
+        Evaluates the computer's hand strength using the following logic:
+        
+        - If the hand contains a 5, bid 20 (since even a lone 5 guarantees about 10 points if trump is selected).
+        - Otherwise, if the hand contains at least two key cards (from among Jack, Ace of Hearts, a non‑Hearts Ace, or King), bid 20.
+        - If there is only one key card (and no 5), bid 15.
+        - Otherwise, pass by bidding 0.
+        
+        Also, returns a preferred trump suit, chosen as the suit in which the computer holds the most cards.
         """
         hand = self.players["computer"]["hand"]
-        rank_order = {"2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "8": 8,
-                      "9": 9, "10": 10, "J": 11, "Q": 12, "K": 13, "A": 14}
-        suits = ["Hearts", "Diamonds", "Clubs", "Spades"]
-        trump_strength = {}
-        
-        # Sum up basic strength for each suit.
-        for suit in suits:
-            trump_strength[suit] = sum(rank_order.get(card.rank, 0) for card in hand if card.suit == suit)
-        
-        best_suit = max(trump_strength, key=trump_strength.get)
-        best_strength = trump_strength[best_suit]
-        
-        # Determine power cards (note that A♥ is special).
-        power_cards = {card.rank for card in hand if card.rank in ["5", "J", "A"] or (card.rank == "A" and card.suit == best_suit)}
-        has_5 = "5" in power_cards
-        has_jack = "J" in power_cards
+
+        # Check for key cards.
+        has_5 = any(card.rank == "5" for card in hand)
+        has_jack = any(card.rank == "J" for card in hand)
         has_ace_hearts = any(card.rank == "A" and card.suit == "Hearts" for card in hand)
-        has_ace_trump = any(card.rank == "A" and card.suit == best_suit for card in hand)
-        power_card_count = sum([has_5, has_jack, has_ace_hearts, has_ace_trump])
-        
-        # Smart bidding based on power cards.
-        if power_card_count >= 2:
-            bid_value = 20  # Aggressive bid.
-        elif power_card_count == 1:
-            bid_value = 15  # Moderate bid.
-        elif best_strength >= 35:
-            bid_value = 25
-        elif best_strength >= 30:
+        has_nonheart_ace = any(card.rank == "A" and card.suit != "Hearts" for card in hand)
+        has_king = any(card.rank == "K" for card in hand)
+
+        # Count key cards (excluding the 5, which is decisive)
+        top_count = 0
+        if has_jack:
+            top_count += 1
+        if has_ace_hearts:
+            top_count += 1
+        if has_nonheart_ace:
+            top_count += 1
+        if has_king:
+            top_count += 1
+
+        if has_5:
             bid_value = 20
+        elif top_count >= 2:
+            bid_value = 20
+        elif top_count == 1:
+            bid_value = 15
         else:
-            bid_value = 0  # Pass.
-        
+            bid_value = 0
+
+        # Determine preferred trump suit by counting cards in each suit.
+        suits = ["Hearts", "Diamonds", "Clubs", "Spades"]
+        suit_counts = {s: 0 for s in suits}
+        for card in hand:
+            suit_counts[card.suit] += 1
+        best_suit = max(suit_counts, key=suit_counts.get)
+
         return bid_value, best_suit
 
     def evaluate_trick(self, trick):
@@ -162,26 +164,21 @@ class Game:
         Given a trick (a list of (player, card) tuples in play order), determine who wins the trick.
         
         Rules applied:
-          1. Any trump card (i.e. a card of the trump suit or A♥) beats any off-suit card.
-          2. If one or more trump cards are played, the trump card with the highest value wins.
-             (Trump values are determined using the trump ranking order for the current trump suit.)
-          3. If no trump cards are played, then only cards matching the lead suit (the suit of the first card)
-             are eligible; the highest card (using the off-suit ranking for that suit) wins the trick.
+          1. If one or more trump cards are played, the highest trump wins (using the trump ranking).
+          2. If no trump cards are played, the highest card in the lead suit wins (using the off-suit ranking).
         """
         trump = self.trump_suit
-        # First, check for any trump cards.
+        # First, check for trump cards.
         trump_cards = [(player, card) for player, card in trick if is_trump(card, trump)]
         if trump_cards:
             winning_player, winning_card = max(trump_cards, key=lambda x: get_trump_value(x[1], trump))
             return winning_player, winning_card
         else:
-            # No trump cards played. Only cards following the lead suit count.
+            # No trump cards played; follow the suit of the first card (lead suit).
             lead_suit = trick[0][1].suit
             lead_cards = [(player, card) for player, card in trick if card.suit == lead_suit]
             if lead_cards:
                 winning_player, winning_card = max(lead_cards, key=lambda x: get_offsuit_value(x[1]))
                 return winning_player, winning_card
-            # Fallback (in case no card follows lead suit; unlikely in legal play).
+            # Fallback: return the first play (should not occur in legal play).
             return trick[0]
-
-    # Additional methods (such as playing a trick or round) would be implemented here.
