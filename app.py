@@ -6,7 +6,7 @@ current_game = None  # Global game instance
 
 @app.route("/")
 def index():
-    # Serve the index.html from the static folder.
+    # Serve the index.html page.
     return send_from_directory(app.static_folder, "index.html")
 
 @app.route("/start_game", methods=["POST"])
