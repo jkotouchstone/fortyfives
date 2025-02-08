@@ -167,7 +167,7 @@
     <div id="logo">45</div>
     <!-- Dealer and Trump Display -->
     <div id="dealer-info"></div>
-    <!-- In Heads-Up mode, show a circular Dealer badge if you are the dealer. -->
+    <!-- In Heads-Up mode, show a circular Dealer badge if you are the dealer -->
     <div id="dealer-indicator"></div>
     <div id="trump-display"></div>
     
@@ -252,6 +252,12 @@
   
   <script>
     /***** Global Variables and Settings *****/
+    // Define missing global variables.
+    let cumulativePlayerScore = 0;
+    let cumulativeCompetitorScore = 0;
+    let cumulativeSecondComputerScore = 0;
+    let handLogMessages = [];
+    
     let competitorNames = ["Chris", "Christine", "Bill", "Henry", "Liam", "John", "Mary", "Patrick", "Brian", "Kevin", "Pete"];
     let competitorName = "";
     let competitorDrawCount = 0;
