@@ -150,7 +150,7 @@
       <strong>Bidding:</strong> Your bid is based on “top cards” in your hand:
       a lone 5 forces a bid of 20, and having at least two key cards (Jack, Ace of Hearts, non‑Hearts Ace, or King) also results in a bid of 20.
       <br><br>
-      <strong>Trump:</strong> The trump suit is determined by the winning bidder. Remember that the Ace of Hearts is always trump.
+      <strong>Trump:</strong> The trump suit is determined by the winning bidder. (Note: The trump suit will only be shown after trump selection.)
       <br><br>
       <strong>Trick Play:</strong> If any trump card is played, the highest trump wins the trick; otherwise, the highest card of the lead suit wins.
       <br><br>
@@ -315,11 +315,16 @@
         [arr[i], arr[j]] = [arr[j], arr[i]];
       }
     }
+    // Only show trump suit after trump selection (not during bidding).
     function updateTrumpDisplay() {
       const display = document.getElementById('trump-display');
-      display.textContent = trumpSuit ? "Trump Suit: " + trumpSuit : "";
+      if (gamePhase === "bidding") {
+        display.textContent = "";
+      } else {
+        display.textContent = trumpSuit ? "Trump Suit: " + trumpSuit : "";
+      }
     }
-    // Update dealer UI.
+    // Update dealer info.
     function updateDealerInfo() {
       const dealerIndicator = document.getElementById('dealer-indicator');
       if (selectedMode === "2p") {
@@ -349,7 +354,7 @@
       handLogDiv.innerHTML = handLogMessages.map(msg => "<div>" + msg + "</div>").join("");
     }
     
-    /***** Updated Trump/Off‑Suit Logic *****/
+    /***** Trump/Off‑Suit Logic *****/
     function isTrump(card) {
       return card.suit === trumpSuit || (card.suit === "♥" && card.rank === "A");
     }
@@ -905,9 +910,9 @@
       
       updateTrickUI();
       
-      if (playerHand.length === 0 && competitorHand.length === 0) {
-        let delay = (trickNumber === 6 && winning.player === "competitor") ? 3000 : 1500;
-        setTimeout(endHand, delay);
+      // If we've completed 5 tricks, force the hand to end.
+      if (trickNumber > 5) {
+        setTimeout(endHand, 3000);
       } else if (trickTurn === "competitor") {
         setTimeout(competitorPlayCard, 500);
       } else {
