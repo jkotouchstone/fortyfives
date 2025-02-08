@@ -3,21 +3,20 @@ import random
 # ---------------------------
 # Card and Deck Classes
 # ---------------------------
-
 class Card:
     def __init__(self, suit, rank):
-        self.suit = suit
-        self.rank = rank
+        self.suit = suit  # e.g. "♥", "♦", "♣", "♠"
+        self.rank = rank  # e.g. "2", "3", …, "10", "J", "Q", "K", "A"
 
     def __str__(self):
-        return f"{self.rank} of {self.suit}"
+        return f"{self.rank}{self.suit}"
 
-    def __repr__(self):
-        return str(self)
+    def to_dict(self):
+        return {"suit": self.suit, "rank": self.rank}
 
 class Deck:
     def __init__(self):
-        suits = ["Hearts", "Diamonds", "Clubs", "Spades"]
+        suits = ["♥", "♦", "♣", "♠"]
         ranks = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"]
         self.cards = [Card(suit, rank) for suit in suits for rank in ranks]
         random.shuffle(self.cards)
@@ -25,335 +24,190 @@ class Deck:
     def deal(self, num_cards):
         if len(self.cards) < num_cards:
             raise ValueError("Not enough cards to deal.")
-        return [self.cards.pop() for _ in range(num_cards)]
+        dealt = self.cards[:num_cards]
+        self.cards = self.cards[num_cards:]
+        return dealt
 
 # ---------------------------
 # Ranking Definitions
 # ---------------------------
-# Trump ranking orders for each trump suit.
+# (A simplified version; adjust as needed.)
 TRUMP_RANKINGS = {
-    "Diamonds": ["5", "J", "A♥", "A", "K", "Q", "10", "9", "8", "7", "6", "4", "3", "2"],
-    "Hearts":   ["5", "J", "A", "K", "Q", "10", "9", "8", "7", "6", "4", "3", "2"],
-    "Clubs":    ["5", "J", "A♥", "A", "K", "Q", "2", "3", "4", "6", "7", "8", "9", "10"],
-    "Spades":   ["5", "J", "A♥", "A", "K", "Q", "2", "3", "4", "6", "7", "8", "9", "10"]
+    "♦": ["5", "J", "A", "K", "Q", "10", "9", "8", "7", "6", "4", "3", "2"],
+    "♥": ["5", "J", "A", "K", "Q", "10", "9", "8", "7", "6", "4", "3", "2"],
+    "♣": ["5", "J", "A", "K", "Q", "2", "3", "4", "6", "7", "8", "9", "10"],
+    "♠": ["5", "J", "A", "K", "Q", "2", "3", "4", "6", "7", "8", "9", "10"]
 }
 
-# Off-suit ranking orders for cards that are not trump.
 OFFSUIT_RANKINGS = {
-    "Diamonds": ["K", "Q", "J", "10", "9", "8", "7", "6", "5", "4", "3", "2", "A"],
-    "Hearts":   ["K", "Q", "J", "10", "9", "8", "7", "6", "5", "4", "3", "2", "A"],
-    "Clubs":    ["K", "Q", "J", "A", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
-    "Spades":   ["K", "Q", "J", "A", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
+    "♦": ["K", "Q", "J", "10", "9", "8", "7", "6", "5", "4", "3", "2", "A"],
+    "♥": ["K", "Q", "J", "10", "9", "8", "7", "6", "5", "4", "3", "2", "A"],
+    "♣": ["K", "Q", "J", "A", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
+    "♠": ["K", "Q", "J", "A", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
 }
-
-# ---------------------------
-# Helper Functions for Trick Evaluation
-# ---------------------------
 
 def is_trump(card, trump_suit):
-    """
-    A card is trump if its suit matches the trump suit or if it is the Ace of Hearts.
-    (Ace of Hearts is always considered part of the trump suit.)
-    """
+    # A card is trump if its suit matches the trump suit or it is the Ace of Hearts.
     if card.suit == trump_suit:
         return True
-    if card.rank == "A" and card.suit == "Hearts":
+    if card.suit == "♥" and card.rank == "A":
         return True
     return False
 
 def get_trump_value(card, trump_suit):
-    """
-    Return a numeric value for a trump card based on the trump ranking order.
-    (Lower index in the ranking means a stronger card; we invert the index so that a higher numeric value is stronger.)
-    """
     ranking = TRUMP_RANKINGS[trump_suit]
-    # For Ace of Hearts, choose the appropriate token.
-    if card.rank == "A" and card.suit == "Hearts":
-        token = "A" if trump_suit == "Hearts" else "A♥"
-    else:
-        token = card.rank
-    return len(ranking) - ranking.index(token)
+    return len(ranking) - ranking.index(card.rank)
 
 def get_offsuit_value(card):
-    """
-    Return a numeric value for an off-suit card using the off-suit ranking order.
-    Higher value means a stronger card.
-    """
     ranking = OFFSUIT_RANKINGS[card.suit]
     return len(ranking) - ranking.index(card.rank)
 
 # ---------------------------
-# Game Class with Enhanced AI Logic
+# Game Class
 # ---------------------------
-
 class Game:
-    def __init__(self):
-        self.deck = Deck()
-        self.players = {
-            "player": {"hand": [], "score": 0, "tricks": []},
-            "computer": {"hand": [], "score": 0, "tricks": []}
-        }
-        self.dealer = "computer"
-        self.trump_suit = None
-        self.current_bid = None
-        self.phase = "bidding"
+    def __init__(self, mode="2p", instructional=False):
+        self.mode = mode
+        self.instructional = instructional
+        self.deck = None
+        self.players = {"player": {"hand": [], "tricks": []},
+                        "computer": {"hand": [], "tricks": []}}
         self.kitty = []
-        self.current_trick = []  # List of (player, card) tuples
-        self.winner = None
-        self.seen_cards = []   # For card counting: all cards played so far
-
-        # Placeholder for learning parameters (for future reinforcement learning/CFR extensions)
-        self.learning_parameters = {}
+        self.trump_suit = None
+        self.phase = "bidding"  # phases: bidding, trump, kitty, draw, trick, finished
+        self.biddingMessage = ""
+        self.trickCards = []  # cards played in the current trick
+        self.trickLog = []    # log of completed tricks
+        self.currentTurn = "player"  # whose turn during trick play: "player" or "computer"
+        self.scoreboard = ""
+        self.feedback = ""
+        self.deal_hands()
 
     def deal_hands(self):
-        """Deals hands to both players and the kitty, and resets game state."""
         self.deck = Deck()
         self.players["player"]["hand"] = self.deck.deal(5)
         self.players["computer"]["hand"] = self.deck.deal(5)
         self.kitty = self.deck.deal(3)
         self.phase = "bidding"
-        self.trump_suit = None
-        self.current_bid = None
-        self.current_trick = []
-        self.winner = None
-        self.seen_cards = []  # Reset seen cards for new game
-
-    def record_trick(self, trick):
-        """Record all cards played in a trick for card-counting."""
-        for _, card in trick:
-            self.seen_cards.append(card)
-
-    def dynamic_trump_value(self, card, trump_suit):
-        """
-        Adjust the base trump value based on cards already seen.
-        (If many high trump cards have been played, a medium trump might win the trick.)
-        """
-        base_value = get_trump_value(card, trump_suit)
-        high_trump_tokens = {"J", "A", "K"}
-        played_highs = sum(1 for c in self.seen_cards if is_trump(c, trump_suit) and c.rank in high_trump_tokens)
-        adjusted_value = base_value + (played_highs * 0.5)
-        return adjusted_value
-
-    def dynamic_offsuit_value(self, card):
-        """
-        Adjust the off-suit card value based on how many cards of the suit have been seen.
-        """
-        base_value = get_offsuit_value(card)
-        suit = card.suit
-        seen_in_suit = sum(1 for c in self.seen_cards if c.suit == suit)
-        adjusted_value = base_value + (seen_in_suit * 0.1)
-        return adjusted_value
-
-    def evaluate_trick(self, trick):
-        """
-        Given a trick (a list of (player, card) tuples), determine who wins the trick.
-        If any trump cards are played, the highest (dynamically evaluated) trump wins.
-        Otherwise, the highest card in the lead suit wins.
-        """
-        trump = self.trump_suit
-        # First, check for trump cards.
-        trump_cards = [(player, card) for player, card in trick if is_trump(card, trump)]
-        if trump_cards:
-            winning_player, winning_card = max(trump_cards, key=lambda x: self.dynamic_trump_value(x[1], trump))
-            return winning_player, winning_card
-        else:
-            # Follow the suit of the first card played (lead suit)
-            lead_suit = trick[0][1].suit
-            lead_cards = [(player, card) for player, card in trick if card.suit == lead_suit]
-            if lead_cards:
-                winning_player, winning_card = max(lead_cards, key=lambda x: self.dynamic_offsuit_value(x[1]))
-                return winning_player, winning_card
-            # Fallback: return the first play (should not occur in legal play)
-            return trick[0]
-
-    def evaluate_hand_strength(self, hand, kitty, suit):
-        """
-        Evaluate the strength of a hand (augmented with kitty cards) if a given suit is chosen as trump.
-        A simple heuristic adds bonus points for trump cards, key cards, and suit concentration.
-        """
-        combined = hand + kitty
-        score = 0
-        for card in combined:
-            # Cards of the target suit or the Ace of Hearts (always trump) add more value.
-            if card.suit == suit or (card.rank == "A" and card.suit == "Hearts"):
-                score += 2
-                if card.rank == "5":
-                    score += 3
-                if card.rank == "J":
-                    score += 2
-                if card.rank == "A":
-                    score += 2
-                if card.rank == "K":
-                    score += 1.5
-            else:
-                score += 0.5  # Some value for off-suit cards
-        # Bonus for concentration in the trump suit.
-        suit_count = sum(1 for card in combined if card.suit == suit)
-        score += suit_count * 0.5
-        return score
+        self.biddingMessage = "Place your bid."
 
     def computer_bid(self):
-        """
-        Evaluate the computer's hand strength (integrated with kitty) to decide on a bid.
-        Returns a bid value and a preferred trump suit.
-        """
+        # A simplified bidding strategy
         hand = self.players["computer"]["hand"]
-        kitty = self.kitty
+        has5 = any(card.rank == "5" for card in hand)
+        topCount = sum(1 for card in hand if card.rank in ["J", "A", "K"])
+        bid = 20 if has5 or topCount >= 2 else (15 if topCount == 1 else 0)
+        # Choose preferred trump suit: the suit with the most cards
+        suit_counts = {}
+        for card in hand:
+            suit_counts[card.suit] = suit_counts.get(card.suit, 0) + 1
+        best_suit = max(suit_counts, key=suit_counts.get)
+        return bid, best_suit
 
-        suits = ["Hearts", "Diamonds", "Clubs", "Spades"]
-        suit_strength = {}
-        for suit in suits:
-            suit_strength[suit] = self.evaluate_hand_strength(hand, kitty, suit)
-
-        best_suit = max(suit_strength, key=suit_strength.get)
-        best_score = suit_strength[best_suit]
-
-        # Choose bid based on the best score (thresholds can be tuned)
-        if best_score > 20:
-            bid_value = 20
-        elif best_score > 15:
-            bid_value = 15
-        else:
-            bid_value = 0
-
-        return bid_value, best_suit
-
-    def simulate_trick(self, candidate_card, simulations=500):
-        """
-        Simulate playing a candidate card from the computer's hand and then simulate
-        the opponent's response randomly (with a simple heuristic). Returns the win rate.
-        """
-        wins = 0
-        original_trick = self.current_trick.copy()
-        computer_hand_backup = self.players["computer"]["hand"][:]
-        opponent_hand_backup = self.players["player"]["hand"][:]
-
-        for _ in range(simulations):
-            # Create simulated copies of game state
-            sim_trick = original_trick.copy()
-            sim_computer_hand = computer_hand_backup[:]
-            sim_opponent_hand = opponent_hand_backup[:]
-
-            # Play candidate card
-            if candidate_card in sim_computer_hand:
-                sim_computer_hand.remove(candidate_card)
-            sim_trick.append(("computer", candidate_card))
-
-            # Opponent move: if possible, follow suit with highest off-suit value; otherwise random.
-            lead_suit = sim_trick[0][1].suit
-            valid_moves = [card for card in sim_opponent_hand if card.suit == lead_suit]
-            if valid_moves:
-                opponent_card = max(valid_moves, key=get_offsuit_value)
-            elif sim_opponent_hand:
-                opponent_card = random.choice(sim_opponent_hand)
-            else:
-                continue
-
-            sim_trick.append(("player", opponent_card))
-
-            # Determine trick winner
-            winner, _ = self.evaluate_trick(sim_trick)
-            if winner == "computer":
-                wins += 1
-
-        return wins / simulations
-
-    def choose_best_move(self):
-        """
-        For each candidate card in the computer's hand, run Monte Carlo simulations to
-        estimate the win rate, and then return the card with the highest expected win rate.
-        """
-        best_rate = -1
-        best_move = None
-        for card in self.players["computer"]["hand"]:
-            win_rate = self.simulate_trick(card, simulations=500)
-            print(f"Simulated win rate for {card}: {win_rate:.2f}")
-            if win_rate > best_rate:
-                best_rate = win_rate
-                best_move = card
-        return best_move
-
-    def play_trick(self):
-        """
-        Play a single trick. The computer uses its Monte Carlo simulation to choose a card.
-        The player’s move is simulated (in a full game, you’d replace this with user input).
-        """
-        self.current_trick = []
-
-        # --- Computer's Move ---
-        computer_card = self.choose_best_move()
-        print(f"\nComputer plays: {computer_card}")
-        self.players["computer"]["hand"].remove(computer_card)
-        self.current_trick.append(("computer", computer_card))
-
-        # --- Player's Move (simulated) ---
-        player_hand = self.players["player"]["hand"]
-        lead_suit = computer_card.suit
-        valid_moves = [card for card in player_hand if card.suit == lead_suit]
-        if not valid_moves:
-            valid_moves = player_hand
-        player_card = random.choice(valid_moves)
-        print(f"Player plays: {player_card}")
-        self.players["player"]["hand"].remove(player_card)
-        self.current_trick.append(("player", player_card))
-
-        # Evaluate trick winner.
-        winner, winning_card = self.evaluate_trick(self.current_trick)
-        print(f"Trick won by {winner} with {winning_card}\n")
-        self.record_trick(self.current_trick)
-        self.players[winner]["tricks"].append(self.current_trick)
-        return winner
-
-    def play_game(self):
-        """
-        A simple game loop that:
-          1. Deals hands and the kitty.
-          2. Executes a bidding phase (with computer bidding).
-          3. Sets the trump suit.
-          4. Plays out tricks until both players’ hands are empty.
-          5. Determines and displays the winner.
-        """
-        self.deal_hands()
-        print("=== Hands Dealt ===")
-        print("Player hand:", self.players["player"]["hand"])
-        print("Computer hand:", self.players["computer"]["hand"])
-        print("Kitty:", self.kitty, "\n")
-        
-        # --- Bidding Phase ---
+    def process_bid(self, player_bid):
         comp_bid, comp_trump = self.computer_bid()
-        print(f"Computer bids: {comp_bid} with preferred trump: {comp_trump}")
-        # For this example, if computer bids > 0, it wins the bid.
-        if comp_bid > 0:
-            self.trump_suit = comp_trump
-            self.winner = "computer"
-            print(f"Trump suit set to {self.trump_suit} by computer bidding.\n")
+        if player_bid >= comp_bid:
+            self.biddingMessage = f"You win the bid ({player_bid} vs {comp_bid}). Select trump."
+            self.phase = "trump"
         else:
-            # In a complete game, the player could bid; here we default.
+            self.biddingMessage = f"Computer wins the bid ({comp_bid} vs {player_bid}). Computer selects trump."
             self.trump_suit = comp_trump
-            print(f"Trump suit set to {self.trump_suit} (default).\n")
-        
-        # --- Trick Play Phase ---
-        while self.players["player"]["hand"] and self.players["computer"]["hand"]:
-            print("=== New Trick ===")
-            self.play_trick()
-        
-        # --- Game Evaluation ---
-        comp_trick_count = len(self.players["computer"]["tricks"])
-        player_trick_count = len(self.players["player"]["tricks"])
-        print("=== Game Over! ===")
-        print(f"Computer won {comp_trick_count} tricks.")
-        print(f"Player won {player_trick_count} tricks.")
-        if comp_trick_count > player_trick_count:
-            print("Computer wins the game!")
-        elif player_trick_count > comp_trick_count:
-            print("Player wins the game!")
+            self.phase = "kitty"  # move on automatically
+        return
+
+    def select_trump(self, suit):
+        if self.phase == "trump":
+            self.trump_suit = suit
+            self.phase = "kitty"
+
+    def confirm_kitty(self, keptIndices):
+        # Combine player's hand and kitty, then use only the selected cards.
+        combined = self.players["player"]["hand"] + self.kitty
+        new_hand = [combined[i] for i in keptIndices if i < len(combined)]
+        if len(new_hand) < 1:
+            # Enforce at least one card from the original hand.
+            new_hand = self.players["player"]["hand"][:1]
+        self.players["player"]["hand"] = new_hand
+        self.phase = "draw"
+
+    def confirm_draw(self):
+        # Draw cards until the player's hand has 5 cards.
+        while len(self.players["player"]["hand"]) < 5 and len(self.deck.cards) > 0:
+            self.players["player"]["hand"].append(self.deck.deal(1)[0])
+        self.phase = "trick"
+        self.currentTurn = "player"
+
+    def play_trick(self, playerCardIndex):
+        if self.phase != "trick":
+            self.feedback = "Not in trick phase."
+            return
+        if playerCardIndex < 0 or playerCardIndex >= len(self.players["player"]["hand"]):
+            self.feedback = "Invalid card index."
+            return
+
+        # --- Player plays a card ---
+        player_card = self.players["player"]["hand"].pop(playerCardIndex)
+        self.trickCards.append({"player": "player", "card": player_card})
+
+        # --- Computer plays a card (using a simple strategy: random selection) ---
+        if self.players["computer"]["hand"]:
+            comp_card = random.choice(self.players["computer"]["hand"])
+            self.players["computer"]["hand"].remove(comp_card)
+            self.trickCards.append({"player": "computer", "card": comp_card})
         else:
-            print("The game is a tie!")
+            comp_card = None
 
-# ---------------------------
-# Main Execution
-# ---------------------------
+        # --- Evaluate the trick ---
+        winner = self.evaluate_trick(self.trickCards)
+        trick_result = f"Trick: You played {player_card}, Computer played {comp_card}. Winner: {winner}"
+        self.trickLog.append(trick_result)
+        if winner == "player":
+            self.players["player"]["tricks"].append(self.trickCards.copy())
+        else:
+            self.players["computer"]["tricks"].append(self.trickCards.copy())
 
-if __name__ == "__main__":
-    game = Game()
-    game.play_game()
+        self.trickCards = []
+
+        # --- Check if the hand is over ---
+        if not self.players["player"]["hand"] or not self.players["computer"]["hand"]:
+            self.phase = "finished"
+            self.scoreboard = (f"You won {len(self.players['player']['tricks'])} trick(s), "
+                               f"Computer won {len(self.players['computer']['tricks'])} trick(s).")
+        else:
+            self.phase = "trick"
+            self.currentTurn = "player"
+
+    def evaluate_trick(self, trick):
+        # Use the lead suit and trump rules to determine the trick winner.
+        if not trick:
+            return None
+        lead_suit = trick[0]["card"].suit
+        # Check if any trump cards were played.
+        trump_plays = [entry for entry in trick if is_trump(entry["card"], self.trump_suit)]
+        if trump_plays:
+            winner_entry = max(trump_plays, key=lambda x: get_trump_value(x["card"], self.trump_suit))
+        else:
+            follow_plays = [entry for entry in trick if entry["card"].suit == lead_suit]
+            if follow_plays:
+                winner_entry = max(follow_plays, key=lambda x: get_offsuit_value(x["card"]))
+            else:
+                winner_entry = trick[0]
+        return winner_entry["player"]
+
+    def to_dict(self):
+        # Return the current game state as a dictionary.
+        return {
+            "gamePhase": self.phase,
+            "playerHand": [card.to_dict() for card in self.players["player"]["hand"]],
+            "computerHandCount": len(self.players["computer"]["hand"]),  # Hide computer's cards
+            "kitty": [card.to_dict() for card in self.kitty] if self.phase in ["bidding", "kitty"] else [],
+            "trumpSuit": self.trump_suit,
+            "biddingMessage": self.biddingMessage,
+            "trickCards": [{"player": entry["player"], "card": entry["card"].to_dict()} for entry in self.trickCards],
+            "trickLog": self.trickLog,
+            "scoreboard": self.scoreboard,
+            "feedback": self.feedback,
+            "combinedHand": [card.to_dict() for card in (self.players["player"]["hand"] + self.kitty)] if self.phase == "kitty" else [],
+            "drawHand": [card.to_dict() for card in self.players["player"]["hand"]] if self.phase == "draw" else [],
+            "currentTurn": self.currentTurn
+        }
