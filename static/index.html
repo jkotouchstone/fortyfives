@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>45's Game</title>
+  <title>45's Game - Learn & Play</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     /* --- Basic Styles --- */
@@ -35,7 +35,26 @@
       font-size: 14px;
       display: none;
     }
-    /* --- Dealer Indicator --- */
+    /* --- Tutorial Modal --- */
+    #tutorial-modal {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    #tutorial-content {
+      background: #fff;
+      color: #000;
+      padding: 20px;
+      border-radius: 8px;
+      max-width: 600px;
+      text-align: left;
+    }
+    /* --- Dealer Indicator & Logo --- */
     .dealer-indicator {
       display: inline-block;
       background: white;
@@ -48,7 +67,6 @@
       font-weight: bold;
       margin-left: 10px;
     }
-    /* --- Logo --- */
     #logo {
       position: absolute;
       top: 10px;
@@ -120,38 +138,52 @@
   </style>
 </head>
 <body>
+  <!-- Tutorial Modal -->
+  <div id="tutorial-modal">
+    <div id="tutorial-content">
+      <h2>Welcome to 45's Game Tutorial</h2>
+      <p>
+        45's is a trick-taking game with unique trump and off‑suit rankings.
+      </p>
+      <ol>
+        <li><strong>Bidding:</strong> Based on the top cards in your hand, you bid a number of points. A lone "5" or multiple key cards may force higher bids.</li>
+        <li><strong>Trump Selection:</strong> The winner of the bid chooses the trump suit.</li>
+        <li><strong>Kitty Phase:</strong> After bidding, you combine your hand with three extra cards (the kitty) and select which cards to keep.</li>
+        <li><strong>Draw Phase:</strong> You then draw cards to complete your hand.</li>
+        <li><strong>Trick Play:</strong> Each trick, both you and the computer play a card. The highest card (based on trump and suit) wins the trick.</li>
+      </ol>
+      <p>
+        Watch these sample hands and see examples of bidding and trick play in action.
+      </p>
+      <!-- (You could embed images, animations, or even videos here) -->
+      <button onclick="closeTutorial()">Close Tutorial</button>
+    </div>
+  </div>
+
   <!-- Game Options Panel -->
   <div id="game-options">
     <h2>Game Options</h2>
     <label for="mode-select">Select Game Mode:</label>
     <select id="mode-select">
       <option value="2p">2-Player (You vs. Computer)</option>
-      <!-- Additional modes can be added -->
+      <!-- You can add additional modes later -->
     </select>
     <label>
-      <input type="checkbox" id="instruction-mode"> Instruction Mode
+      <input type="checkbox" id="instruction-mode"> Enable Tutorial Mode
     </label>
     <button onclick="startGame()">Start Game</button>
-    <button onclick="toggleInstructions()">Show Instructions</button>
+    <button onclick="openTutorial()">Show Tutorial</button>
+    <button onclick="toggleInstructions()">Show Detailed Rules</button>
   </div>
   
-  <!-- Instructions Panel -->
+  <!-- Detailed Instructions Panel (for additional help) -->
   <div id="instructions">
-    <h3>How to Play 45's</h3>
+    <h3>Detailed Rules & Strategies for 45's</h3>
     <p>
-      45's is a trick-taking card game with unique trump and off‑suit rankings.
-      <br><br>
-      <strong>Bidding:</strong> Your bid is based on “top cards” in your hand.
-      <br><br>
-      <strong>Trump:</strong> The trump suit is determined by the winning bidder.
-      <br><br>
-      <strong>Trick Play:</strong> Each trick every player plays one card.
-      <br><br>
-      <strong>Instruction Mode:</strong> When enabled, you’ll receive extra feedback.
-      <br><br>
-      Enjoy playing 45's!
+      Here you can learn more about optimal bidding, trump selection, and trick-taking strategies.
+      The computer will guide you through sample hands and explain its moves.
     </p>
-    <button onclick="toggleInstructions()">Hide Instructions</button>
+    <button onclick="toggleInstructions()">Hide Detailed Rules</button>
   </div>
   
   <!-- Main Game Container -->
@@ -239,9 +271,21 @@
   
   <script>
     /***** Global Variables *****/
-    let gameState = {};  // Current game state returned from the server
+    let gameState = {};  // Will hold the current game state returned by the server
 
-    // Update UI based on the game state received from the server.
+    // ----------------------------
+    // Tutorial Modal Functions
+    // ----------------------------
+    function openTutorial() {
+      document.getElementById("tutorial-modal").style.display = "flex";
+    }
+    function closeTutorial() {
+      document.getElementById("tutorial-modal").style.display = "none";
+    }
+
+    // ----------------------------
+    // UI Update Function
+    // ----------------------------
     function updateUI(state) {
       gameState = state;
       document.getElementById('trump-display').textContent =
@@ -326,7 +370,9 @@
       document.getElementById('feedback').textContent = state.feedback || "";
     }
 
-    // Helper function to call the Flask API endpoints.
+    // ----------------------------
+    // Helper API Call Function
+    // ----------------------------
     async function callAPI(endpoint, method = "POST", data = {}) {
       try {
         let response = await fetch(endpoint, {
@@ -341,7 +387,9 @@
       }
     }
 
-    // Game control functions that call the server endpoints:
+    // ----------------------------
+    // Game Control Functions
+    // ----------------------------
     function startGame() {
       let mode = document.getElementById('mode-select').value;
       let instructional = document.getElementById('instruction-mode').checked;
