@@ -142,18 +142,12 @@
       45's is a trick-taking card game with unique trump and off‑suit rankings.
       <br><br>
       <strong>Bidding:</strong> Your bid is based on “top cards” in your hand.
-      In 2‑player mode, a lone 5 forces a bid of 20 and other key cards help determine your bid.
-      In 3‑player mode, bidding is more challenging because three hands are in play.
       <br><br>
       <strong>Trump:</strong> The trump suit is determined by the winning bidder.
-      (It is only displayed after the trump selection phase.)
       <br><br>
       <strong>Trick Play:</strong> Each trick every player plays one card.
-      The highest trump wins the trick; if no trump is played, the highest card of the lead suit wins.
       <br><br>
       <strong>Dealer:</strong> The dealer rotates among players.
-      In 2‑player mode a white “Dealer” badge appears if you are the dealer.
-      In 3‑player mode the scoreboard shows which player is the dealer.
       <br><br>
       <strong>Instruction Mode:</strong> When enabled, you’ll receive extra feedback comparing your move to an optimal strategy.
       <br><br>
@@ -175,7 +169,7 @@
     <div id="bidding-section" class="section">
       <h2>Bidding Phase</h2>
       <div id="competitor-bid"></div>
-      <div>Your Hand (Deal):</div>
+      <div>Your Hand:</div>
       <div id="player-hand-bidding" class="cards-container"></div>
       <div id="bid-options">
         <button onclick="placeBid(0)">Pass</button>
@@ -190,14 +184,12 @@
     <!-- Trump Selection Phase -->
     <div id="trump-section" class="section hidden">
       <h2>Trump Selection</h2>
-      <div id="trump-instructions"></div>
       <div id="trump-buttons" class="cards-container">
         <button onclick="selectTrump('♠')">♠</button>
         <button onclick="selectTrump('♥')">♥</button>
         <button onclick="selectTrump('♦')">♦</button>
         <button onclick="selectTrump('♣')">♣</button>
       </div>
-      <div id="trump-selection-hand" class="cards-container"></div>
     </div>
     
     <!-- Kitty Phase -->
@@ -206,9 +198,9 @@
       <div>Your Combined Hand (Your 5 cards + Kitty):</div>
       <div id="combined-hand" class="cards-container"></div>
       <div id="kitty-instructions">
-        Select up to 5 cards to keep from your 8‑card hand.
+        Select up to 5 cards to keep.
       </div>
-      <button onclick="confirmKittySelection()">Confirm Selection</button>
+      <button onclick="confirmKitty()">Confirm Selection</button>
     </div>
     
     <!-- Draw Phase -->
@@ -216,8 +208,7 @@
       <h2>Draw Phase</h2>
       <div id="draw-hand" class="cards-container"></div>
       <div id="draw-phase-instructions"></div>
-      <div id="competitor-hand-info"></div>
-      <button id="draw-button" onclick="confirmDraw()">Draw Cards</button>
+      <button onclick="confirmDraw()">Draw Cards</button>
     </div>
     
     <!-- Trick Play Phase -->
@@ -242,7 +233,6 @@
     <div id="scoreboard-section" class="section">
       <h2>Scoreboard</h2>
       <div id="scoreboard"></div>
-      <div id="hand-log"></div>
     </div>
     
     <!-- Feedback Area -->
@@ -251,896 +241,183 @@
   
   <script>
     /***** Global Variables *****/
-    // Cumulative scores and hand log
-    let cumulativePlayerScore = 0;
-    let cumulativeCompetitorScore = 0;
-    let cumulativeSecondComputerScore = 0;
-    let handLogMessages = [];
-    // IMPORTANT: Added missing handNumber variable.
-    let handNumber = 0;
-    
-    // Competitor names:
-    // In 2p mode, we use "competitorName"
-    // In 3p mode, we use competitorName1 and competitorName2.
-    let competitorName = "";
-    let competitorName1 = "";
-    let competitorName2 = "";
-    let competitorDrawCount = 0;
-    let difficulty = "hard"; // or "easy"
-    
-    // Mode settings
-    let selectedMode = "2p"; // "2p" or "3p"
+    // These values (and the API endpoints below) assume your Python backend
+    // (e.g. built with Flask) exposes endpoints that use your game logic.
+    let selectedMode = "2p";
     let instructionalMode = false;
-    
-    /***** Game State Variables *****/
-    let gamePhase = "bidding"; // "bidding", "trump", "kitty", "draw", "trick", "finished"
-    let deck = [];
-    let playerHand = [];
-    let competitorHand = [];       // For 2p mode or competitor 1 in 3p mode
-    let secondComputerHand = [];   // For competitor 2 in 3p mode
-    let kitty = [];
-    let trumpSuit = null;
-    let playerBid = 0;
-    let competitorBid1 = 0;
-    let competitorBid2 = 0;
-    let winningBidder = null;      // "player", "comp1", or "comp2"
-    let playerTricks = 0;
-    let competitorTricks1 = 0;
-    let competitorTricks2 = 0;
-    let trickCards = [];           // Array of objects: { card, player } where player is "player", "comp1", or "comp2"
-    let handPlayedCards = [];
-    let trickNumber = 1;
-    let trickTurn = null;          // "player", "comp1", or "comp2"
-    let playerCardPlayed = false;
-    
-    // Dealer: in 2p mode a boolean; in 3p mode, a string ("player", "comp1", or "comp2")
-    let isPlayerDealer = true;
-    let dealer = null;
-    
-    const suits = ['♠', '♥', '♦', '♣'];
-    const ranks = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
-    
-    /***** Utility Functions *****/
-    function createDeck() {
-      let newDeck = [];
-      for (let suit of suits) {
-        for (let rank of ranks) {
-          let value = (rank === 'A') ? 14 :
-                      (rank === 'K') ? 13 :
-                      (rank === 'Q') ? 12 :
-                      (rank === 'J') ? 11 : parseInt(rank);
-          newDeck.push({ suit, rank, value });
-        }
-      }
-      console.log("Deck created with", newDeck.length, "cards.");
-      return newDeck;
-    }
-    function shuffle(arr) {
-      for (let i = arr.length - 1; i > 0; i--) {
-        let j = Math.floor(Math.random() * (i + 1));
-        [arr[i], arr[j]] = [arr[j], arr[i]];
-      }
-    }
-    // Show trump suit only after trump selection (not during bidding)
-    function updateTrumpDisplay() {
-      const display = document.getElementById('trump-display');
-      if (gamePhase === "bidding") {
-        display.textContent = "";
-      } else {
-        display.textContent = trumpSuit ? "Trump Suit: " + trumpSuit : "";
-      }
-    }
-    function updateDealerInfo() {
-      const dealerIndicator = document.getElementById('dealer-indicator');
-      if (selectedMode === "2p") {
-        if (isPlayerDealer) {
-          dealerIndicator.innerHTML = '<div class="dealer-indicator">Dealer</div>';
-        } else {
-          dealerIndicator.innerHTML = "";
-        }
-      } else if (selectedMode === "3p") {
-        dealerIndicator.innerHTML = "";
-      }
-    }
-    function updateScoreboard() {
-      const scoreboard = document.getElementById('scoreboard');
-      let scoreText = "";
-      if (selectedMode === "2p") {
-        scoreText = "You" + (isPlayerDealer ? " [Dealer]" : "") + ": " + cumulativePlayerScore +
-                    " | " + competitorName + (isPlayerDealer ? "" : " [Dealer]") + ": " + cumulativeCompetitorScore;
-      } else {
-        scoreText = "You" + (dealer === "player" ? " [Dealer]" : "") + ": " + cumulativePlayerScore +
-                    " | " + competitorName1 + (dealer === "comp1" ? " [Dealer]" : "") + ": " + cumulativeCompetitorScore +
-                    " | " + competitorName2 + (dealer === "comp2" ? " [Dealer]" : "") + ": " + cumulativeSecondComputerScore;
-      }
-      scoreboard.textContent = scoreText;
+    let gameState = {};  // will hold the current game state returned by the server
+
+    // Helper function to update the UI based on the game state (returned as JSON)
+    function updateUI(state) {
+      gameState = state;  // store current state
+      // Update common displays
+      document.getElementById('trump-display').textContent =
+        state.trumpSuit ? "Trump Suit: " + state.trumpSuit : "";
+      document.getElementById('bidding-message').textContent =
+        state.biddingMessage || "";
       
-      const handLogDiv = document.getElementById('hand-log');
-      handLogDiv.innerHTML = handLogMessages.map(msg => "<div>" + msg + "</div>").join("");
-    }
-    
-    /***** Trump/Off‑Suit Logic *****/
-    function isTrump(card) {
-      return card.suit === trumpSuit || (card.suit === "♥" && card.rank === "A");
-    }
-    function getTrumpRank(card) {
-      let order;
-      if (trumpSuit === "♥") {
-        order = ["5", "J", "A", "K", "Q", "10", "9", "8", "7", "6", "4", "3", "2"];
-        return order.indexOf(card.rank);
-      } else if (trumpSuit === "♦") {
-        order = ["5", "J", "AH", "A", "K", "Q", "10", "9", "8", "7", "6", "4", "3", "2"];
-        let r = card.rank;
-        if (card.suit === "♥" && card.rank === "A") r = "AH";
-        return order.indexOf(r);
-      } else if (trumpSuit === "♣") {
-        order = ["5", "J", "AH", "A", "K", "Q", "2", "3", "4", "6", "7", "8", "9", "10"];
-        let r = card.rank;
-        if (card.suit === "♥" && card.rank === "A") r = "AH";
-        return order.indexOf(r);
-      } else if (trumpSuit === "♠") {
-        order = ["5", "J", "AH", "A", "K", "Q", "2", "3", "4", "6", "7", "8", "9", "10"];
-        let r = card.rank;
-        if (card.suit === "♥" && card.rank === "A") r = "AH";
-        return order.indexOf(r);
-      }
-      return -1;
-    }
-    function getOffSuitRank(card) {
-      let order;
-      if (card.suit === "♥") {
-        order = ["K", "Q", "J", "10", "9", "8", "7", "6", "5", "4", "3", "2"];
-      } else if (card.suit === "♦") {
-        order = ["K", "Q", "J", "10", "9", "8", "7", "6", "5", "4", "3", "2", "A"];
-      } else if (card.suit === "♣") {
-        order = ["K", "Q", "J", "A", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
-      } else if (card.suit === "♠") {
-        order = ["K", "Q", "J", "A", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
-      }
-      return order.indexOf(card.rank);
-    }
-    
-    /***** Deal Cards *****/
-    function dealCards() {
-      trumpSuit = null;
-      updateTrumpDisplay();
-      deck = createDeck();
-      shuffle(deck);
-      
-      if (selectedMode === "2p") {
-        if (typeof isPlayerDealer === 'undefined') {
-          isPlayerDealer = Math.random() < 0.5;
-        }
-        if (!competitorName) {
-          competitorName = competitorNames[Math.floor(Math.random() * competitorNames.length)];
-        }
-      } else if (selectedMode === "3p") {
-        if (!dealer) { dealer = "player"; }
-        competitorName1 = competitorNames[Math.floor(Math.random() * competitorNames.length)];
-        competitorName2 = competitorNames[Math.floor(Math.random() * competitorNames.length)];
-      }
-      
-      updateDealerInfo();
-      updateScoreboard();
-      
-      // Deal 5 cards to the human player.
-      playerHand = deck.splice(0, 5);
-      playerHand.forEach(card => card.original = true);
-      
-      // Deal 5 cards to competitorHand (for 2p or competitor 1 in 3p).
-      competitorHand = deck.splice(0, 5);
-      competitorHand.forEach(card => card.original = true);
-      
-      // In 3p mode, deal 5 cards to the second computer.
-      if (selectedMode === "3p") {
-        secondComputerHand = deck.splice(0, 5);
-        secondComputerHand.forEach(card => card.original = true);
-      }
-      
-      // Kitty gets 3 cards.
-      kitty = deck.splice(0, 3);
-      updateBiddingUI();
-      
-      // Bidding logic:
-      if (selectedMode === "2p") {
-        if (isPlayerDealer) {
-          competitorBid1 = computeCompetitorBid(competitorHand);
-          if (competitorBid1 === 0) {
-            document.getElementById('bidding-message').textContent = "Bagged! You must bid 15 and choose trump.";
-            winningBidder = "player";
-            playerBid = 15;
-            setTimeout(() => { nextBiddingPhase(); }, 1500);
-          } else {
-            document.getElementById('bidding-message').textContent = "";
-            document.getElementById('competitor-bid').textContent = competitorName + " bids: " + competitorBid1;
-          }
-        } else {
-          playerBid = 15;
-          competitorBid1 = (Math.random() < 0.5) ? 0 : 15;
-          document.getElementById('competitor-bid').textContent = "";
-          winningBidder = "player";
-        }
-      } else {
-        let bidPlayer = 15;
-        let bidComp1 = computeCompetitorBid(competitorHand);
-        let bidComp2 = computeCompetitorBid(secondComputerHand);
-        if (bidPlayer >= bidComp1 && bidPlayer >= bidComp2) {
-          winningBidder = "player";
-          playerBid = bidPlayer;
-          document.getElementById('bidding-message').textContent = "You win the bid (" + bidPlayer + " vs. " + bidComp1 + " vs. " + bidComp2 + ").";
-        } else if (bidComp1 >= bidPlayer && bidComp1 >= bidComp2) {
-          winningBidder = "comp1";
-          competitorBid1 = bidComp1;
-          document.getElementById('bidding-message').textContent = competitorName1 + " wins the bid (" + bidComp1 + " vs. " + bidPlayer + " vs. " + bidComp2 + ").";
-        } else {
-          winningBidder = "comp2";
-          competitorBid2 = bidComp2;
-          document.getElementById('bidding-message').textContent = competitorName2 + " wins the bid (" + bidComp2 + " vs. " + bidPlayer + " vs. " + bidComp1 + ").";
-        }
-        document.getElementById('competitor-bid').textContent = competitorName1 + " bids: " + bidComp1 + " | " + competitorName2 + " bids: " + bidComp2;
-      }
-      
-      console.log("Player hand:", playerHand);
-    }
-    
-    // Modified to accept a hand parameter.
-    function computeCompetitorBid(hand) {
-      let has5 = hand.some(card => card.rank === "5");
-      let hasJack = hand.some(card => card.rank === "J");
-      let hasAceHearts = hand.some(card => card.rank === "A" && card.suit === "♥");
-      let hasNonHeartAce = hand.some(card => card.rank === "A" && card.suit !== "♥");
-      let hasKing = hand.some(card => card.rank === "K");
-      let topCount = 0;
-      if (hasJack) topCount++;
-      if (hasAceHearts) topCount++;
-      if (hasNonHeartAce) topCount++;
-      if (hasKing) topCount++;
-      let bidValue = has5 ? 20 : (topCount >= 2 ? 20 : (topCount === 1 ? 15 : 0));
-      let suitCounts = { "♠": 0, "♥": 0, "♦": 0, "♣": 0 };
-      hand.forEach(card => { suitCounts[card.suit] = (suitCounts[card.suit] || 0) + 1; });
-      let bestSuit = "♠", maxCount = 0;
-      for (let suit in suitCounts) {
-        if (suitCounts[suit] > maxCount) { maxCount = suitCounts[suit]; bestSuit = suit; }
-      }
-      trumpSuit = bestSuit;
-      updateTrumpDisplay();
-      return bidValue;
-    }
-    
-    function updateBiddingUI() {
-      const container = document.getElementById('player-hand-bidding');
-      container.innerHTML = "";
-      playerHand.forEach(card => {
-        const div = document.createElement('div');
-        div.className = 'card';
-        div.textContent = card.rank + card.suit;
-        container.appendChild(div);
-      });
-    }
-    
-    /***** Bidding Phase Handler *****/
-    function placeBid(bid) {
-      if (selectedMode === "2p") {
-        if (isPlayerDealer) {
-          if (bid === 0) {
-            winningBidder = "comp1";
-            document.getElementById('bidding-message').textContent = "You passed. " + competitorName + " wins the bid.";
-          } else if (bid > competitorBid1) {
-            winningBidder = "player";
-            document.getElementById('bidding-message').textContent = "You win the bid (" + bid + " vs. " + competitorBid1 + ").";
-          } else {
-            winningBidder = "comp1";
-            document.getElementById('bidding-message').textContent = "Your bid is not higher; " + competitorName + " wins the bid.";
-          }
-          setTimeout(() => { nextBiddingPhase(); }, 1500);
-        } else {
-          playerBid = bid;
-          competitorBid1 = (Math.random() < 0.5) ? 0 : 15;
-          if (playerBid === 0 && competitorBid1 === 0) {
-            winningBidder = "comp1";
-            document.getElementById('bidding-message').textContent = "Both passed. " + competitorName + " wins the bid.";
-          } else if (playerBid >= competitorBid1) {
-            winningBidder = "player";
-            document.getElementById('bidding-message').textContent = "You win the bid (" + playerBid + " vs. " + competitorBid1 + ").";
-          } else {
-            winningBidder = "comp1";
-            document.getElementById('bidding-message').textContent = competitorName + " wins the bid (" + competitorBid1 + " vs. your bid " + playerBid + ").";
-          }
-          setTimeout(() => { nextBiddingPhase(); }, 1500);
-        }
-      } else { // 3p mode
-        let bidPlayer = bid;
-        let bidComp1 = computeCompetitorBid(competitorHand);
-        let bidComp2 = computeCompetitorBid(secondComputerHand);
-        if (bidPlayer >= bidComp1 && bidPlayer >= bidComp2) {
-          winningBidder = "player";
-          playerBid = bidPlayer;
-          document.getElementById('bidding-message').textContent = "You win the bid (" + bidPlayer + " vs. " + bidComp1 + " vs. " + bidComp2 + ").";
-        } else if (bidComp1 >= bidPlayer && bidComp1 >= bidComp2) {
-          winningBidder = "comp1";
-          competitorBid1 = bidComp1;
-          document.getElementById('bidding-message').textContent = competitorName1 + " wins the bid (" + bidComp1 + " vs. " + bidPlayer + " vs. " + bidComp2 + ").";
-        } else {
-          winningBidder = "comp2";
-          competitorBid2 = bidComp2;
-          document.getElementById('bidding-message').textContent = competitorName2 + " wins the bid (" + bidComp2 + " vs. " + bidPlayer + " vs. " + bidComp1 + ").";
-        }
-        document.getElementById('competitor-bid').textContent = competitorName1 + " bids: " + bidComp1 + " | " + competitorName2 + " bids: " + bidComp2;
-        setTimeout(() => { nextBiddingPhase(); }, 1500);
-      }
-    }
-    
-    /***** Trump Selection Phase *****/
-    function updateTrumpSelectionHand() {
-      const container = document.getElementById('trump-selection-hand');
-      container.innerHTML = "";
-      playerHand.forEach(card => {
-        const div = document.createElement('div');
-        div.className = 'card';
-        div.textContent = card.rank + card.suit;
-        container.appendChild(div);
-      });
-    }
-    function selectTrump(suit) {
-      trumpSuit = suit;
-      updateTrumpDisplay();
-      if ((selectedMode === "2p" && winningBidder === "player") ||
-          (selectedMode === "3p" && winningBidder === "player")) {
-        setTimeout(() => {
-          gamePhase = "kitty";
-          updateSections();
-          updateKittyPhase();
-        }, 1500);
-      }
-    }
-    function autoSelectTrump() {
-      const randomSuit = suits[Math.floor(Math.random() * suits.length)];
-      trumpSuit = randomSuit;
-      updateTrumpDisplay();
-      competitorHand = competitorHand.concat(kitty);
-      while (competitorHand.length > 5) {
-        competitorHand.splice(Math.floor(Math.random() * competitorHand.length), 1);
-      }
-      gamePhase = "draw";
-      updateSections();
-      updateDrawPhase();
-    }
-    
-    /***** Kitty Phase *****/
-    function updateKittyPhase() {
+      // Hide all phase sections first
+      document.getElementById('bidding-section').classList.add('hidden');
       document.getElementById('trump-section').classList.add('hidden');
-      document.getElementById('kitty-section').classList.remove('hidden');
-      const combined = playerHand.concat(kitty);
-      const container = document.getElementById('combined-hand');
-      container.innerHTML = "";
-      combined.forEach((card, index) => {
-        const div = document.createElement('div');
-        div.className = 'card';
-        div.textContent = card.rank + card.suit;
-        div.dataset.index = index;
-        div.onclick = () => {
-          if (div.classList.contains('selected')) {
-            div.classList.remove('selected');
-          } else {
-            const selected = container.querySelectorAll('.selected');
-            if (selected.length < 5) { div.classList.add('selected'); }
-          }
-        };
-        container.appendChild(div);
-      });
-    }
-    function confirmKittySelection() {
-      const container = document.getElementById('combined-hand');
-      const selectedDivs = container.querySelectorAll('.selected');
-      let selectedCards = [];
-      const combined = playerHand.concat(kitty);
-      selectedDivs.forEach(div => {
-        selectedCards.push(combined[parseInt(div.dataset.index)]);
-      });
-      if (selectedCards.length > 5) {
-        alert("You can keep at most 5 cards.");
-        return;
-      }
-      if (selectedCards.filter(c => c.original).length < 1) {
-        alert("You must keep at least one card from your original deal.");
-        return;
-      }
-      playerHand = selectedCards;
-      gamePhase = "draw";
-      updateSections();
-      updateDrawPhase();
-    }
-    
-    /***** Draw Phase *****/
-    function updateDrawPhase() {
-      document.getElementById('trump-section').classList.add('hidden');
-      document.getElementById('draw-section').classList.remove('hidden');
-      const container = document.getElementById('draw-hand');
-      container.innerHTML = "";
-      const instructions = document.getElementById('draw-phase-instructions');
-      let needToDraw = 5 - playerHand.length;
-      
-      if ((selectedMode === "2p" && winningBidder === "player") ||
-          (selectedMode === "3p" && winningBidder === "player")) {
-        playerHand.forEach(card => {
-          const div = document.createElement('div');
+      document.getElementById('kitty-section').classList.add('hidden');
+      document.getElementById('draw-section').classList.add('hidden');
+      document.getElementById('trick-section').classList.add('hidden');
+      document.getElementById('result-section').classList.add('hidden');
+
+      // Show the section appropriate to the current game phase
+      if(state.gamePhase === "bidding") {
+        document.getElementById('bidding-section').classList.remove('hidden');
+        // Update player's hand for bidding
+        let container = document.getElementById('player-hand-bidding');
+        container.innerHTML = "";
+        state.playerHand.forEach(card => {
+          let div = document.createElement('div');
           div.className = 'card';
           div.textContent = card.rank + card.suit;
           container.appendChild(div);
         });
-        container.style.pointerEvents = "none";
-        instructions.textContent = needToDraw > 0 
-          ? "You have kept " + playerHand.length + " cards. Click 'Draw Cards' to draw " + needToDraw + " card(s)."
-          : "You have a full 5‑card hand. Click 'Draw Cards' to continue.";
-      } else {
-        container.style.pointerEvents = "auto";
+      } else if(state.gamePhase === "trump") {
+        document.getElementById('trump-section').classList.remove('hidden');
+      } else if(state.gamePhase === "kitty") {
+        document.getElementById('kitty-section').classList.remove('hidden');
+        let container = document.getElementById('combined-hand');
         container.innerHTML = "";
-        playerHand.forEach((card, index) => {
-          const div = document.createElement('div');
+        state.combinedHand.forEach((card, index) => {
+          let div = document.createElement('div');
           div.className = 'card';
           div.textContent = card.rank + card.suit;
           div.dataset.index = index;
-          div.onclick = () => {
-            if (div.classList.contains('selected')) {
-              div.classList.remove('selected');
-            } else {
-              div.classList.add('selected');
-            }
-          };
+          // Allow the player to select/deselect cards
+          div.onclick = () => div.classList.toggle('selected');
           container.appendChild(div);
         });
-        instructions.textContent = "Select the cards you want to keep from your hand. The rest will be replaced.";
-      }
-      updateCompetitorDrawInfo();
-    }
-    function updateCompetitorDrawInfo() {
-      if (selectedMode === "2p") {
-        competitorAutoDraw(competitorHand);
-        document.getElementById('competitor-hand-info').textContent = competitorName + " drew " + competitorDrawCount + " card(s).";
-      } else {
-        competitorAutoDraw(competitorHand);
-        let info1 = competitorName1 + " drew " + competitorDrawCount + " card(s).";
-        competitorAutoDraw(secondComputerHand);
-        let info2 = competitorName2 + " drew " + competitorDrawCount + " card(s).";
-        document.getElementById('competitor-hand-info').textContent = info1 + " | " + info2;
-      }
-    }
-    function confirmDraw() {
-      if ((selectedMode === "2p" && winningBidder === "player") ||
-          (selectedMode === "3p" && winningBidder === "player")) {
-        let required = 5 - playerHand.length;
-        for (let i = 0; i < required; i++) {
-          if (deck.length > 0) { playerHand.push(deck.pop()); }
-        }
-      } else {
-        const container = document.getElementById('draw-hand');
-        const selectedDivs = container.querySelectorAll('.selected');
-        let keptCards = [];
-        if (selectedDivs.length === 0) {
-          keptCards = playerHand;
-        } else {
-          selectedDivs.forEach(div => { keptCards.push(playerHand[parseInt(div.dataset.index)]); });
-        }
-        if (keptCards.filter(c => c.original).length < 1) {
-          alert("You must keep at least one card from your original deal.");
-          return;
-        }
-        playerHand = keptCards;
-        let required = 5 - playerHand.length;
-        for (let i = 0; i < required; i++) {
-          if (deck.length > 0) { playerHand.push(deck.pop()); }
-        }
-      }
-      startTrickPlay();
-    }
-    
-    // competitorAutoDraw accepts a hand parameter.
-    function competitorAutoDraw(hand) {
-      let kept = hand.filter(card => isTrump(card));
-      if (kept.length < 1 && hand.length > 0) {
-        kept.push(hand.reduce((a, b) => a.value > b.value ? a : b));
-      }
-      competitorDrawCount = 5 - kept.length;
-      for (let i = 0; i < competitorDrawCount; i++) {
-        if (deck.length > 0) { kept.push(deck.pop()); }
-      }
-      hand.length = 0;
-      kept.forEach(card => hand.push(card));
-    }
-    
-    /***** Trick Play Phase *****/
-    let orderOfPlay = []; // e.g., ["player", "comp1"] in 2p or ["player", "comp1", "comp2"] in 3p
-    function startTrickPlay() {
-      gamePhase = "trick";
-      trickCards = [];
-      handPlayedCards = [];
-      trickNumber = 1;
-      playerCardPlayed = false;
-      if (selectedMode === "2p") {
-        orderOfPlay = winningBidder === "player" ? ["player", "comp1"] : ["comp1", "player"];
-        trickTurn = orderOfPlay[0];
-      } else {
-        if (winningBidder === "player") {
-          orderOfPlay = ["player", "comp1", "comp2"];
-        } else if (winningBidder === "comp1") {
-          orderOfPlay = ["comp1", "comp2", "player"];
-        } else {
-          orderOfPlay = ["comp2", "player", "comp1"];
-        }
-        trickTurn = orderOfPlay[0];
-      }
-      
-      if (trickTurn !== "player") {
-        setTimeout(() => { computerPlayCard(trickTurn); }, 1000);
-      } else {
-        updateTrickUI();
-      }
-      
-      document.getElementById('bidding-section').classList.add('hidden');
-      document.getElementById('trump-section').classList.add('hidden');
-      document.getElementById('kitty-section').classList.add('hidden');
-      document.getElementById('draw-section').classList.add('hidden');
-      document.getElementById('trick-section').classList.remove('hidden');
-      document.getElementById('trick-log').innerHTML = "";
-      updateTrickUI();
-    }
-    
-    function computerPlayCard(comp) {
-      let hand;
-      if (comp === "comp1") {
-        hand = competitorHand;
-      } else if (comp === "comp2") {
-        hand = secondComputerHand;
-      }
-      if (!hand || hand.length === 0) {
-        continueTrick();
-        return;
-      }
-      let cardToPlay = hand[Math.floor(Math.random() * hand.length)];
-      hand.splice(hand.indexOf(cardToPlay), 1);
-      trickCards.push({ card: cardToPlay, player: comp });
-      updateTrickArea();
-      
-      let currentIndex = orderOfPlay.indexOf(comp);
-      let nextIndex = (currentIndex + 1) % orderOfPlay.length;
-      trickTurn = orderOfPlay[nextIndex];
-      
-      updateTrickUI();
-      
-      if (trickTurn !== "player") {
-        setTimeout(() => { computerPlayCard(trickTurn); }, 500);
-      }
-    }
-    
-    function updateTrickUI() {
-      const handDiv = document.getElementById('player-hand-trick');
-      handDiv.innerHTML = "";
-      playerHand.forEach((card, index) => {
-        const div = document.createElement('div');
-        div.className = 'card';
-        div.textContent = card.rank + card.suit;
-        div.dataset.index = index;
-        if (trickTurn !== "player") {
-          div.style.pointerEvents = "none";
-        } else {
-          div.onclick = () => {
-            if (gamePhase === "trick" && trickTurn === "player") {
-              if (playerCardPlayed) {
-                alert("You have already played a card this trick!");
-              } else {
-                playPlayerCard(index);
-              }
-            }
-          };
-        }
-        handDiv.appendChild(div);
-      });
-      updateTrickArea();
-      document.getElementById('trick-info').textContent = "Trick " + trickNumber + " of 5. " +
-          (trickTurn === "player" ? "Your turn to play a card." : trickTurn + " is playing.");
-    }
-    
-    function updateTrickArea() {
-      const trickDiv = document.getElementById('trick-area');
-      trickDiv.innerHTML = "";
-      trickCards.forEach(entry => {
-        const div = document.createElement('div');
-        div.className = 'card';
-        div.textContent = entry.card.rank + entry.card.suit;
-        trickDiv.appendChild(div);
-      });
-    }
-    
-    function playPlayerCard(index) {
-      if (gamePhase !== "trick" || trickTurn !== "player") return;
-      if (playerCardPlayed) return;
-      
-      let chosenCard = playerHand.splice(index, 1)[0];
-      trickCards.push({ card: chosenCard, player: "player" });
-      playerCardPlayed = true;
-      updateTrickArea();
-      
-      if (selectedMode === "2p") {
-        trickTurn = orderOfPlay[1];
-      } else {
-        let currentIndex = orderOfPlay.indexOf("player");
-        let nextIndex = (currentIndex + 1) % orderOfPlay.length;
-        trickTurn = orderOfPlay[nextIndex];
-      }
-      continueTrick();
-      
-      if (instructionalMode) {
-        document.getElementById('feedback').textContent = "Feedback: Compare your move with the optimal strategy.";
-      }
-    }
-    
-    function evaluateTrick() {
-      if (selectedMode === "2p") {
-        if (trickCards.length < 2) return;
-      } else {
-        if (trickCards.length < 3) return;
-      }
-      handPlayedCards.push(...trickCards);
-      
-      let ledSuit = trickCards[0].card.suit;
-      let trumpPlays = trickCards.filter(e => isTrump(e.card));
-      let winner;
-      if (trumpPlays.length > 0) {
-        winner = trumpPlays.reduce((best, curr) => (getTrumpRank(curr.card) < getTrumpRank(best.card)) ? curr : best);
-      } else {
-        let followPlays = trickCards.filter(e => e.card.suit === ledSuit);
-        if (followPlays.length > 0) {
-          winner = followPlays.reduce((best, curr) => (getOffSuitRank(curr.card) < getOffSuitRank(best.card)) ? curr : best);
-        } else {
-          winner = trickCards[0];
-        }
-      }
-      
-      if (winner.player === "player") {
-        playerTricks++;
-      } else if (winner.player === "comp1") {
-        competitorTricks1++;
-      } else if (winner.player === "comp2") {
-        competitorTricks2++;
-      }
-      
-      let msg = "Trick " + trickNumber + ": ";
-      if (selectedMode === "2p") {
-        msg += "You played " + (trickCards.find(e => e.player === "player")?.card.rank + trickCards.find(e => e.player === "player")?.card.suit || "–")
-             + ", " + competitorName + " played " + (trickCards.find(e => e.player === "comp1")?.card.rank + trickCards.find(e => e.player === "comp1")?.card.suit || "–");
-      } else {
-        msg += "You played " + (trickCards.find(e => e.player === "player")?.card.rank + trickCards.find(e => e.player === "player")?.card.suit || "–")
-             + ", " + competitorName1 + " played " + (trickCards.find(e => e.player === "comp1")?.card.rank + trickCards.find(e => e.player === "comp1")?.card.suit || "–")
-             + ", " + competitorName2 + " played " + (trickCards.find(e => e.player === "comp2")?.card.rank + trickCards.find(e => e.player === "comp2")?.card.suit || "–");
-      }
-      msg += ". Winner: " + (winner.player === "player" ? "You" : (winner.player === "comp1" ? competitorName1 : competitorName2))
-           + " (" + winner.card.rank + winner.card.suit + ").";
-      
-      appendTrickLog(msg);
-      trickCards = [];
-      trickNumber++;
-      playerCardPlayed = false;
-      
-      if (trickNumber > 5) {
-        setTimeout(endHand, 3000);
-      } else {
-        let currentIndex = orderOfPlay.indexOf(winner.player);
-        let nextIndex = (currentIndex + 1) % orderOfPlay.length;
-        trickTurn = orderOfPlay[nextIndex];
-        updateTrickUI();
-        if (trickTurn !== "player") {
-          setTimeout(() => { computerPlayCard(trickTurn); }, 500);
-        }
-      }
-    }
-    
-    function appendTrickLog(message) {
-      const logDiv = document.getElementById('trick-log');
-      let p = document.createElement('div');
-      p.textContent = message;
-      logDiv.appendChild(p);
-    }
-    
-    function continueTrick() {
-      if (selectedMode === "2p") {
-        if (trickCards.length === 2) {
-          setTimeout(evaluateTrick, 500);
-        }
-      } else {
-        if (trickCards.length === 3) {
-          setTimeout(evaluateTrick, 500);
-        } else if (trickCards.length < 3 && trickTurn !== "player") {
-          setTimeout(() => { computerPlayCard(trickTurn); }, 500);
-        }
-      }
-    }
-    
-    /***** End of Hand & Scoring *****/
-    function endHand() {
-      gamePhase = "finished";
-      document.getElementById('trick-section').classList.add('hidden');
-      
-      let bonusWinner = "player";
-      if (selectedMode === "2p") {
-        if (competitorTricks1 > playerTricks) bonusWinner = "comp1";
-      } else {
-        if (competitorTricks1 >= playerTricks && competitorTricks1 >= competitorTricks2) {
-          bonusWinner = "comp1";
-        } else if (competitorTricks2 >= playerTricks && competitorTricks2 >= competitorTricks1) {
-          bonusWinner = "comp2";
-        }
-      }
-      
-      let playerPoints = playerTricks * 5;
-      let comp1Points = competitorTricks1 * 5;
-      let comp2Points = competitorTricks2 * 5;
-      if (bonusWinner === "player") playerPoints += 5;
-      else if (bonusWinner === "comp1") comp1Points += 5;
-      else if (bonusWinner === "comp2") comp2Points += 5;
-      
-      if (selectedMode === "2p") {
-        cumulativePlayerScore += playerPoints;
-        cumulativeCompetitorScore += comp1Points;
-      } else {
-        cumulativePlayerScore += playerPoints;
-        cumulativeCompetitorScore += comp1Points;
-        cumulativeSecondComputerScore += comp2Points;
-      }
-      
-      let handResult;
-      if (selectedMode === "2p") {
-        handResult = "Hand " + (++handNumber) + ": You won " + playerTricks + " tricks (" + (playerTricks * 5) +
-                     (bonusWinner === "player" ? " + Bonus (5)" : "") +
-                     "); " + competitorName + " won " + competitorTricks1 + " tricks (" + (competitorTricks1 * 5) +
-                     (bonusWinner === "comp1" ? " + Bonus (5)" : "") +
-                     "). Round Total: You " + playerPoints + " vs. " + competitorName + " " + comp1Points + ".";
-      } else {
-        handResult = "Hand " + (++handNumber) + ": You won " + playerTricks + " tricks (" + (playerTricks * 5) +
-                     (bonusWinner === "player" ? " + Bonus (5)" : "") +
-                     "; " + competitorName1 + " won " + competitorTricks1 + " tricks (" + (competitorTricks1 * 5) +
-                     (bonusWinner === "comp1" ? " + Bonus (5)" : "") +
-                     "; " + competitorName2 + " won " + competitorTricks2 + " tricks (" + (competitorTricks2 * 5) +
-                     (bonusWinner === "comp2" ? " + Bonus (5)" : "") +
-                     "). Round Totals: You " + playerPoints + " vs. " + competitorName1 + " " + comp1Points +
-                     " vs. " + competitorName2 + " " + comp2Points + ".";
-      }
-      
-      handLogMessages.push(handResult);
-      updateScoreboard();
-      
-      if ((selectedMode === "2p" && (cumulativePlayerScore >= 120 || cumulativeCompetitorScore >= 120)) ||
-          (selectedMode === "3p" && (cumulativePlayerScore >= 120 || cumulativeCompetitorScore >= 120 || cumulativeSecondComputerScore >= 120))) {
-        let winner;
-        if (selectedMode === "2p") {
-          winner = cumulativePlayerScore >= 120 ? "You" : competitorName;
-        } else {
-          winner = "Game Over";
-        }
-        document.getElementById('result-message').textContent = "Game Over! " + winner + " win the game.\n" + handResult;
-        document.getElementById('result-section').classList.remove('hidden');
-      } else {
-        setTimeout(nextHand, 3000);
-      }
-    }
-    
-    function nextHand() {
-      if (selectedMode === "2p") {
-        isPlayerDealer = !isPlayerDealer;
-      } else {
-        if (dealer === "player") {
-          dealer = "comp1";
-        } else if (dealer === "comp1") {
-          dealer = "comp2";
-        } else {
-          dealer = "player";
-        }
-      }
-      updateDealerInfo();
-      playerTricks = 0;
-      competitorTricks1 = 0;
-      competitorTricks2 = 0;
-      trickCards = [];
-      handPlayedCards = [];
-      trickNumber = 1;
-      trumpSuit = null;
-      updateTrumpDisplay();
-      playerBid = 0;
-      competitorBid1 = 0;
-      competitorBid2 = 0;
-      winningBidder = null;
-      document.getElementById('bidding-message').textContent = "";
-      document.getElementById('competitor-bid').textContent = "";
-      gamePhase = "bidding";
-      updateSections();
-      dealCards();
-    }
-    
-    function resetGame() {
-      cumulativePlayerScore = 0;
-      cumulativeCompetitorScore = 0;
-      cumulativeSecondComputerScore = 0;
-      handLogMessages = [];
-      handNumber = 0;
-      competitorName = "";
-      competitorName1 = "";
-      competitorName2 = "";
-      updateScoreboard();
-      resetHandState();
-      gamePhase = "bidding";
-      trumpSuit = null;
-      updateTrumpDisplay();
-      updateSections();
-      document.getElementById('result-section').classList.add('hidden');
-      dealCards();
-    }
-    
-    function resetHandState() {
-      playerTricks = 0;
-      competitorTricks1 = 0;
-      competitorTricks2 = 0;
-      trickCards = [];
-      handPlayedCards = [];
-      trickNumber = 1;
-      trumpSuit = null;
-      playerBid = 0;
-      competitorBid1 = 0;
-      competitorBid2 = 0;
-      winningBidder = null;
-    }
-    
-    /***** Section Visibility Control *****/
-    function updateSections() {
-      document.getElementById('bidding-section').classList.add('hidden');
-      document.getElementById('trump-section').classList.add('hidden');
-      document.getElementById('kitty-section').classList.add('hidden');
-      document.getElementById('draw-section').classList.add('hidden');
-      document.getElementById('trick-section').classList.add('hidden');
-      
-      if (gamePhase === "bidding") {
-        document.getElementById('bidding-section').classList.remove('hidden');
-        updateBiddingUI();
-      } else if (gamePhase === "trump") {
-        document.getElementById('trump-section').classList.remove('hidden');
-      } else if (gamePhase === "kitty") {
-        document.getElementById('kitty-section').classList.remove('hidden');
-      } else if (gamePhase === "draw") {
+      } else if(state.gamePhase === "draw") {
         document.getElementById('draw-section').classList.remove('hidden');
-      } else if (gamePhase === "trick") {
+        let container = document.getElementById('draw-hand');
+        container.innerHTML = "";
+        state.drawHand.forEach(card => {
+          let div = document.createElement('div');
+          div.className = 'card';
+          div.textContent = card.rank + card.suit;
+          container.appendChild(div);
+        });
+        document.getElementById('draw-phase-instructions').textContent =
+          state.drawInstructions || "";
+      } else if(state.gamePhase === "trick") {
         document.getElementById('trick-section').classList.remove('hidden');
+        let handContainer = document.getElementById('player-hand-trick');
+        handContainer.innerHTML = "";
+        state.playerHand.forEach((card, index) => {
+          let div = document.createElement('div');
+          div.className = 'card';
+          div.textContent = card.rank + card.suit;
+          // Allow clicking to play a card if it is the player's turn
+          if(state.currentTurn === "player") {
+            div.onclick = () => playCard(index);
+          }
+          handContainer.appendChild(div);
+        });
+        // Update the trick area with cards already played this trick
+        let trickArea = document.getElementById('trick-area');
+        trickArea.innerHTML = "";
+        state.trickCards.forEach(entry => {
+          let div = document.createElement('div');
+          div.className = 'card';
+          div.textContent = entry.card.rank + entry.card.suit;
+          trickArea.appendChild(div);
+        });
+        document.getElementById('trick-info').textContent = state.trickInfo || "";
+        // Update trick log if available
+        let trickLog = document.getElementById('trick-log');
+        trickLog.innerHTML = "";
+        (state.trickLog || []).forEach(msg => {
+          let p = document.createElement('div');
+          p.textContent = msg;
+          trickLog.appendChild(p);
+        });
+      } else if(state.gamePhase === "finished") {
+        document.getElementById('result-section').classList.remove('hidden');
+        document.getElementById('result-message').textContent = state.resultMessage || "";
       }
-      updateTrumpDisplay();
+      
+      // Update scoreboard and feedback areas
+      document.getElementById('scoreboard').textContent = state.scoreboard || "";
+      document.getElementById('feedback').textContent = state.feedback || "";
     }
-    
-    /***** Game Options & Instruction Functions *****/
+
+    // Helper function to call server endpoints
+    async function callAPI(endpoint, method = "POST", data = {}) {
+      try {
+        let response = await fetch(endpoint, {
+          method: method,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data)
+        });
+        let result = await response.json();
+        updateUI(result);
+      } catch(err) {
+        console.error("API call error:", err);
+      }
+    }
+
+    // Game control functions that call the Python server endpoints:
+
+    // Start the game (initializes a new game on the server)
     function startGame() {
       selectedMode = document.getElementById('mode-select').value;
       instructionalMode = document.getElementById('instruction-mode').checked;
       document.getElementById('game-options').style.display = "none";
       document.getElementById('game-container').style.display = "block";
-      document.getElementById('feedback').textContent = "";
-      if (selectedMode === "2p") {
-        isPlayerDealer = Math.random() < 0.5;
-      } else {
-        dealer = "player";
-      }
-      updateDealerInfo();
-      updateScoreboard();
-      dealCards();
+      callAPI("/start_game", "POST", { mode: selectedMode, instructional: instructionalMode });
     }
-    
+
+    // Send the player's bid to the server
+    function placeBid(bid) {
+      callAPI("/bid", "POST", { bid: bid });
+    }
+
+    // Send the selected trump suit to the server
+    function selectTrump(suit) {
+      callAPI("/select_trump", "POST", { trump: suit });
+    }
+
+    // Confirm the kitty selection (the client sends the indices of the cards kept)
+    function confirmKitty() {
+      let container = document.getElementById('combined-hand');
+      let selectedDivs = container.querySelectorAll('.selected');
+      let indices = [];
+      selectedDivs.forEach(div => indices.push(parseInt(div.dataset.index)));
+      callAPI("/confirm_kitty", "POST", { keptIndices: indices });
+    }
+
+    // Confirm the draw phase
+    function confirmDraw() {
+      callAPI("/confirm_draw", "POST", {});
+    }
+
+    // Send the player's chosen card (by its index in their hand) during trick play
+    function playCard(cardIndex) {
+      callAPI("/play_trick", "POST", { cardIndex: cardIndex });
+    }
+
+    // Reset the entire game
+    function resetGame() {
+      callAPI("/reset_game", "POST", {});
+    }
+
+    // Toggle the instructions panel
     function toggleInstructions() {
       let instrDiv = document.getElementById('instructions');
-      if (instrDiv.style.display === "none" || instrDiv.style.display === "") {
-        instrDiv.style.display = "block";
-      } else {
-        instrDiv.style.display = "none";
-      }
+      instrDiv.style.display = (instrDiv.style.display === "none" || instrDiv.style.display === "") ? "block" : "none";
     }
     
-    window.onload = function() {
-      document.getElementById('game-options').style.display = "block";
-      document.getElementById('game-container').style.display = "none";
-    }
+    // Optionally, you might poll the server for updates (e.g., every second)
+    // setInterval(async () => {
+    //   let response = await fetch("/state");
+    //   let state = await response.json();
+    //   updateUI(state);
+    // }, 1000);
+    
   </script>
 </body>
 </html>
