@@ -52,7 +52,9 @@ def confirm_draw():
     global current_game
     if current_game is None:
         return jsonify({"error": "No game started."})
-    current_game.confirm_draw()
+    data = request.get_json()
+    keptIndices = data.get("keptIndices", None)
+    current_game.confirm_draw(keptIndices)
     return jsonify(current_game.to_dict())
 
 @app.route("/play_trick", methods=["POST"])
