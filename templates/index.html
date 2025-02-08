@@ -167,7 +167,7 @@
     <div id="logo">45</div>
     <!-- Dealer and Trump Display -->
     <div id="dealer-info"></div>
-    <!-- In Heads-Up mode, we show a circular Dealer indicator if you are the dealer. -->
+    <!-- In Heads-Up mode, show a circular Dealer badge if you are the dealer. -->
     <div id="dealer-indicator"></div>
     <div id="trump-display"></div>
     
@@ -216,7 +216,7 @@
       <h2>Draw Phase</h2>
       <div id="draw-hand" class="cards-container"></div>
       <div id="draw-phase-instructions"></div>
-      <!-- Always display the computer draw info -->
+      <!-- Always display competitor draw info -->
       <div id="competitor-hand-info"></div>
       <button id="draw-button" onclick="confirmDraw()">Draw Cards</button>
     </div>
@@ -281,9 +281,9 @@
     let trickTurn = null; // "player", "competitor", or "secondComputer"
     let playerCardPlayed = false;
     
-    // In 2p mode we use a boolean; in 3p mode we use a dealer string.
+    // In 2p mode, use a boolean for dealer; in 3p mode, use a string.
     let isPlayerDealer = true;  // For 2-player mode
-    let dealer = null;          // For 3-player mode, dealer can be "player", "competitor", or "secondComputer"
+    let dealer = null;          // For 3-player mode: "player", "competitor", or "secondComputer"
     
     const suits = ['♠', '♥', '♦', '♣'];
     const ranks = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
@@ -312,7 +312,7 @@
       const display = document.getElementById('trump-display');
       display.textContent = trumpSuit ? "Trump Suit: " + trumpSuit : "";
     }
-    // Update the dealer UI. In 2p mode, display a white circular button (only if you're the dealer).
+    // Update dealer UI. In 2p mode, show a circular "Dealer" badge if you are the dealer.
     function updateDealerInfo() {
       const dealerIndicator = document.getElementById('dealer-indicator');
       if (selectedMode === "2p") {
@@ -322,11 +322,10 @@
           dealerIndicator.innerHTML = "";
         }
       } else if (selectedMode === "3p") {
-        // In 3p mode, we update the scoreboard (see updateScoreboard()) to indicate the dealer.
         dealerIndicator.innerHTML = "";
       }
     }
-    // Update the scoreboard, including dealer indicators.
+    // Update the scoreboard; in 3p mode, include dealer indications.
     function updateScoreboard() {
       const scoreboard = document.getElementById('scoreboard');
       let scoreText = "";
@@ -334,7 +333,6 @@
         scoreText = "You" + (isPlayerDealer ? " [Dealer]" : "") + ": " + cumulativePlayerScore +
                     " | " + competitorName + (isPlayerDealer ? "" : " [Dealer]") + ": " + cumulativeCompetitorScore;
       } else if (selectedMode === "3p") {
-        // For 3p, use the variable 'dealer' which is one of: "player", "competitor", "secondComputer"
         scoreText = "You" + (dealer === "player" ? " [Dealer]" : "") + ": " + cumulativePlayerScore +
                     " | " + competitorName + (dealer === "competitor" ? " [Dealer]" : "") + ": " + cumulativeCompetitorScore +
                     " | Second Computer" + (dealer === "secondComputer" ? " [Dealer]" : "") + ": " + cumulativeSecondComputerScore;
@@ -388,23 +386,19 @@
     
     /***** Initial Deal (on game start) *****/
     function dealCards() {
-      // Clear trump from previous hand.
+      // Clear trump selection from previous hand.
       trumpSuit = null;
       updateTrumpDisplay();
       
       deck = createDeck();
       shuffle(deck);
       
-      // In 2p mode, isPlayerDealer is a boolean.
-      // In 3p mode, if dealer is not yet set, default it to "player".
       if (selectedMode === "2p") {
         if (typeof isPlayerDealer === 'undefined') {
           isPlayerDealer = Math.random() < 0.5;
         }
       } else if (selectedMode === "3p") {
-        if (!dealer) {
-          dealer = "player";
-        }
+        if (!dealer) { dealer = "player"; }
       }
       
       if (!competitorName) {
@@ -421,7 +415,7 @@
       competitorHand.forEach(card => card.original = true);
       
       // For 3p mode, deal a second computer hand.
-      if(selectedMode === "3p") {
+      if (selectedMode === "3p") {
         secondComputerHand = deck.splice(0, 5);
         secondComputerHand.forEach(card => card.original = true);
       }
@@ -447,14 +441,11 @@
           document.getElementById('competitor-bid').textContent = "";
         }
       } else {
-        // For 3p mode, you could extend the bidding logic accordingly.
-        // For now, we'll use similar logic as 2p for the primary competitor.
+        // For 3p mode, use similar bidding logic for now.
         competitorBid = computeCompetitorBid();
         document.getElementById('competitor-bid').textContent = competitorName + " bids: " + competitorBid;
       }
-      
-      // Always update the competitor-hand-info to show how many cards were drawn.
-      updateCompetitorDrawInfo();
+      // (Removed updateCompetitorDrawInfo() call here so that draw-phase updates occur only in updateDrawPhase().)
     }
     
     function updateBiddingUI() {
@@ -499,7 +490,6 @@
           setTimeout(() => { nextBiddingPhase(); }, 1500);
         }
       } else {
-        // For 3p mode, using similar logic for now.
         playerBid = bid;
         competitorBid = (Math.random() < 0.5) ? 0 : 15;
         if (playerBid === 0 && competitorBid === 0) {
@@ -649,8 +639,7 @@
         });
         instructions.textContent = "Select the cards you want to keep from your hand. The rest will be replaced.";
       }
-      
-      // Always update competitor draw info.
+      // Update competitor draw info during draw phase.
       updateCompetitorDrawInfo();
     }
     function updateCompetitorDrawInfo() {
@@ -914,7 +903,7 @@
       
       updateTrickUI();
       
-      // Delay the transition after the final trick to allow viewing of results.
+      // Delay the transition after the final trick to let the player see the results.
       if (playerHand.length === 0 && competitorHand.length === 0) {
         let delay = (trickNumber === 6 && winning.player === "competitor") ? 3000 : 1500;
         setTimeout(endHand, delay);
@@ -991,7 +980,6 @@
       if (selectedMode === "2p") {
         isPlayerDealer = !isPlayerDealer;
       } else if (selectedMode === "3p") {
-        // Rotate dealer clockwise among "player", "competitor", "secondComputer"
         if (dealer === "player") {
           dealer = "competitor";
         } else if (dealer === "competitor") {
@@ -1119,7 +1107,6 @@
       document.getElementById('game-options').style.display = "none";
       document.getElementById('game-container').style.display = "block";
       document.getElementById('feedback').textContent = "";
-      // In 2p mode, randomly decide dealer; in 3p mode, set dealer to "player" initially.
       if (selectedMode === "2p") {
         isPlayerDealer = Math.random() < 0.5;
       } else {
