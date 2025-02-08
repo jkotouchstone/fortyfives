@@ -912,20 +912,49 @@
       updateTrumpDisplay();
     }
     
-    /***** Compute Competitor Bid (Improved) *****/
+    /***** Compute Competitor Bid (Updated Bidding Logic) *****/
     function computeCompetitorBid() {
-      let highCards = competitorHand.filter(card => card.value >= 10).length;
-      let trumpPotential = 0;
-      if (trumpSuit) {
-        trumpPotential = competitorHand.filter(card => card.suit === trumpSuit || (card.suit === "♥" && card.rank === "A")).length;
-      }
-      let bidScore = highCards + (2 * trumpPotential);
+      // Check for key cards in the competitor's hand.
+      let has5 = competitorHand.some(card => card.rank === "5");
+      let hasJack = competitorHand.some(card => card.rank === "J");
+      let hasAceHearts = competitorHand.some(card => card.rank === "A" && card.suit === "♥");
+      let hasNonHeartAce = competitorHand.some(card => card.rank === "A" && card.suit !== "♥");
+      let hasKing = competitorHand.some(card => card.rank === "K");
       
-      if (bidScore >= 8) return 30;
-      if (bidScore >= 6) return 25;
-      if (bidScore >= 4) return 20;
-      if (bidScore >= 2) return 15;
-      return 0;
+      let topCount = 0;
+      if (hasJack) topCount++;
+      if (hasAceHearts) topCount++;
+      if (hasNonHeartAce) topCount++;
+      if (hasKing) topCount++;
+      
+      let bidValue;
+      if (has5) {
+        bidValue = 20;
+      } else if (topCount >= 2) {
+        bidValue = 20;
+      } else if (topCount === 1) {
+        bidValue = 15;
+      } else {
+        bidValue = 0;
+      }
+      
+      // Determine the preferred trump suit by counting cards in each suit.
+      let suitCounts = { "♠": 0, "♥": 0, "♦": 0, "♣": 0 };
+      competitorHand.forEach(card => {
+        suitCounts[card.suit] = (suitCounts[card.suit] || 0) + 1;
+      });
+      let bestSuit = "♠";
+      let maxCount = 0;
+      for (let suit in suitCounts) {
+        if (suitCounts[suit] > maxCount) {
+          maxCount = suitCounts[suit];
+          bestSuit = suit;
+        }
+      }
+      trumpSuit = bestSuit;
+      updateTrumpDisplay();
+      
+      return bidValue;
     }
     
     // Initialize Game on Page Load
