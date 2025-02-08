@@ -29,24 +29,31 @@
       position: relative;
       max-width: 900px;
       margin: auto;
-      background: rgba(0,0,0,0.7);
+      background: rgba(0, 0, 0, 0.7);
       padding: 20px;
       border-radius: 8px;
       transition: background-color 0.5s;
     }
+    /* Sections start hidden */
+    .section {
+      margin: 20px 0;
+      display: none;
+    }
+    .section.visible {
+      display: block;
+    }
     #game-options, #instructions {
       max-width: 900px;
       margin: 20px auto;
-      background: rgba(255,255,255,0.1);
+      background: rgba(255, 255, 255, 0.1);
       padding: 10px;
       border-radius: 8px;
     }
     #instructions {
       text-align: left;
       font-size: 14px;
-      display: none;
     }
-    /* Tutorial Modal with Next buttons */
+    /* Tutorial Modal */
     #tutorial-modal {
       position: fixed;
       top: 0; left: 0;
@@ -75,7 +82,7 @@
       margin: 5px;
       font-weight: bold;
     }
-    /* Card back style */
+    /* Card back style for won tricks */
     .card-back {
       display: inline-block;
       width: 60px;
@@ -98,7 +105,7 @@
       margin: 5px;
       cursor: pointer;
       user-select: none;
-      transition: transform 0.3s ease;
+      transition: transform 0.3s ease, opacity 0.3s ease;
     }
     .card img {
       width: 100%;
@@ -134,6 +141,7 @@
     }
     #won-tricks-section {
       margin-top: 20px;
+      display: none;
     }
     #won-tricks-section h3 {
       margin-bottom: 10px;
@@ -144,7 +152,7 @@
     }
     #draw-phase-instructions { margin-top: 10px; font-style: italic; }
     #feedback {
-      background: rgba(255,255,255,0.2);
+      background: rgba(255, 255, 255, 0.2);
       padding: 10px;
       border-radius: 5px;
       margin: 10px auto;
@@ -175,7 +183,7 @@
     <div id="tutorial-content">
       <h2>Welcome to Forty‑Fives!</h2>
       <div id="tutorial-step-content">
-        <!-- Demo steps will be injected here -->
+        <!-- Tutorial steps will be injected here -->
         <p>Step 1: This is a demonstration of how the game works.</p>
       </div>
       <div>
@@ -207,25 +215,29 @@
     <h3>Detailed Rules & Strategies for Forty‑Fives</h3>
     <p>
       <strong>Overview:</strong><br>
-      Forty‑Fives is a trick‑taking game. You bid on how many points you can win and then play cards round by round. The player who wins a trick leads the next trick.
+      Forty‑Fives is a trick‑taking game. You bid on how many points you think you can win and then play cards round by round. The player who wins a trick leads the next trick.
     </p>
     <p>
       <strong>Bidding:</strong><br>
-      - In heads‑up, if you're the dealer you’ll see your opponent’s bid (for example, “Bill Passed” or “Bill bid 15”).<br>
-      - In middle positions, you see the previous bids before making your own decision.<br>
-      - If everyone passes, the dealer is forced to bid 15 (“bagged”).
+      - In heads‑up, if you're the dealer, you'll see your opponent's bid (e.g., "Bill Passed" or "Bill bid 15").<br>
+      - In middle positions, you see the previous bids before deciding your own.<br>
+      - If everyone passes, the dealer is forced to bid 15 ("bagged").
     </p>
     <p>
       <strong>Trump & Trick Play:</strong><br>
       - The winning bidder selects a trump suit while your cards remain visible.<br>
-      - All cards played in each trick are shown face‑up on the table. When a trick is won, the cards are placed face‑down (using a card‑back image) on that player’s side.<br>
+      - All cards played in each trick are shown face‑up on the table. When a trick is won, the cards are placed face‑down (using a card‑back image) on the winner's side.<br>
       - The Ace of Hearts is always trump.
+    </p>
+    <p>
+      <strong>Won Tricks:</strong><br>
+      - You’ll see a section that shows the cards (as card backs) won by you and by your opponent.
     </p>
     <p>
       <strong>Scoring:</strong><br>
       - Each trick is worth 5 points (with the bonus trick adding 5 extra points).<br>
       - If the bidder fails to meet their bid, they lose that many points.<br>
-      - When the game is over, a detailed score sheet with a full trick log is shown.
+      - When the game is over, a detailed score sheet with a full trick log is displayed.
     </p>
     <button onclick="toggleInstructions()">Hide Detailed Rules</button>
   </div>
@@ -256,7 +268,7 @@
     </div>
     
     <!-- Trump Selection Phase -->
-    <div id="trump-section" class="section hidden">
+    <div id="trump-section" class="section">
       <h2>Trump Selection</h2>
       <div>Your Hand:</div>
       <div id="player-hand-trump" class="cards-container"></div>
@@ -269,7 +281,7 @@
     </div>
     
     <!-- Kitty Phase -->
-    <div id="kitty-section" class="section hidden">
+    <div id="kitty-section" class="section">
       <h2>Kitty Phase</h2>
       <div>Your Combined Hand (Your 5 cards + Kitty):</div>
       <div id="combined-hand" class="cards-container"></div>
@@ -280,7 +292,7 @@
     </div>
     
     <!-- Draw Phase -->
-    <div id="draw-section" class="section hidden">
+    <div id="draw-section" class="section">
       <h2>Draw Phase</h2>
       <div id="draw-hand" class="cards-container"></div>
       <div id="draw-phase-instructions"></div>
@@ -288,7 +300,7 @@
     </div>
     
     <!-- Trick Play Phase -->
-    <div id="trick-section" class="section hidden">
+    <div id="trick-section" class="section">
       <h2>Trick Play</h2>
       <div id="trick-info"></div>
       <div>Your Hand:</div>
@@ -299,7 +311,7 @@
     </div>
     
     <!-- Won Tricks Section -->
-    <div id="won-tricks-section" class="section hidden">
+    <div id="won-tricks-section" class="section">
       <h3>Your Won Tricks</h3>
       <div id="player-won-tricks" class="cards-container"></div>
       <h3>Opponent Won Tricks</h3>
@@ -307,7 +319,7 @@
     </div>
     
     <!-- Result Section -->
-    <div id="result-section" class="section hidden">
+    <div id="result-section" class="section">
       <h2>Game Over</h2>
       <div id="result-message"></div>
       <pre id="score-sheet"></pre>
@@ -327,11 +339,11 @@
   <script>
     let gameState = {};
     let tutorialSteps = [
-      "Welcome to Forty‑Fives! In this demo, you’ll see how cards are dealt and how bidding works.",
-      "During bidding, you’ll see the bids from all players. For example, if Bill passes, it shows 'Bill Passed'.",
-      "After bidding, the winning bidder selects trump. Your cards remain visible so you know your hand.",
-      "In trick play, every card played is shown face‑up on the table. The winner of the trick takes the cards (they appear as card backs on your side).",
-      "At game end, a detailed score sheet is displayed, showing all hand summaries."
+      "Step 1: Cards are dealt. Each player gets 5 cards and 3 extra cards form the kitty.",
+      "Step 2: During bidding, you'll see all bids (e.g., 'Bill Passed' or 'Bill bid 15').",
+      "Step 3: The winning bidder selects the trump suit while your cards remain visible.",
+      "Step 4: In trick play, each card is shown face‑up on the table. When a trick is won, the cards are placed face‑down in your won-tricks pile.",
+      "Step 5: The game continues until someone reaches 120 points. A detailed score sheet is shown at the end."
     ];
     let currentTutorialStep = 0;
     
@@ -351,7 +363,6 @@
       }
     }
     
-    // Theme switching: add a class to the body.
     function switchTheme() {
       const theme = document.getElementById("theme-select").value;
       if (theme === "modern") {
@@ -371,14 +382,33 @@
       document.getElementById("tutorial-modal").style.display = "none";
     }
     
+    // Helper function: create an image element for a card.
+    function createCardImage(card) {
+      let img = document.createElement('img');
+      img.className = "card";
+      img.src = card.img;  // e.g., "cards/ace_of_hearts.png"
+      img.alt = card.rank + card.suit;
+      return img;
+    }
+    
+    // Helper function: create a card back element.
+    function createCardBack() {
+      let img = document.createElement('img');
+      img.className = "card card-back";
+      img.src = "cards/card_back.png";
+      img.alt = "Card Back";
+      return img;
+    }
+    
     // Update UI based on game state.
     function updateUI(state) {
       gameState = state;
+      // Only display trump if not in bidding phase.
       document.getElementById('trump-display').textContent =
         (state.gamePhase !== "bidding" && state.trumpSuit) ? "Trump Suit: " + state.trumpSuit : "";
       document.getElementById('bidding-message').textContent = state.biddingMessage || "";
       
-      // Dealer indicator: in 2p mode, if you're the dealer.
+      // Dealer indicator: In 2p mode, if you are the dealer.
       if (state.dealer && state.computerHandCount !== null && state.dealer === "player") {
         document.getElementById('dealer-info').innerHTML = '<div class="dealer-indicator">Dealer</div>';
       } else {
@@ -396,53 +426,39 @@
       }
       
       // Hide all phase sections.
-      ["bidding-section", "trump-section", "kitty-section", "draw-section", "trick-section", "result-section", "won-tricks-section"]
-        .forEach(id => document.getElementById(id).classList.add("hidden"));
-
-      // Bidding Phase
+      let sections = ["bidding-section", "trump-section", "kitty-section", "draw-section", "trick-section", "result-section", "won-tricks-section"];
+      sections.forEach(id => document.getElementById(id).classList.remove("visible"));
+      
+      // Show only the section corresponding to the current phase.
       if (state.gamePhase === "bidding") {
-        document.getElementById('bidding-section').classList.remove("hidden");
-        let container = document.getElementById('player-hand-bidding');
+        document.getElementById("bidding-section").classList.add("visible");
+        let container = document.getElementById("player-hand-bidding");
         container.innerHTML = "";
-        state.playerHand.forEach(card => {
-          container.appendChild(createCardImage(card));
-        });
-      }
-      // Trump Selection Phase
-      else if (state.gamePhase === "trump") {
-        document.getElementById('trump-section').classList.remove("hidden");
-        let handDiv = document.getElementById('player-hand-trump');
+        state.playerHand.forEach(card => container.appendChild(createCardImage(card)));
+      } else if (state.gamePhase === "trump") {
+        document.getElementById("trump-section").classList.add("visible");
+        let handDiv = document.getElementById("player-hand-trump");
         handDiv.innerHTML = "";
-        state.playerHand.forEach(card => {
-          handDiv.appendChild(createCardImage(card));
-        });
-      }
-      // Kitty Phase
-      else if (state.gamePhase === "kitty") {
-        document.getElementById('kitty-section').classList.remove("hidden");
-        let container = document.getElementById('combined-hand');
+        state.playerHand.forEach(card => handDiv.appendChild(createCardImage(card)));
+      } else if (state.gamePhase === "kitty") {
+        document.getElementById("kitty-section").classList.add("visible");
+        let container = document.getElementById("combined-hand");
         container.innerHTML = "";
         state.combinedHand.forEach((card, index) => {
           let img = createCardImage(card);
           img.dataset.index = index;
-          img.onclick = () => img.classList.toggle('selected');
+          img.onclick = () => img.classList.toggle("selected");
           container.appendChild(img);
         });
-      }
-      // Draw Phase
-      else if (state.gamePhase === "draw") {
-        document.getElementById('draw-section').classList.remove("hidden");
-        let container = document.getElementById('draw-hand');
+      } else if (state.gamePhase === "draw") {
+        document.getElementById("draw-section").classList.add("visible");
+        let container = document.getElementById("draw-hand");
         container.innerHTML = "";
-        state.drawHand.forEach(card => {
-          container.appendChild(createCardImage(card));
-        });
-        document.getElementById('draw-phase-instructions').textContent = state.drawInstructions || "";
-      }
-      // Trick Phase
-      else if (state.gamePhase === "trick") {
-        document.getElementById('trick-section').classList.remove("hidden");
-        let handContainer = document.getElementById('player-hand-trick');
+        state.drawHand.forEach(card => container.appendChild(createCardImage(card)));
+        document.getElementById("draw-phase-instructions").textContent = state.drawInstructions || "";
+      } else if (state.gamePhase === "trick") {
+        document.getElementById("trick-section").classList.add("visible");
+        let handContainer = document.getElementById("player-hand-trick");
         handContainer.innerHTML = "";
         state.playerHand.forEach((card, index) => {
           let img = createCardImage(card);
@@ -451,69 +467,54 @@
           }
           handContainer.appendChild(img);
         });
-        let trickArea = document.getElementById('trick-area');
+        let trickArea = document.getElementById("trick-area");
         trickArea.innerHTML = "";
-        // If current trick is empty, show last trick.
+        // Show current trick if available; if empty, show the last trick.
         let trickCards = state.currentTrick.length ? state.currentTrick : state.lastTrick;
-        trickCards.forEach(entry => {
-          trickArea.appendChild(createCardImage(entry.card));
-        });
-        let trickLog = document.getElementById('trick-log');
+        trickCards.forEach(entry => trickArea.appendChild(createCardImage(entry.card)));
+        let trickLog = document.getElementById("trick-log");
         trickLog.innerHTML = "";
         (state.trickLog || []).forEach(msg => {
-          let p = document.createElement('div');
+          let p = document.createElement("div");
           p.textContent = msg;
           trickLog.appendChild(p);
         });
-      }
-      // Finished Phase
-      else if (state.gamePhase === "finished") {
-        document.getElementById('result-section').classList.remove("hidden");
-        document.getElementById('result-message').textContent = "Game Over!";
-        document.getElementById('score-sheet').textContent = state.scoreSheet || "";
+      } else if (state.gamePhase === "finished") {
+        document.getElementById("result-section").classList.add("visible");
+        document.getElementById("result-message").textContent = "Game Over!";
+        document.getElementById("score-sheet").textContent = state.scoreSheet || "";
       }
       
-      // Won Tricks Section: Display card-back images for each trick won.
-      if (state.gamePhase !== "bidding" && state.gamePhase !== "trump" && state.gamePhase !== "kitty" && state.gamePhase !== "draw") {
-        document.getElementById('won-tricks-section').classList.remove("hidden");
-        let playerWonDiv = document.getElementById('player-won-tricks');
+      // If in trick play phase, show won tricks.
+      if (state.gamePhase === "trick" || state.gamePhase === "finished") {
+        document.getElementById("won-tricks-section").classList.add("visible");
+        let playerWonDiv = document.getElementById("player-won-tricks");
         playerWonDiv.innerHTML = "";
         for (let i = 0; i < state.wonTricks["player"]; i++) {
-          let back = createCardBack();
-          playerWonDiv.appendChild(back);
+          playerWonDiv.appendChild(createCardBack());
         }
-        let opponentWonDiv = document.getElementById('opponent-won-tricks');
+        let opponentWonDiv = document.getElementById("opponent-won-tricks");
         opponentWonDiv.innerHTML = "";
-        // For 2p, show the single opponent's won tricks.
         if (state.computerHandCount !== null) {
           let opponent = Object.keys(state.bidHistory).find(p => p !== "player");
           for (let i = 0; i < state.wonTricks[opponent]; i++) {
-            let back = createCardBack();
-            opponentWonDiv.appendChild(back);
+            opponentWonDiv.appendChild(createCardBack());
+          }
+        } else if (state.computer1HandCount !== null) {
+          // For 3p mode, display both opponents.
+          let opp1 = Object.keys(state.bidHistory).find(p => p !== "player" && p === state.bidHistory ? state.bidHistory : "");
+          let opp2 = Object.keys(state.bidHistory).find(p => p !== "player" && p !== opp1);
+          for (let i = 0; i < state.wonTricks[opp1]; i++) {
+            opponentWonDiv.appendChild(createCardBack());
+          }
+          for (let i = 0; i < state.wonTricks[opp2]; i++) {
+            opponentWonDiv.appendChild(createCardBack());
           }
         }
       }
       
-      document.getElementById('scoreboard').textContent = state.scoreboard || "";
-      document.getElementById('feedback').textContent = state.feedback || "";
-    }
-    
-    // Helper function to create an image element for a card.
-    function createCardImage(card) {
-      let img = document.createElement('img');
-      img.className = "card";
-      img.src = "cards/" + card.rank + "_" + card.suit.replace("♥", "Hearts").replace("♦", "Diamonds").replace("♣", "Clubs").replace("♠", "Spades") + ".png";
-      img.alt = card.rank + card.suit;
-      return img;
-    }
-    
-    // Helper function to create a card back image.
-    function createCardBack() {
-      let img = document.createElement('img');
-      img.className = "card";
-      img.src = "cards/card_back.png";
-      img.alt = "Card Back";
-      return img;
+      document.getElementById("scoreboard").textContent = state.scoreboard || "";
+      document.getElementById("feedback").textContent = state.feedback || "";
     }
     
     async function callAPI(endpoint, method = "POST", data = {}) {
@@ -524,24 +525,17 @@
           body: JSON.stringify(data)
         });
         let result = await response.json();
-        // For demonstration, force update wonTricks from state.
-        if (!result.wonTricks && result.wonTricks !== 0) {
-          result.wonTricks = { "player": 0 };
-          for (let p in result.bidHistory) {
-            if (p !== "player") result.wonTricks[p] = 0;
-          }
-        }
         updateUI(result);
-      } catch(err) {
+      } catch (err) {
         console.error("API call error:", err);
       }
     }
     
     function startGame() {
-      let mode = document.getElementById('mode-select').value;
-      let instructional = document.getElementById('instruction-mode').checked;
-      document.getElementById('game-options').style.display = "none";
-      document.getElementById('game-container').style.display = "block";
+      let mode = document.getElementById("mode-select").value;
+      let instructional = document.getElementById("instruction-mode").checked;
+      document.getElementById("game-options").style.display = "none";
+      document.getElementById("game-container").style.display = "block";
       callAPI("/start_game", "POST", { mode: mode, instructional: instructional });
     }
     
@@ -554,8 +548,8 @@
     }
     
     function confirmKitty() {
-      let container = document.getElementById('combined-hand');
-      let selectedDivs = container.querySelectorAll('.selected');
+      let container = document.getElementById("combined-hand");
+      let selectedDivs = container.querySelectorAll(".selected");
       let indices = [];
       selectedDivs.forEach(div => indices.push(parseInt(div.dataset.index)));
       callAPI("/confirm_kitty", "POST", { keptIndices: indices });
@@ -574,8 +568,12 @@
     }
     
     function toggleInstructions() {
-      let instrDiv = document.getElementById('instructions');
-      instrDiv.style.display = (instrDiv.style.display === "none" || instrDiv.style.display === "") ? "block" : "none";
+      let instrDiv = document.getElementById("instructions");
+      if (instrDiv.style.display === "none" || instrDiv.style.display === "") {
+        instrDiv.style.display = "block";
+      } else {
+        instrDiv.style.display = "none";
+      }
     }
   </script>
 </body>
