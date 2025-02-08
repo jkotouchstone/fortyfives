@@ -300,6 +300,7 @@
           newDeck.push({ suit, rank, value });
         }
       }
+      console.log("Deck created with", newDeck.length, "cards.");
       return newDeck;
     }
     function shuffle(arr) {
@@ -312,7 +313,7 @@
       const display = document.getElementById('trump-display');
       display.textContent = trumpSuit ? "Trump Suit: " + trumpSuit : "";
     }
-    // Update dealer UI. In 2p mode, show a circular "Dealer" badge if you are the dealer.
+    // Update dealer UI.
     function updateDealerInfo() {
       const dealerIndicator = document.getElementById('dealer-indicator');
       if (selectedMode === "2p") {
@@ -325,7 +326,6 @@
         dealerIndicator.innerHTML = "";
       }
     }
-    // Update the scoreboard; in 3p mode, include dealer indications.
     function updateScoreboard() {
       const scoreboard = document.getElementById('scoreboard');
       let scoreText = "";
@@ -386,7 +386,7 @@
     
     /***** Initial Deal (on game start) *****/
     function dealCards() {
-      // Clear trump selection from previous hand.
+      // Clear trump from previous hand.
       trumpSuit = null;
       updateTrumpDisplay();
       
@@ -414,7 +414,6 @@
       playerHand.forEach(card => card.original = true);
       competitorHand.forEach(card => card.original = true);
       
-      // For 3p mode, deal a second computer hand.
       if (selectedMode === "3p") {
         secondComputerHand = deck.splice(0, 5);
         secondComputerHand.forEach(card => card.original = true);
@@ -441,11 +440,11 @@
           document.getElementById('competitor-bid').textContent = "";
         }
       } else {
-        // For 3p mode, use similar bidding logic for now.
         competitorBid = computeCompetitorBid();
         document.getElementById('competitor-bid').textContent = competitorName + " bids: " + competitorBid;
       }
-      // (Removed updateCompetitorDrawInfo() call here so that draw-phase updates occur only in updateDrawPhase().)
+      
+      console.log("Player hand:", playerHand);
     }
     
     function updateBiddingUI() {
@@ -639,7 +638,6 @@
         });
         instructions.textContent = "Select the cards you want to keep from your hand. The rest will be replaced.";
       }
-      // Update competitor draw info during draw phase.
       updateCompetitorDrawInfo();
     }
     function updateCompetitorDrawInfo() {
@@ -747,7 +745,6 @@
       });
     }
     
-    // Enforce rule: if the lead card is A♥ then a player with a trump must play one.
     function playPlayerCard(index) {
       if (gamePhase !== "trick" || trickTurn !== "player") return;
       if (playerCardPlayed) return;
@@ -903,7 +900,6 @@
       
       updateTrickUI();
       
-      // Delay the transition after the final trick to let the player see the results.
       if (playerHand.length === 0 && competitorHand.length === 0) {
         let delay = (trickNumber === 6 && winning.player === "competitor") ? 3000 : 1500;
         setTimeout(endHand, delay);
