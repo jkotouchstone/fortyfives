@@ -1,4 +1,5 @@
 import random
+import time  # Added to allow a delay for computer moves
 
 # ---------------------------
 # Card and Deck Classes
@@ -12,7 +13,7 @@ class Card:
         return f"{self.rank}{self.suit}"
 
     def to_dict(self):
-        # Instead of an image URL, we return a text representation.
+        # For plain-text version, we return a "text" field.
         return {"suit": self.suit, "rank": self.rank, "text": f"{self.rank}{self.suit}"}
 
 class Deck:
@@ -92,7 +93,7 @@ class Game:
             self.player_order = ["player", names[0], names[1]]
 
         self.bidHistory = {}  # e.g., {"player": "bid 15", "Bill": "Passed"}
-        # Dealer: in 2p, choose randomly; in 3p, start with player.
+        # Dealer: for 2p choose randomly; for 3p, start with player.
         if self.mode == "2p":
             self.dealer = "player" if random.random() < 0.5 else self.player_order[1]
         else:
@@ -104,7 +105,7 @@ class Game:
         self.currentTrick = []   # Cards played in the current trick
         self.lastTrick = []      # Last trick played (to display on table)
         self.trickLog = []       # Summaries for each trick and hand
-        self.currentTurn = None  # Whose turn it is to play
+        self.currentTurn = None  # Who’s turn to play
         self.bidder = None       # Who won the bid
         self.bid = 0             # Winning bid value
         self.deal_hands()
@@ -136,10 +137,12 @@ class Game:
 
     def process_bid(self, player_bid):
         self.bidHistory["player"] = "Passed" if player_bid == 0 else f"bid {player_bid}"
+        # For better UX, if no bid has been made by the computer yet, we compute it.
         if self.mode == "2p":
             comp_id = self.player_order[1]
             comp_bid, comp_trump = self.computer_bid(comp_id)
             self.bidHistory[comp_id] = "Passed" if comp_bid == 0 else f"bid {comp_bid}"
+            # Show both bids if available.
             if player_bid >= comp_bid:
                 self.bidder = "player"
                 self.bid = player_bid
@@ -238,7 +241,9 @@ class Game:
         return
 
     def auto_play(self):
+        # Add a 1-second delay before computer plays its card.
         while self.currentTurn != "player" and len(self.currentTrick) < len(self.player_order):
+            time.sleep(1)  # Delay for dramatic effect
             available = self.players[self.currentTurn]["hand"]
             if not available:
                 break
@@ -252,7 +257,7 @@ class Game:
         trick_summary += f". Winner: {winner}."
         self.trickLog.append(trick_summary)
         self.players[winner]["tricks"].append(self.currentTrick.copy())
-        self.lastTrick = self.currentTrick.copy()  # Save last trick for display.
+        self.lastTrick = self.currentTrick.copy()  # Save for display.
         self.currentTrick = []
         self.currentTurn = winner  # Winner leads next trick.
         if all(len(self.players[p]["hand"]) == 0 for p in self.players):
@@ -306,9 +311,9 @@ class Game:
         state = {
             "gamePhase": self.phase,
             "playerHand": [card.to_dict() for card in self.players["player"]["hand"]],
-            "computerHandCount": (len(self.players[self.player_order[1]]["hand"]) if self.mode=="2p" else None),
-            "computer1HandCount": (len(self.players[self.player_order[1]]["hand"]) if self.mode=="3p" else None),
-            "computer2HandCount": (len(self.players[self.player_order[2]]["hand"]) if self.mode=="3p" else None),
+            "computerHandCount": (len(self.players[self.player_order[1]]["hand"]) if self.mode == "2p" else None),
+            "computer1HandCount": (len(self.players[self.player_order[1]]["hand"]) if self.mode == "3p" else None),
+            "computer2HandCount": (len(self.players[self.player_order[2]]["hand"]) if self.mode == "3p" else None),
             "kitty": [card.to_dict() for card in self.kitty] if self.phase in ["bidding", "kitty"] else [],
             "trumpSuit": self.trump_suit if self.phase not in ["bidding"] else None,
             "biddingMessage": self.biddingMessage,
