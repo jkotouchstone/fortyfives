@@ -5,21 +5,10 @@
   <title>45's Game - Learn & Play</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    /* CSS Variables for themes */
-    :root {
-      --bg-color: #35654d;
-      --card-back-bg: #333;
-      --card-border-color: #333;
-    }
-    .theme-modern {
-      --bg-color: #1e1e1e;
-      --card-back-bg: #555;
-      --card-border-color: #777;
-    }
     /* Basic styles */
     body {
       font-family: sans-serif;
-      background-color: var(--bg-color);
+      background-color: #35654d;
       margin: 0;
       padding: 20px;
       text-align: center;
@@ -29,12 +18,11 @@
       position: relative;
       max-width: 900px;
       margin: auto;
-      background: rgba(0, 0, 0, 0.7);
+      background: rgba(0,0,0,0.7);
       padding: 20px;
       border-radius: 8px;
-      transition: background-color 0.5s;
     }
-    /* Sections start hidden */
+    /* Sections: only one visible at a time */
     .section {
       margin: 20px 0;
       display: none;
@@ -45,7 +33,7 @@
     #game-options, #instructions {
       max-width: 900px;
       margin: 20px auto;
-      background: rgba(255, 255, 255, 0.1);
+      background: rgba(255,255,255,0.1);
       padding: 10px;
       border-radius: 8px;
     }
@@ -82,39 +70,26 @@
       margin: 5px;
       font-weight: bold;
     }
-    /* Card back style for won tricks */
-    .card-back {
-      display: inline-block;
-      width: 60px;
-      height: 90px;
-      background-color: var(--card-back-bg);
-      border: 1px solid var(--card-border-color);
-      border-radius: 5px;
-      margin: 5px;
-      line-height: 90px;
-      color: #fff;
-      font-size: 20px;
-    }
-    /* Card style: using images */
+    /* Card style: plain text representation */
     .card {
       display: inline-block;
       width: 60px;
       height: 90px;
-      border: 1px solid var(--card-border-color);
+      border: 1px solid #333;
       border-radius: 5px;
       margin: 5px;
+      line-height: 90px;
+      text-align: center;
+      vertical-align: middle;
+      font-size: 20px;
       cursor: pointer;
       user-select: none;
-      transition: transform 0.3s ease, opacity 0.3s ease;
-    }
-    .card img {
-      width: 100%;
-      height: 100%;
-      border-radius: 5px;
+      transition: transform 0.3s ease;
     }
     .card.selected {
       transform: scale(1.1);
     }
+    /* Buttons */
     button {
       padding: 10px 15px;
       margin: 5px;
@@ -124,7 +99,7 @@
     /* Display areas */
     #trump-display { font-weight: bold; margin-bottom: 10px; }
     #dealer-info { margin-bottom: 10px; }
-    #competitor-bid { font-size: 16px; font-weight: bold; margin-bottom: 5px; color: #ffeb3b; }
+    #bid-history { font-size: 14px; margin-top: 5px; }
     #trick-log {
       margin-top: 10px;
       text-align: left;
@@ -150,41 +125,25 @@
       border-top: 2px solid #ffeb3b;
       padding-top: 10px;
     }
-    #draw-phase-instructions { margin-top: 10px; font-style: italic; }
     #feedback {
-      background: rgba(255, 255, 255, 0.2);
+      background: rgba(255,255,255,0.2);
       padding: 10px;
       border-radius: 5px;
       margin: 10px auto;
       max-width: 800px;
       font-size: 14px;
     }
-    /* Responsive adjustments */
-    @media (max-width: 600px) {
-      .card, .card-back {
-        width: 45px;
-        height: 67px;
-      }
-    }
   </style>
 </head>
 <body>
-  <!-- Theme Selector -->
-  <div id="theme-options" style="margin-bottom:10px;">
-    <label for="theme-select">Theme:</label>
-    <select id="theme-select" onchange="switchTheme()">
-      <option value="default">Classic</option>
-      <option value="modern">Modern</option>
-    </select>
-  </div>
+  <!-- Theme selector is removed for simplicity in this version -->
 
   <!-- Tutorial Modal -->
   <div id="tutorial-modal">
     <div id="tutorial-content">
       <h2>Welcome to Forty‑Fives!</h2>
       <div id="tutorial-step-content">
-        <!-- Tutorial steps will be injected here -->
-        <p>Step 1: This is a demonstration of how the game works.</p>
+        <p>Step 1: This is a demo of how the game works.</p>
       </div>
       <div>
         <button onclick="prevTutorialStep()">Previous</button>
@@ -215,29 +174,28 @@
     <h3>Detailed Rules & Strategies for Forty‑Fives</h3>
     <p>
       <strong>Overview:</strong><br>
-      Forty‑Fives is a trick‑taking game. You bid on how many points you think you can win and then play cards round by round. The player who wins a trick leads the next trick.
+      Forty‑Fives is a trick‑taking game. You bid on how many points you can win and then play cards round by round. The player who wins a trick leads the next trick.
     </p>
     <p>
       <strong>Bidding:</strong><br>
-      - In heads‑up, if you're the dealer, you'll see your opponent's bid (e.g., "Bill Passed" or "Bill bid 15").<br>
-      - In middle positions, you see the previous bids before deciding your own.<br>
+      - In heads‑up, if you're the dealer, you'll see your opponent's bid (for example, "Bill Passed" or "Bill bid 15").<br>
+      - In middle positions, you see previous bids before deciding your own.<br>
       - If everyone passes, the dealer is forced to bid 15 ("bagged").
     </p>
     <p>
       <strong>Trump & Trick Play:</strong><br>
       - The winning bidder selects a trump suit while your cards remain visible.<br>
-      - All cards played in each trick are shown face‑up on the table. When a trick is won, the cards are placed face‑down (using a card‑back image) on the winner's side.<br>
-      - The Ace of Hearts is always trump.
+      - All cards played in each trick are shown on the table in plain text (e.g., "A♥", "10♦"). When a trick is won, the cards remain on the table until the next trick begins.
     </p>
     <p>
       <strong>Won Tricks:</strong><br>
-      - You’ll see a section that shows the cards (as card backs) won by you and by your opponent.
+      - After winning a trick, the cards are placed face‑down on your side (shown as a count or a generic symbol). The opponent's won tricks are similarly tracked.
     </p>
     <p>
       <strong>Scoring:</strong><br>
-      - Each trick is worth 5 points (with the bonus trick adding 5 extra points).<br>
-      - If the bidder fails to meet their bid, they lose that many points.<br>
-      - When the game is over, a detailed score sheet with a full trick log is displayed.
+      - Each trick is worth 5 points (the bonus trick adds 5 extra points).<br>
+      - If the bidder fails to reach their bid, they lose that many points.<br>
+      - When the game is over, a detailed score sheet with the trick log is displayed.
     </p>
     <button onclick="toggleInstructions()">Hide Detailed Rules</button>
   </div>
@@ -246,7 +204,7 @@
   <div class="container" id="game-container" style="display:none;">
     <!-- Logo -->
     <div id="logo">45</div>
-    <!-- Dealer Indicator (shown in 2p if you're the dealer) -->
+    <!-- Dealer Indicator (only shown in 2p if you're the dealer) -->
     <div id="dealer-info"></div>
     <div id="trump-display"></div>
     
@@ -340,10 +298,10 @@
     let gameState = {};
     let tutorialSteps = [
       "Step 1: Cards are dealt. Each player gets 5 cards and 3 extra cards form the kitty.",
-      "Step 2: During bidding, you'll see all bids (e.g., 'Bill Passed' or 'Bill bid 15').",
+      "Step 2: During bidding, you'll see all bids (for example, 'Bill Passed' or 'Bill bid 15').",
       "Step 3: The winning bidder selects the trump suit while your cards remain visible.",
-      "Step 4: In trick play, each card is shown face‑up on the table. When a trick is won, the cards are placed face‑down in your won-tricks pile.",
-      "Step 5: The game continues until someone reaches 120 points. A detailed score sheet is shown at the end."
+      "Step 4: In trick play, every card is shown on the table in text form (e.g., 'A♥'). The winner takes the trick.",
+      "Step 5: The game continues until someone reaches 120 points, and then a detailed score sheet is shown."
     ];
     let currentTutorialStep = 0;
     
@@ -363,15 +321,6 @@
       }
     }
     
-    function switchTheme() {
-      const theme = document.getElementById("theme-select").value;
-      if (theme === "modern") {
-        document.body.classList.add("theme-modern");
-      } else {
-        document.body.classList.remove("theme-modern");
-      }
-    }
-    
     // Tutorial Modal Functions
     function openTutorial() {
       currentTutorialStep = 0;
@@ -382,42 +331,23 @@
       document.getElementById("tutorial-modal").style.display = "none";
     }
     
-    // Helper function: create an image element for a card.
-    function createCardImage(card) {
-      let img = document.createElement('img');
-      img.className = "card";
-      img.src = card.img;  // e.g., "cards/ace_of_hearts.png"
-      img.alt = card.rank + card.suit;
-      return img;
-    }
-    
-    // Helper function: create a card back element.
-    function createCardBack() {
-      let img = document.createElement('img');
-      img.className = "card card-back";
-      img.src = "cards/card_back.png";
-      img.alt = "Card Back";
-      return img;
-    }
-    
     // Update UI based on game state.
     function updateUI(state) {
       gameState = state;
-      // Only display trump if not in bidding phase.
-      document.getElementById('trump-display').textContent =
+      document.getElementById("trump-display").textContent =
         (state.gamePhase !== "bidding" && state.trumpSuit) ? "Trump Suit: " + state.trumpSuit : "";
-      document.getElementById('bidding-message').textContent = state.biddingMessage || "";
+      document.getElementById("bidding-message").textContent = state.biddingMessage || "";
       
-      // Dealer indicator: In 2p mode, if you are the dealer.
+      // Dealer indicator: In 2p mode, if you're the dealer.
       if (state.dealer && state.computerHandCount !== null && state.dealer === "player") {
-        document.getElementById('dealer-info').innerHTML = '<div class="dealer-indicator">Dealer</div>';
+        document.getElementById("dealer-info").innerHTML = '<div class="dealer-indicator">Dealer</div>';
       } else {
-        document.getElementById('dealer-info').innerHTML = "";
+        document.getElementById("dealer-info").innerHTML = "";
       }
       
       // Display bid history.
       if (state.bidHistory) {
-        let bhDiv = document.getElementById('bid-history');
+        let bhDiv = document.getElementById("bid-history");
         let bids = "";
         for (let p in state.bidHistory) {
           bids += `${p}: ${state.bidHistory[p]}<br>`;
@@ -429,49 +359,72 @@
       let sections = ["bidding-section", "trump-section", "kitty-section", "draw-section", "trick-section", "result-section", "won-tricks-section"];
       sections.forEach(id => document.getElementById(id).classList.remove("visible"));
       
-      // Show only the section corresponding to the current phase.
+      // Show only the active phase.
       if (state.gamePhase === "bidding") {
         document.getElementById("bidding-section").classList.add("visible");
         let container = document.getElementById("player-hand-bidding");
         container.innerHTML = "";
-        state.playerHand.forEach(card => container.appendChild(createCardImage(card)));
+        state.playerHand.forEach(card => {
+          let div = document.createElement("div");
+          div.className = "card";
+          div.textContent = card.text;
+          container.appendChild(div);
+        });
       } else if (state.gamePhase === "trump") {
         document.getElementById("trump-section").classList.add("visible");
         let handDiv = document.getElementById("player-hand-trump");
         handDiv.innerHTML = "";
-        state.playerHand.forEach(card => handDiv.appendChild(createCardImage(card)));
+        state.playerHand.forEach(card => {
+          let div = document.createElement("div");
+          div.className = "card";
+          div.textContent = card.text;
+          handDiv.appendChild(div);
+        });
       } else if (state.gamePhase === "kitty") {
         document.getElementById("kitty-section").classList.add("visible");
         let container = document.getElementById("combined-hand");
         container.innerHTML = "";
         state.combinedHand.forEach((card, index) => {
-          let img = createCardImage(card);
-          img.dataset.index = index;
-          img.onclick = () => img.classList.toggle("selected");
-          container.appendChild(img);
+          let div = document.createElement("div");
+          div.className = "card";
+          div.textContent = card.text;
+          div.dataset.index = index;
+          div.onclick = () => div.classList.toggle("selected");
+          container.appendChild(div);
         });
       } else if (state.gamePhase === "draw") {
         document.getElementById("draw-section").classList.add("visible");
         let container = document.getElementById("draw-hand");
         container.innerHTML = "";
-        state.drawHand.forEach(card => container.appendChild(createCardImage(card)));
+        state.drawHand.forEach(card => {
+          let div = document.createElement("div");
+          div.className = "card";
+          div.textContent = card.text;
+          container.appendChild(div);
+        });
         document.getElementById("draw-phase-instructions").textContent = state.drawInstructions || "";
       } else if (state.gamePhase === "trick") {
         document.getElementById("trick-section").classList.add("visible");
         let handContainer = document.getElementById("player-hand-trick");
         handContainer.innerHTML = "";
         state.playerHand.forEach((card, index) => {
-          let img = createCardImage(card);
+          let div = document.createElement("div");
+          div.className = "card";
+          div.textContent = card.text;
           if (state.currentTurn === "player") {
-            img.onclick = () => playCard(index);
+            div.onclick = () => playCard(index);
           }
-          handContainer.appendChild(img);
+          handContainer.appendChild(div);
         });
         let trickArea = document.getElementById("trick-area");
         trickArea.innerHTML = "";
-        // Show current trick if available; if empty, show the last trick.
         let trickCards = state.currentTrick.length ? state.currentTrick : state.lastTrick;
-        trickCards.forEach(entry => trickArea.appendChild(createCardImage(entry.card)));
+        trickCards.forEach(entry => {
+          let div = document.createElement("div");
+          div.className = "card";
+          div.textContent = entry.card.text;
+          trickArea.appendChild(div);
+        });
         let trickLog = document.getElementById("trick-log");
         trickLog.innerHTML = "";
         (state.trickLog || []).forEach(msg => {
@@ -485,30 +438,26 @@
         document.getElementById("score-sheet").textContent = state.scoreSheet || "";
       }
       
-      // If in trick play phase, show won tricks.
+      // Show won tricks section if in trick phase or finished.
       if (state.gamePhase === "trick" || state.gamePhase === "finished") {
         document.getElementById("won-tricks-section").classList.add("visible");
         let playerWonDiv = document.getElementById("player-won-tricks");
         playerWonDiv.innerHTML = "";
         for (let i = 0; i < state.wonTricks["player"]; i++) {
-          playerWonDiv.appendChild(createCardBack());
+          let div = document.createElement("div");
+          div.className = "card";
+          div.textContent = "X"; // Use "X" or any placeholder for a card back.
+          playerWonDiv.appendChild(div);
         }
         let opponentWonDiv = document.getElementById("opponent-won-tricks");
         opponentWonDiv.innerHTML = "";
         if (state.computerHandCount !== null) {
           let opponent = Object.keys(state.bidHistory).find(p => p !== "player");
           for (let i = 0; i < state.wonTricks[opponent]; i++) {
-            opponentWonDiv.appendChild(createCardBack());
-          }
-        } else if (state.computer1HandCount !== null) {
-          // For 3p mode, display both opponents.
-          let opp1 = Object.keys(state.bidHistory).find(p => p !== "player" && p === state.bidHistory ? state.bidHistory : "");
-          let opp2 = Object.keys(state.bidHistory).find(p => p !== "player" && p !== opp1);
-          for (let i = 0; i < state.wonTricks[opp1]; i++) {
-            opponentWonDiv.appendChild(createCardBack());
-          }
-          for (let i = 0; i < state.wonTricks[opp2]; i++) {
-            opponentWonDiv.appendChild(createCardBack());
+            let div = document.createElement("div");
+            div.className = "card";
+            div.textContent = "X";
+            opponentWonDiv.appendChild(div);
           }
         }
       }
