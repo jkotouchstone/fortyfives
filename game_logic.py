@@ -1,5 +1,5 @@
 import random
-import time  # Added to allow a delay for computer moves
+import time  # Used to add a delay for computer moves
 
 # ---------------------------
 # Card and Deck Classes
@@ -13,7 +13,7 @@ class Card:
         return f"{self.rank}{self.suit}"
 
     def to_dict(self):
-        # For plain-text version, we return a "text" field.
+        # For plain-text version, return a "text" field.
         return {"suit": self.suit, "rank": self.rank, "text": f"{self.rank}{self.suit}"}
 
 class Deck:
@@ -93,7 +93,7 @@ class Game:
             self.player_order = ["player", names[0], names[1]]
 
         self.bidHistory = {}  # e.g., {"player": "bid 15", "Bill": "Passed"}
-        # Dealer: for 2p choose randomly; for 3p, start with player.
+        # Dealer: for 2p, choose randomly; for 3p, start with player.
         if self.mode == "2p":
             self.dealer = "player" if random.random() < 0.5 else self.player_order[1]
         else:
@@ -103,9 +103,9 @@ class Game:
         self.phase = "bidding"  # phases: bidding, trump, kitty, draw, trick, finished
         self.biddingMessage = ""
         self.currentTrick = []   # Cards played in the current trick
-        self.lastTrick = []      # Last trick played (to display on table)
+        self.lastTrick = []      # Cleared immediately after a trick finishes
         self.trickLog = []       # Summaries for each trick and hand
-        self.currentTurn = None  # Who’s turn to play
+        self.currentTurn = None  # Whose turn it is to play
         self.bidder = None       # Who won the bid
         self.bid = 0             # Winning bid value
         self.deal_hands()
@@ -137,12 +137,10 @@ class Game:
 
     def process_bid(self, player_bid):
         self.bidHistory["player"] = "Passed" if player_bid == 0 else f"bid {player_bid}"
-        # For better UX, if no bid has been made by the computer yet, we compute it.
         if self.mode == "2p":
             comp_id = self.player_order[1]
             comp_bid, comp_trump = self.computer_bid(comp_id)
             self.bidHistory[comp_id] = "Passed" if comp_bid == 0 else f"bid {comp_bid}"
-            # Show both bids if available.
             if player_bid >= comp_bid:
                 self.bidder = "player"
                 self.bid = player_bid
@@ -152,8 +150,8 @@ class Game:
                 self.bidder = comp_id
                 self.bid = comp_bid
                 self.trump_suit = comp_trump
-                self.biddingMessage = f"You {self.bidHistory['player']} vs {comp_id} {self.bidHistory[comp_id]}. {comp_id} wins the bid. (Dealer sees both bids.)"
-                self.phase = "kitty"
+                self.biddingMessage = f"{comp_id} wins the bid and has selected {comp_trump} as trump."
+                self.phase = "draw"
             self.currentTurn = self.bidder
         elif self.mode == "3p":
             comp1 = self.player_order[1]
@@ -171,12 +169,12 @@ class Game:
                 self.biddingMessage = f"Bids: player {self.bidHistory['player']}, {comp1} {self.bidHistory[comp1]}, {comp2} {self.bidHistory[comp2]}. You win the bid. Select trump."
                 self.phase = "trump"
             else:
-                self.biddingMessage = f"Bids: player {self.bidHistory['player']}, {comp1} {self.bidHistory[comp1]}, {comp2} {self.bidHistory[comp2]}. {best_bidder} wins the bid and chooses trump."
                 if best_bidder == comp1:
                     self.trump_suit = comp_trump1
                 else:
                     self.trump_suit = comp_trump2
-                self.phase = "kitty"
+                self.biddingMessage = f"{best_bidder} wins the bid and has selected {self.trump_suit} as trump."
+                self.phase = "draw"
             self.currentTurn = self.bidder
             if all(bid == 0 for bid in bids.values()):
                 if self.dealer == "player":
@@ -191,14 +189,18 @@ class Game:
                     self.bid = 15
                     self.bidHistory[self.dealer] = "bid 15"
                     self.biddingMessage = f"All passed. {self.dealer} is bagged and bids 15."
-                    self.phase = "kitty"
+                    self.phase = "draw"
                     self.currentTurn = self.dealer
         return
 
     def select_trump(self, suit):
         if self.phase == "trump":
             self.trump_suit = suit
-            self.phase = "kitty"
+            # If player wins the bid, move to kitty selection; if computer wins, skip kitty.
+            if self.bidder == "player":
+                self.phase = "kitty"
+            else:
+                self.phase = "draw"
         return
 
     def confirm_kitty(self, keptIndices):
@@ -210,7 +212,9 @@ class Game:
             if len(new_hand) > 5:
                 new_hand = new_hand[:5]
             self.players["player"]["hand"] = new_hand
-        self.phase = "draw"
+            self.phase = "draw"
+        else:
+            self.phase = "draw"
         return
 
     def confirm_draw(self):
@@ -241,9 +245,9 @@ class Game:
         return
 
     def auto_play(self):
-        # Add a 1-second delay before computer plays its card.
+        # Reduce delay to 0.5 seconds.
         while self.currentTurn != "player" and len(self.currentTrick) < len(self.player_order):
-            time.sleep(1)  # Delay for dramatic effect
+            time.sleep(0.5)  # 0.5-second delay
             available = self.players[self.currentTurn]["hand"]
             if not available:
                 break
@@ -257,7 +261,8 @@ class Game:
         trick_summary += f". Winner: {winner}."
         self.trickLog.append(trick_summary)
         self.players[winner]["tricks"].append(self.currentTrick.copy())
-        self.lastTrick = self.currentTrick.copy()  # Save for display.
+        # Clear the trick area immediately after a trick finishes.
+        self.lastTrick = []  # No cards remain on the table.
         self.currentTrick = []
         self.currentTurn = winner  # Winner leads next trick.
         if all(len(self.players[p]["hand"]) == 0 for p in self.players):
