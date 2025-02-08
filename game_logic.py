@@ -12,7 +12,14 @@ class Card:
         return f"{self.rank}{self.suit}"
 
     def to_dict(self):
-        return {"suit": self.suit, "rank": self.rank}
+        # We add a helper to build the image filename.
+        # Assume images are named like "A_Hearts.png", "2_Clubs.png", etc.
+        suit_names = {"♥": "Hearts", "♦": "Diamonds", "♣": "Clubs", "♠": "Spades"}
+        return {
+            "suit": self.suit,
+            "rank": self.rank,
+            "img": f"cards/{self.rank}_{suit_names.get(self.suit, self.suit)}.png"
+        }
 
 class Deck:
     def __init__(self):
@@ -47,7 +54,6 @@ OFFSUIT_RANKINGS = {
 def is_trump(card, trump_suit):
     if card.suit == trump_suit:
         return True
-    # The Ace of Hearts is always trump.
     if card.suit == "♥" and card.rank == "A":
         return True
     return False
@@ -90,9 +96,8 @@ class Game:
             }
             self.player_order = ["player", names[0], names[1]]
 
-        # Bid history will store friendly strings (e.g., "Passed" or "bid 15")
-        self.bidHistory = {}
-        # Dealer: in 2p, randomly choose; in 3p, start with "player".
+        self.bidHistory = {}  # e.g., {"player": "bid 15", "Bill": "Passed"}
+        # Dealer: for 2p, choose randomly; for 3p, start with "player".
         if self.mode == "2p":
             self.dealer = "player" if random.random() < 0.5 else self.player_order[1]
         else:
@@ -102,9 +107,9 @@ class Game:
         self.phase = "bidding"  # bidding, trump, kitty, draw, trick, finished
         self.biddingMessage = ""
         self.currentTrick = []   # Cards played in the current trick
-        self.lastTrick = []      # Last trick played (for display when current trick is empty)
-        self.trickLog = []       # A list of trick summaries and hand summaries
-        self.currentTurn = None  # Who's turn it is to lead/play in the current trick
+        self.lastTrick = []      # The last trick played (to display on the table)
+        self.trickLog = []       # Summaries for each trick and hand
+        self.currentTurn = None  # Who’s turn to play
         self.bidder = None       # Who won the bid
         self.bid = 0             # Winning bid value
         self.deal_hands()
@@ -135,7 +140,6 @@ class Game:
         return bid, best_suit
 
     def process_bid(self, player_bid):
-        # Record the player's bid as a friendly string.
         self.bidHistory["player"] = "Passed" if player_bid == 0 else f"bid {player_bid}"
         if self.mode == "2p":
             comp_id = self.player_order[1]
@@ -253,7 +257,7 @@ class Game:
         trick_summary += f". Winner: {winner}."
         self.trickLog.append(trick_summary)
         self.players[winner]["tricks"].append(self.currentTrick.copy())
-        self.lastTrick = self.currentTrick.copy()  # Save last trick for display.
+        self.lastTrick = self.currentTrick.copy()  # Save for display.
         self.currentTrick = []
         self.currentTurn = winner  # Winner leads next trick.
         if all(len(self.players[p]["hand"]) == 0 for p in self.players):
@@ -289,6 +293,7 @@ class Game:
             self.players[p]["score"] += points[p]
         summary = "Hand over. " + " | ".join(f"{p}: {self.players[p]['score']}" for p in self.players)
         self.trickLog.append(summary)
+        # If game over, phase becomes finished.
         if any(self.players[p]["score"] >= 120 for p in self.players):
             self.phase = "finished"
         else:
@@ -303,6 +308,7 @@ class Game:
         return
 
     def to_dict(self):
+        wonTricks = {p: len(self.players[p]["tricks"]) for p in self.players}
         state = {
             "gamePhase": self.phase,
             "playerHand": [card.to_dict() for card in self.players["player"]["hand"]],
@@ -316,6 +322,7 @@ class Game:
             "currentTrick": [{"player": entry["player"], "card": entry["card"].to_dict()} for entry in self.currentTrick],
             "lastTrick": [{"player": entry["player"], "card": entry["card"].to_dict()} for entry in self.lastTrick],
             "trickLog": self.trickLog,
+            "wonTricks": wonTricks,
             "scoreboard": " | ".join(f"{p}: {self.players[p]['score']}" for p in self.players),
             "currentTurn": self.currentTurn,
             "dealer": self.dealer
