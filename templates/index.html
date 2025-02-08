@@ -256,6 +256,8 @@
     let cumulativeCompetitorScore = 0;
     let cumulativeSecondComputerScore = 0;
     let handLogMessages = [];
+    // IMPORTANT: Added missing handNumber variable.
+    let handNumber = 0;
     
     // Competitor names:
     // In 2p mode, we use "competitorName"
@@ -449,17 +451,17 @@
             playerBid = 15;
             setTimeout(() => { nextBiddingPhase(); }, 1500);
           } else {
+            document.getElementById('bidding-message').textContent = "";
             document.getElementById('competitor-bid').textContent = competitorName + " bids: " + competitorBid1;
           }
         } else {
-          // If you are not the dealer, for simplicity we set your bid to 15.
           playerBid = 15;
           competitorBid1 = (Math.random() < 0.5) ? 0 : 15;
           document.getElementById('competitor-bid').textContent = "";
           winningBidder = "player";
         }
       } else {
-        let bidPlayer = 15; // For example, assume you bid 15.
+        let bidPlayer = 15;
         let bidComp1 = computeCompetitorBid(competitorHand);
         let bidComp2 = computeCompetitorBid(secondComputerHand);
         if (bidPlayer >= bidComp1 && bidPlayer >= bidComp2) {
@@ -494,7 +496,6 @@
       if (hasNonHeartAce) topCount++;
       if (hasKing) topCount++;
       let bidValue = has5 ? 20 : (topCount >= 2 ? 20 : (topCount === 1 ? 15 : 0));
-      // Choose a trump suit based on majority in this hand.
       let suitCounts = { "♠": 0, "♥": 0, "♦": 0, "♣": 0 };
       hand.forEach(card => { suitCounts[card.suit] = (suitCounts[card.suit] || 0) + 1; });
       let bestSuit = "♠", maxCount = 0;
@@ -596,7 +597,6 @@
       const randomSuit = suits[Math.floor(Math.random() * suits.length)];
       trumpSuit = randomSuit;
       updateTrumpDisplay();
-      // In both modes, add kitty cards to the computer hand if needed.
       competitorHand = competitorHand.concat(kitty);
       while (competitorHand.length > 5) {
         competitorHand.splice(Math.floor(Math.random() * competitorHand.length), 1);
@@ -734,7 +734,7 @@
       startTrickPlay();
     }
     
-    // competitorAutoDraw now accepts a hand parameter.
+    // competitorAutoDraw accepts a hand parameter.
     function competitorAutoDraw(hand) {
       let kept = hand.filter(card => isTrump(card));
       if (kept.length < 1 && hand.length > 0) {
@@ -744,13 +744,12 @@
       for (let i = 0; i < competitorDrawCount; i++) {
         if (deck.length > 0) { kept.push(deck.pop()); }
       }
-      // Replace hand contents with the kept cards.
       hand.length = 0;
       kept.forEach(card => hand.push(card));
     }
     
     /***** Trick Play Phase *****/
-    let orderOfPlay = []; // Array of player identifiers ("player", "comp1", "comp2")
+    let orderOfPlay = []; // e.g., ["player", "comp1"] in 2p or ["player", "comp1", "comp2"] in 3p
     function startTrickPlay() {
       gamePhase = "trick";
       trickCards = [];
@@ -786,7 +785,6 @@
       updateTrickUI();
     }
     
-    // For computer players – in both modes we use this function.
     function computerPlayCard(comp) {
       let hand;
       if (comp === "comp1") {
@@ -798,13 +796,11 @@
         continueTrick();
         return;
       }
-      // For simplicity, choose a random card.
       let cardToPlay = hand[Math.floor(Math.random() * hand.length)];
       hand.splice(hand.indexOf(cardToPlay), 1);
       trickCards.push({ card: cardToPlay, player: comp });
       updateTrickArea();
       
-      // Determine next player in order.
       let currentIndex = orderOfPlay.indexOf(comp);
       let nextIndex = (currentIndex + 1) % orderOfPlay.length;
       trickTurn = orderOfPlay[nextIndex];
@@ -900,7 +896,6 @@
         }
       }
       
-      // Award trick.
       if (winner.player === "player") {
         playerTricks++;
       } else if (winner.player === "comp1") {
@@ -965,7 +960,6 @@
       gamePhase = "finished";
       document.getElementById('trick-section').classList.add('hidden');
       
-      // Simple bonus: 5 extra points to the player with the most tricks.
       let bonusWinner = "player";
       if (selectedMode === "2p") {
         if (competitorTricks1 > playerTricks) bonusWinner = "comp1";
@@ -1014,7 +1008,6 @@
       handLogMessages.push(handResult);
       updateScoreboard();
       
-      // End game if any cumulative score reaches 120.
       if ((selectedMode === "2p" && (cumulativePlayerScore >= 120 || cumulativeCompetitorScore >= 120)) ||
           (selectedMode === "3p" && (cumulativePlayerScore >= 120 || cumulativeCompetitorScore >= 120 || cumulativeSecondComputerScore >= 120))) {
         let winner;
