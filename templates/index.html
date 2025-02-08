@@ -176,13 +176,10 @@
   
   <script>
     /***** Global Variables and Settings *****/
-    // Updated list of competitor names
     let competitorNames = ["Chris", "Christine", "Bill", "Henry", "Liam", "John", "Mary", "Patrick", "Brian", "Kevin", "Pete"];
     let competitorName = "";
-    let competitorDrawCount = 0; // How many cards competitor draws.
-    
-    // Global difficulty setting: 'hard' or 'easy'
-    let difficulty = "hard";
+    let competitorDrawCount = 0; // Number of cards competitor draws.
+    let difficulty = "hard"; // Global difficulty setting: 'hard' or 'easy'
     
     /***** Game State Variables *****/
     let gamePhase = "bidding"; // "bidding", "trump", "kitty", "draw", "trick", "finished"
@@ -218,6 +215,7 @@
       let newDeck = [];
       for (let suit of suits) {
         for (let rank of ranks) {
+          // Basic numeric value (face cards/Aces get higher values)
           let value = (rank === 'A') ? 14 :
                       (rank === 'K') ? 13 :
                       (rank === 'Q') ? 12 :
@@ -248,15 +246,14 @@
       handLogDiv.innerHTML = handLogMessages.map(msg => "<div>" + msg + "</div>").join("");
     }
     
-    /***** Helper: isTrump *****/
-    // Note: Ace of Hearts is always trump when trumpSuit is not hearts.
+    /***** Updated Trump/Off‑Suit Logic *****/
+    // Ace of Hearts is always trump regardless of trumpSuit.
     function isTrump(card) {
-      return card.suit === trumpSuit ||
-             (trumpSuit !== "♥" && card.suit === "♥" && card.rank === "A") ||
-             (trumpSuit === "♥" && card.suit === "♥");
+      return card.suit === trumpSuit || (card.suit === "♥" && card.rank === "A");
     }
     
-    /***** Ranking Functions *****/
+    // For trump cards, use the updated ranking orders.
+    // Lower index = stronger card.
     function getTrumpRank(card) {
       let order;
       if (trumpSuit === "♥") {
@@ -280,6 +277,8 @@
       }
       return -1;
     }
+    
+    // For off‑suit cards, use the updated ranking orders.
     function getOffSuitRank(card) {
       let order;
       if (card.suit === "♥") {
@@ -301,14 +300,13 @@
       if (typeof isPlayerDealer === 'undefined') {
         isPlayerDealer = Math.random() < 0.5;
       }
-      // Assign competitor name if not already set
       if (!competitorName) {
         competitorName = competitorNames[Math.floor(Math.random() * competitorNames.length)];
         document.getElementById('competitor-name').textContent = competitorName;
       }
       updateDealerInfo();
       updateScoreboard();
-      // Deal 5 cards to each player; tag them as original.
+      // Deal 5 cards to each player (marking original deal)...
       playerHand = deck.splice(0, 3).concat(deck.splice(0, 2));
       competitorHand = deck.splice(0, 3).concat(deck.splice(0, 2));
       playerHand.forEach(card => card.original = true);
@@ -376,15 +374,13 @@
     }
     function dealerBid(bid) { placeBid(bid); }
     function nextBiddingPhase() {
+      gamePhase = "trump";
+      updateSections();
       if (bidWinner === "competitor") {
-        gamePhase = "trump";
-        updateSections();
         document.getElementById('trump-instructions').textContent = competitorName + " is selecting trump suit...";
         document.getElementById('trump-buttons').classList.add('hidden');
         setTimeout(autoSelectTrump, 1500);
       } else {
-        gamePhase = "trump";
-        updateSections();
         document.getElementById('trump-instructions').textContent = "Select the trump suit:";
         document.getElementById('trump-buttons').classList.remove('hidden');
         updateTrumpSelectionHand();
@@ -619,9 +615,7 @@
       });
     }
     
-    // Enforce the new rule for the human player:
-    // If the lead card is Ace of Hearts, then if the player has any trump cards, they must play one.
-    // Otherwise, if they have any hearts, they must play a heart.
+    // Enforce the rule: if the lead card is A♥ then a player with a trump must play one.
     function playPlayerCard(index) {
       if (gamePhase !== "trick" || trickTurn !== "player") return;
       if (playerCardPlayed) return;
@@ -650,7 +644,7 @@
       continueTrick();
     }
     
-    // Updated competitorPlayCard to enforce the Ace of Hearts rule.
+    // Competitor play logic (enforcing the Ace of Hearts rule when required)
     function competitorPlayCard() {
       if (competitorHand.length === 0) {
         continueTrick();
@@ -659,7 +653,6 @@
       let cardToPlay;
       let leadCard = trickCards[0] ? trickCards[0].card : null;
       if (leadCard && leadCard.rank === "A" && leadCard.suit === "♥") {
-        // If the lead card is Ace of Hearts, enforce: play trump if possible, otherwise play heart if available.
         let trumpCards = competitorHand.filter(card => isTrump(card));
         if (trumpCards.length > 0) {
           if (difficulty === "hard") {
@@ -689,7 +682,6 @@
         }
         competitorHand.splice(competitorHand.indexOf(cardToPlay), 1);
       } else if (leadCard) {
-        // Regular follow suit behavior.
         let ledSuit = leadCard.suit;
         let followCards = competitorHand.filter(card => card.suit === ledSuit);
         if (followCards.length > 0) {
@@ -711,7 +703,6 @@
           competitorHand.splice(competitorHand.indexOf(cardToPlay), 1);
         }
       } else {
-        // When leading
         if (difficulty === "hard") {
           let sorted = competitorHand.slice().sort((a, b) => a.value - b.value);
           cardToPlay = sorted[Math.floor(competitorHand.length / 2)];
@@ -731,12 +722,14 @@
       if (trickCards.length < 2) return;
       handPlayedCards.push(...trickCards);
       
+      // If a trump 5 is played, it wins outright.
       let fiveTrump = trickCards.find(entry => entry.card.rank === "5" && isTrump(entry.card));
       let winning;
       if (fiveTrump) {
         winning = fiveTrump;
       } else {
         let ledSuit = trickCards[0].card.suit;
+        // Only consider cards that are either trump or follow the lead suit.
         let validCards = trickCards.filter(e => isTrump(e.card) || e.card.suit === ledSuit);
         if (validCards.length > 0) {
           let trumpCards = validCards.filter(e => isTrump(e.card));
@@ -865,13 +858,10 @@
       gamePhase = "bidding";
       updateTrumpDisplay();
       updateSections();
-      // Optionally, assign a new competitor name for each hand by uncommenting the next lines:
-      // competitorName = "";
-      // document.getElementById('competitor-name').textContent = competitorName;
+      // Optionally, you can assign a new competitor name for each hand.
       dealCards();
     }
     
-    // Updated resetGame to hide the game-over section before restarting.
     function resetGame() {
       cumulativePlayerScore = 0;
       cumulativeCompetitorScore = 0;
@@ -927,7 +917,7 @@
       let highCards = competitorHand.filter(card => card.value >= 10).length;
       let trumpPotential = 0;
       if (trumpSuit) {
-        trumpPotential = competitorHand.filter(card => card.suit === trumpSuit || (trumpSuit !== "♥" && card.suit === "♥" && card.rank === "A")).length;
+        trumpPotential = competitorHand.filter(card => card.suit === trumpSuit || (card.suit === "♥" && card.rank === "A")).length;
       }
       let bidScore = highCards + (2 * trumpPotential);
       
