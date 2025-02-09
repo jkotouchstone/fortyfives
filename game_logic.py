@@ -1,5 +1,5 @@
 import random
-import time  # For delays on computer moves
+import time  # For delays in computer moves
 
 # ---------------------------
 # Card and Deck Classes
@@ -13,7 +13,7 @@ class Card:
         return f"{self.rank}{self.suit}"
 
     def to_dict(self):
-        # Return a simple dictionary for UI.
+        # Return a simple dictionary for UI use.
         return {"suit": self.suit, "rank": self.rank, "text": f"{self.rank}{self.suit}"}
 
 class Deck:
@@ -71,7 +71,7 @@ class Game:
         self.instructional = instructional
         self.deck = None
 
-        # Use a list of computer names.
+        # Use a fixed rotation of computer names.
         computer_names = ["Jack", "Jennifer", "Patrick", "John", "Liam", "Mary",
                           "Jasper", "Felix", "Holly", "Tom", "Karen", "Stephen",
                           "Leona", "Bill", "Christine", "Chris", "Henry"]
@@ -84,6 +84,7 @@ class Game:
             }
             self.player_order = ["player", self.computer_name]
         else:
+            # For cut-throat (3p), similar logic applies.
             names = random.sample(computer_names, 2)
             self.players = {
                 "player": {"hand": [], "tricks": [], "score": 0},
@@ -93,35 +94,21 @@ class Game:
             self.player_order = ["player", names[0], names[1]]
 
         self.bidHistory = {}  # e.g., {"player": "bid 15", "Bill": "Passed"}
-        # If you're the dealer, computer bids first.
+        # In 2p mode, if you're the dealer, the computer should have bid already.
         if self.mode == "2p":
-            # In heads-up, if player is the dealer then computer bids immediately.
-            if self.dealer == "player":
-                self.dealer = "player"  # player is dealer means computer bids first
-                comp_id = self.player_order[1]
-                comp_bid, comp_trump = self.computer_bid(comp_id)
-                self.bidHistory[comp_id] = "Passed" if comp_bid == 0 else f"bid {comp_bid}"
-                # (Game notes already got the computer bid from computer_bid.)
-            else:
-                # If player is not dealer, player bids first.
-                pass
-        else:
-            self.dealer = "player"
-        # For simplicity, in 2p mode the dealer is determined as above.
-        if self.mode == "2p" and self.dealer != "player":
-            # If you're not dealer, then your bid is first.
-            self.currentTurn = "player"
-        else:
-            # If you are dealer, computer already bid so your turn is now.
-            self.currentTurn = "player"
+            # For our purposes, assume that if you are dealer, computer bids immediately.
+            # (In a more advanced version, you might want to automatically trigger that bid.)
+            pass
+        self.dealer = "player" if random.random() < 0.5 else self.player_order[1]
         self.kitty = []
         self.trump_suit = None
-        self.phase = "bidding"  # Phases: "bidding", "trump", "kitty", "draw", "trick", "finished"
+        self.phase = "bidding"  # "bidding", "trump", "kitty", "draw", "trick", "finished"
         self.biddingMessage = ""
         self.currentTrick = []
         self.lastTrick = []
         self.trickLog = []
         self.gameNotes = []  # To record computer actions.
+        self.currentTurn = None
         self.bidder = None
         self.bid = 0
         self.deal_hands()
@@ -138,14 +125,9 @@ class Game:
         self.lastTrick = []
         self.trickLog = []
         self.bidHistory = {}
-        self.gameNotes = []  # Clear previous notes
-        # If you are dealer, computer bid already occurred in __init__.
-        if self.mode == "2p" and self.dealer == "player":
-            # (The computer bid was already recorded in __init__.)
-            self.currentTurn = "player"
-        else:
-            self.currentTurn = "player"
-
+        self.gameNotes = []  # Clear previous notes.
+        self.currentTurn = "player"  # Always let player bid first.
+    
     def computer_bid(self, comp_id):
         hand = self.players[comp_id]["hand"]
         has5 = any(card.rank == "5" for card in hand)
@@ -159,37 +141,31 @@ class Game:
         return bid, best_suit
 
     def process_bid(self, player_bid):
-        # If player is not dealer, then player's bid is first.
         self.bidHistory["player"] = "Passed" if player_bid == 0 else f"bid {player_bid}"
         if self.mode == "2p":
             comp_id = self.player_order[1]
-            # If the computer's bid was already recorded (because you're dealer), use it:
-            if comp_id in self.bidHistory:
-                comp_bid_str = self.bidHistory[comp_id]
-                comp_bid = int(comp_bid_str.split()[1]) if "bid" in comp_bid_str else 0
-            else:
-                comp_bid, comp_trump = self.computer_bid(comp_id)
-                self.bidHistory[comp_id] = "Passed" if comp_bid == 0 else f"bid {comp_bid}"
-            # Compare bids.
+            comp_bid, comp_trump = self.computer_bid(comp_id)
+            self.bidHistory[comp_id] = "Passed" if comp_bid == 0 else f"bid {comp_bid}"
+            # Compare bids immediately.
             if player_bid >= comp_bid:
                 self.bidder = "player"
                 self.bid = player_bid
-                # Set a clear bidding message.
                 self.biddingMessage = f"Player bids {player_bid} and wins the bid. Please select the trump suit."
                 self.phase = "trump"
             else:
                 self.bidder = comp_id
                 self.bid = comp_bid
-                # Computer auto-selects trump; message already in gameNotes.
-                self.biddingMessage = f"{comp_id} wins the bid with {comp_bid} and has selected {self.trump_suit} as trump."
-                self.phase = "draw"
+                self.trump_suit = comp_trump  # Computer auto-selects trump.
+                self.biddingMessage = f"{comp_id} wins the bid with {comp_bid} and has selected {comp_trump} as trump."
+                self.gameNotes.append(f"{comp_id} selected {comp_trump} as trump.")
+                self.phase = "draw"  # Computer bidder skips kitty.
             self.currentTurn = self.bidder
         return
 
     def select_trump(self, suit):
         if self.phase == "trump":
             self.trump_suit = suit
-            self.biddingMessage += f" (Trump set to {suit}.)"
+            self.biddingMessage = f"Player bids {self.bidHistory['player'].split()[1]} and wins the bid. Please select the trump suit. (Trump set to {suit}.)"
             if self.bidder == "player":
                 self.phase = "kitty"
             else:
@@ -258,9 +234,9 @@ class Game:
         trick_summary += f". Winner: {winner}."
         self.trickLog.append(trick_summary)
         self.players[winner]["tricks"].append(self.currentTrick.copy())
-        self.lastTrick = self.currentTrick.copy()  # Preserve played cards briefly.
+        self.lastTrick = self.currentTrick.copy()
         self.currentTrick = []
-        self.currentTurn = winner  # Winner leads the next trick.
+        self.currentTurn = winner
         if all(len(self.players[p]["hand"]) == 0 for p in self.players):
             self.complete_hand()
         else:
@@ -329,11 +305,9 @@ class Game:
             "dealer": self.dealer,
             "gameNotes": self.gameNotes
         }
-        # In kitty phase (player bidder), include combined hand.
         if self.phase == "kitty" and self.bidder == "player":
             combined = self.players["player"]["hand"] + self.kitty
             state["combinedHand"] = [card.to_dict() for card in combined]
-        # In draw phase, include draw hand.
         if self.phase == "draw":
             state["drawHand"] = [card.to_dict() for card in self.players["player"]["hand"]]
         if self.phase == "finished":
