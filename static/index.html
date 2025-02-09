@@ -165,7 +165,7 @@
       max-width: 800px;
       font-size: 14px;
     }
-    /* Footer */
+    /* Footer with copyright info */
     footer {
       position: absolute;
       bottom: 0;
@@ -221,7 +221,7 @@
     </p>
     <p>
       <strong>Game Notes:</strong><br>
-      The Game Notes display all events in chronological order (most recent at the top) in a fixed, scrollable area.
+      The Game Notes display all events continuously (most recent at the top) in a fixed, scrollable area. They also include, for each hand, the number of cards the computer drew.
     </p>
     <button onclick="toggleInstructions()">Hide Detailed Rules</button>
   </div>
@@ -338,7 +338,7 @@
       "Step 4: In kitty selection, your combined hand is shown. The top row shows your original 5 cards; the bottom row shows the 3 kitty cards (highlighted in light red). Click the cards you want to keep.",
       "Step 5: In draw phase, your hand appears above. Cards kept from kitty remain selected. Select any additional cards to keep; unselected cards will be replaced from the deck.",
       "Step 6: In trick play, when you click a card it immediately moves to the trick area and is highlighted. After 0.5 seconds the computer plays its card; both cards remain visible for 2 seconds before the trick area is cleared.",
-      "Step 7: The Game Notes display all events in chronological order (most recent at the top)."
+      "Step 7: The Game Notes display all events continuously in a fixed, scrollable area."
     ];
     let currentTutorialStep = 0;
 
@@ -437,6 +437,7 @@
       } else {
         document.getElementById("dealer-info").innerHTML = "";
       }
+      // Hide all phase sections first.
       let sections = ["bidding-section", "trump-section", "kitty-section", "draw-section", "trick-section", "result-section"];
       sections.forEach(id => document.getElementById(id).classList.remove("visible"));
       if (state.gamePhase === "bidding") {
@@ -450,6 +451,7 @@
       } else if (state.gamePhase === "trick") {
         document.getElementById("trick-section").classList.add("visible");
         let trickArea = document.getElementById("trick-area");
+        // Use currentTrick if non-empty; otherwise, use lastTrick.
         let trickCards = (state.currentTrick.length > 0) ? state.currentTrick : state.lastTrick;
         let numPlayers = state.mode === "2p" ? 2 : (state.mode === "3p" ? 3 : state.playerHand.length);
         if (trickCards.length > numPlayers) {
@@ -468,7 +470,6 @@
         document.getElementById("score-sheet").textContent = state.scoreSheet || "";
       }
       document.getElementById("scoreboard").textContent = state.scoreboard || "";
-      // Game Notes now only display events (fixed height, scrollable)
       let gnDiv = document.getElementById("game-notes");
       let eventsHTML = "<strong>Game Notes:</strong><br>" + state.gameNotes.slice().reverse().join("<br>");
       gnDiv.innerHTML = eventsHTML;
