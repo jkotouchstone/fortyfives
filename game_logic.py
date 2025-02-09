@@ -60,6 +60,7 @@ def is_trump(card, trump_suit):
 
 def get_trump_value(card, trump_suit):
     ranking = TRUMP_RANKINGS[trump_suit]
+    # Higher returned value means a stronger trump card.
     return len(ranking) - ranking.index(card.rank)
 
 def get_offsuit_value(card):
@@ -104,11 +105,12 @@ class Game:
         self.biddingMessage = ""
         self.currentTrick = []
         self.lastTrick = []  # Will hold the finished trick for UI display
-        self.trickLog = []  # (No longer directly displayed in UI)
+        self.trickLog = []  # For overall hand log
         self.gameNotes = []  # Chronological log with timestamps
         self.currentTurn = None
         self.bidder = None
         self.bid = 0
+        self.trumpCardsPlayed = []  # List of (player, card) tuples for trump cards played in the hand
         self.deal_hands()
 
     def deal_hands(self):
@@ -116,6 +118,7 @@ class Game:
         self.trump_suit = None
         for p in self.players:
             self.players[p]["hand"] = self.deck.deal(5)
+            self.players[p]["tricks"] = []  # Reset tricks won for each hand
         self.kitty = self.deck.deal(3)
         self.phase = "bidding"
         self.biddingMessage = "Place your bid (15, 20, 25, or 30)."
@@ -124,6 +127,7 @@ class Game:
         self.trickLog = []
         self.bidHistory = {}
         self.gameNotes = []
+        self.trumpCardsPlayed = []  # Reset trump cards played this hand
         if self.mode == "2p" and self.dealer == "player":
             comp_id = self.player_order[1]
             comp_bid, comp_trump = self.computer_bid(comp_id)
@@ -279,7 +283,7 @@ class Game:
         return self.player_order[(idx + 1) % len(self.player_order)]
 
     def play_card(self, player, cardIndex):
-        # (Removed the code that clears lastTrick so finished trick remains visible.)
+        # Do not clear lastTrick here so that finished trick remains visible.
         if self.currentTurn != player:
             return
         if cardIndex < 0 or cardIndex >= len(self.players[player]["hand"]):
@@ -316,10 +320,16 @@ class Game:
         trick_summary += f". Winner: {winner}."
         self.gameNotes.append(trick_summary)
         self.trickLog.append(trick_summary)
+        # Record the trick win.
+        self.players[winner]["tricks"].append(self.currentTrick.copy())
+        # Record all trump cards played in this trick.
+        for entry in self.currentTrick:
+            if is_trump(entry["card"], self.trump_suit):
+                self.trumpCardsPlayed.append((entry["player"], entry["card"]))
         # Copy the finished trick into lastTrick so that all played cards remain visible.
         self.lastTrick = self.currentTrick.copy()
-        # Keep played cards visible for 2 seconds.
-        time.sleep(2)
+        # Keep played cards visible for 1.5 seconds.
+        time.sleep(1.5)
         self.currentTrick = []
         self.currentTurn = winner  # Winner leads next trick.
         if all(len(self.players[p]["hand"]) == 0 for p in self.players):
@@ -346,15 +356,26 @@ class Game:
         return winner_entry["player"]
 
     def complete_hand(self):
+        # Calculate trick points: 5 points per trick won.
         points = {p: len(self.players[p]["tricks"]) * 5 for p in self.players}
-        if self.trickLog:
-            last = self.trickLog[-1]
-            for p in self.players:
-                if f"Winner: {p}" in last:
-                    points[p] += 5
-                    break
+        # Determine bonus: Award 5 extra points to the player who played the highest trump card.
+        bonus_winner = None
+        bonus_value = 0
+        if self.trumpCardsPlayed:
+            bonus_winner, bonus_card = max(self.trumpCardsPlayed, key=lambda x: get_trump_value(x[1], self.trump_suit))
+            bonus_value = 5
+        else:
+            # If no trump was played, award bonus to the winner of the last trick.
+            if self.currentTurn:
+                bonus_winner = self.currentTurn
+                bonus_value = 5
+        if bonus_winner:
+            points[bonus_winner] += bonus_value
+
+        # If the bidder fails to meet their bid, assign a negative score equal to the bid.
         if self.bidder in points and points[self.bidder] < self.bid:
             points[self.bidder] = -self.bid
+
         for p in self.players:
             self.players[p]["score"] += points[p]
         summary = "Hand over. " + " | ".join(f"{'Player' if p=='player' else p}: {self.players[p]['score']}" for p in self.players)
