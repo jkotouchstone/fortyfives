@@ -73,7 +73,6 @@ class Game:
         self.mode = mode
         self.instructional = instructional
         self.deck = None
-        # Fixed rotation of computer names.
         computer_names = ["Jack", "Jennifer", "Patrick", "John", "Liam", "Mary",
                           "Jasper", "Felix", "Holly", "Tom", "Karen", "Stephen",
                           "Leona", "Bill", "Christine", "Chris", "Henry"]
@@ -102,7 +101,7 @@ class Game:
         self.lastTrick = []  # Holds finished trick so it remains visible
         self.trickLog = []  # Overall hand log
         self.gameNotes = []  # Chronological log with timestamps
-        self.handScores = []  # Hand score summaries for running tally
+        self.handScores = []  # Running tally for each hand
         self.currentTurn = None
         self.bidder = None
         self.bid = 0
@@ -114,7 +113,7 @@ class Game:
         self.trump_suit = None
         for p in self.players:
             self.players[p]["hand"] = self.deck.deal(5)
-            self.players[p]["tricks"] = []  # Reset tricks for the hand
+            self.players[p]["tricks"] = []
         self.kitty = self.deck.deal(3)
         self.phase = "bidding"
         self.biddingMessage = "Place your bid (15, 20, 25, or 30)."
@@ -268,7 +267,6 @@ class Game:
             card.selected = False
         self.biddingMessage = "Draw complete. Proceeding to trick play."
         self.phase = "trick"
-        # Set turn: if computer won the bid, it leads; otherwise, player leads.
         self.currentTurn = self.bidder
         self.auto_play()
         return
@@ -317,9 +315,7 @@ class Game:
         for entry in self.currentTrick:
             if is_trump(entry["card"], self.trump_suit):
                 self.trumpCardsPlayed.append((entry["player"], entry["card"]))
-        # Copy the finished trick into lastTrick so that exactly as many cards as players remain visible.
         self.lastTrick = self.currentTrick.copy()
-        # Wait 2 seconds before clearing the trick area.
         time.sleep(2)
         self.currentTrick = []
         self.currentTurn = winner
@@ -347,9 +343,7 @@ class Game:
         return winner_entry["player"]
 
     def complete_hand(self):
-        # Each trick is 5 points.
         points = {p: len(self.players[p]["tricks"]) * 5 for p in self.players}
-        # Award bonus 5 points to the player with the highest trump card (or if none, to the last trick winner).
         bonus_winner = None
         bonus_value = 5
         if self.trumpCardsPlayed:
@@ -358,10 +352,8 @@ class Game:
             bonus_winner = self.currentTurn
         if bonus_winner:
             points[bonus_winner] += bonus_value
-        # If bidder fails to meet bid, set hand score to negative bid.
         if self.bidder in points and points[self.bidder] < self.bid:
             points[self.bidder] = -self.bid
-        # Build hand score summary (hand points/total score).
         hand_summary_parts = []
         for p in self.players:
             hand_points = points[p]
