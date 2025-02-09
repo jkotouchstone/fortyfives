@@ -136,7 +136,7 @@
       border: 1px dashed #fff;
       padding: 10px;
     }
-    /* Scoreboard (always visible) - no extra border */
+    /* Scoreboard (always visible) */
     #scoreboard-section {
       padding-top: 10px;
       display: block;
@@ -196,7 +196,7 @@
     <p>
       <strong>Trump & Trick Play:</strong><br>
       - The winning bidder selects the trump suit while your cards remain visible in the “Your Cards” area.<br>
-      - In trick play, when you play a card it is shown immediately in the trick area; then the computer plays its card. Once all cards are played, they remain visible for 2 seconds before the table is cleared for the next trick.
+      - In trick play, when you click a card it moves immediately from your hand to the trick area; then the computer plays its card. Once all cards are played, they remain visible for 2 seconds before the table is cleared for the next trick.
     </p>
     <p>
       <strong>Kitty & Draw Phases:</strong><br>
@@ -315,7 +315,7 @@
       "Step 3: If you win the bid, the status message will read, for example, 'Player bids 25 and wins the bid. Please select the trump suit.' (As dealer, you may only pass or bid exactly 5 more than the computer. If the computer passes, you are bagged and automatically bid 15.)",
       "Step 4: In kitty selection, your combined hand is shown below. The top row shows your original 5 cards; the bottom row shows the 3 kitty cards (highlighted in light red). Click the cards you want to keep.",
       "Step 5: In draw phase, your hand is shown. Cards kept from kitty remain selected. Select any additional cards to keep; unselected cards will be replaced from the deck.",
-      "Step 6: In trick play, when you play a card it moves immediately from your hand to the trick area; then the computer plays its card. Once all cards are played, they remain visible for 2 seconds before clearing for the next trick.",
+      "Step 6: In trick play, when you click a card it moves immediately from your hand to the trick area; then the computer plays its card. Once all cards are played, they remain visible for 2 seconds before the table is cleared for the next trick.",
       "Step 7: Game Notes at the bottom display a chronological log (with timestamps) of all actions. The game continues until someone reaches 120 points."
     ];
     let currentTutorialStep = 0;
@@ -382,7 +382,7 @@
         });
         container.appendChild(kittyDiv);
       } else {
-        // For other phases, simply display each card.
+        // For all other phases, simply display the hand.
         handArray.forEach((card, index) => {
           let div = document.createElement("div");
           div.className = "card" + (card.selected ? " selected" : "");
@@ -455,7 +455,6 @@
       } else if (state.gamePhase === "trick") {
         document.getElementById("trick-section").classList.add("visible");
         let trickArea = document.getElementById("trick-area");
-        // If currentTrick is non-empty, display those cards; otherwise, display lastTrick.
         let trickCards = (state.currentTrick.length > 0) ? state.currentTrick : state.lastTrick;
         trickArea.innerHTML = "";
         trickCards.forEach(entry => {
