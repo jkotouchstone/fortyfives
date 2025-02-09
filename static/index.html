@@ -371,7 +371,7 @@
       document.getElementById("tutorial-modal").style.display = "none";
     }
 
-    // Update "Your Cards" area (single container).
+    // Update "Your Cards" area.
     function updateYourHand(handArray) {
       let container = document.getElementById("your-hand");
       container.innerHTML = "<strong>Your Cards:</strong> ";
@@ -380,9 +380,13 @@
         div.className = "card";
         div.textContent = card.text;
         div.dataset.index = index;
-        // Attach click events in kitty and draw phases.
+        // In kitty and draw phases, enable toggling selection.
         if (gameState.gamePhase === "kitty" || gameState.gamePhase === "draw") {
           div.onclick = function() { this.classList.toggle("selected"); };
+        }
+        // In trick play, if it's your turn, clicking plays the card.
+        else if (gameState.gamePhase === "trick" && gameState.currentTurn === "player") {
+          div.onclick = function() { playCard(parseInt(this.dataset.index)); };
         }
         container.appendChild(div);
       });
@@ -392,7 +396,7 @@
     function updateUI(state) {
       gameState = state;
       
-      // Update "Your Cards" area.
+      // Update "Your Cards" area based on phase.
       if (state.gamePhase === "kitty" && state.bidder === "player" && state.combinedHand) {
         updateYourHand(state.combinedHand);
       } else if (state.gamePhase === "draw" && state.drawHand) {
