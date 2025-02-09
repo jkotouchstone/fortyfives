@@ -149,28 +149,37 @@ class Game:
             comp_id = self.player_order[1]
             if comp_id in self.bidHistory:
                 comp_bid_str = self.bidHistory[comp_id]
-                # Assume the format "bid X"
-                comp_bid = int(comp_bid_str.split()[2]) if "bid" in comp_bid_str else 0
+                comp_bid = int(comp_bid_str.split()[1]) if "bid" in comp_bid_str else 0
             else:
                 comp_bid, comp_trump = self.computer_bid(comp_id)
                 self.bidHistory[comp_id] = "Passed" if comp_bid == 0 else f"bid {comp_bid}"
             if self.dealer == "player":
-                if player_bid != 0 and player_bid != comp_bid + 5:
-                    self.biddingMessage = f"As dealer, you must either pass or bid {comp_bid + 5}."
-                    return
-                if player_bid == 0:
-                    self.bidder = comp_id
-                    self.bid = comp_bid
-                    self.trump_suit = comp_trump
-                    self.biddingMessage = f"{comp_id} wins the bid with {comp_bid} and has selected {comp_trump} as trump."
-                    timestamp = time.strftime("%H:%M:%S")
-                    self.gameNotes.append(f"{timestamp} - {comp_id} selected {comp_trump} as trump.")
-                    self.phase = "draw"
-                else:
+                if comp_bid == 0:
+                    # When computer passes, dealer is bagged and automatically bids 15.
                     self.bidder = "player"
-                    self.bid = player_bid
-                    self.biddingMessage = f"Player bids {player_bid} and wins the bid. Please select the trump suit."
+                    self.bid = 15
+                    self.biddingMessage = "All passed. As dealer, you are bagged and automatically bid 15. Please select the trump suit."
+                    timestamp = time.strftime("%H:%M:%S")
+                    self.gameNotes.append(f"{timestamp} - Dealer automatically bid 15.")
                     self.phase = "trump"
+                else:
+                    if player_bid != 0 and player_bid != comp_bid + 5:
+                        self.biddingMessage = f"As dealer, you must either pass or bid {comp_bid + 5}."
+                        return
+                    if player_bid == 0:
+                        self.bidder = comp_id
+                        self.bid = comp_bid
+                        _, comp_trump = self.computer_bid(comp_id)
+                        self.trump_suit = comp_trump
+                        self.biddingMessage = f"{comp_id} wins the bid with {comp_bid} and has selected {comp_trump} as trump."
+                        timestamp = time.strftime("%H:%M:%S")
+                        self.gameNotes.append(f"{timestamp} - {comp_id} selected {comp_trump} as trump.")
+                        self.phase = "draw"
+                    else:
+                        self.bidder = "player"
+                        self.bid = player_bid
+                        self.biddingMessage = f"Player bids {player_bid} and wins the bid. Please select the trump suit."
+                        self.phase = "trump"
             else:
                 if player_bid >= comp_bid:
                     self.bidder = "player"
@@ -181,6 +190,7 @@ class Game:
                 else:
                     self.bidder = comp_id
                     self.bid = comp_bid
+                    _, comp_trump = self.computer_bid(comp_id)
                     self.trump_suit = comp_trump
                     self.biddingMessage = f"{comp_id} wins the bid with {comp_bid} and has selected {comp_trump} as trump."
                     timestamp = time.strftime("%H:%M:%S")
@@ -255,11 +265,12 @@ class Game:
             self.players["player"]["hand"] = kept_cards
         while len(self.players["player"]["hand"]) < 5 and len(self.deck.cards) > 0:
             self.players["player"]["hand"].append(self.deck.deal(1)[0])
+        # Clear any selection for trick play.
         for card in self.players["player"]["hand"]:
             card.selected = False
         self.biddingMessage = "Draw complete. Proceeding to trick play."
         self.phase = "trick"
-        self.currentTurn = self.bidder
+        self.currentTurn = self.bidder  # Trick play starts with the winning bidder.
         self.auto_play()
         return
 
@@ -279,7 +290,7 @@ class Game:
             self.gameNotes.append(f"{timestamp} - {player} played {card}")
         else:
             self.gameNotes.append(f"{timestamp} - Player played {card}")
-            time.sleep(0.5)
+            # Removed delay so the card appears instantly.
         self.currentTurn = self.next_player(player)
         self.auto_play()
         if len(self.currentTrick) == len(self.player_order):
@@ -303,11 +314,12 @@ class Game:
         trick_summary += f". Winner: {winner}."
         self.gameNotes.append(trick_summary)
         self.trickLog.append(trick_summary)
-        # Keep played cards visible for 3 seconds.
-        time.sleep(3)
-        self.lastTrick = self.currentTrick.copy()
+        # Keep played cards visible for 2 seconds.
+        time.sleep(2)
+        # Clear the trick area.
+        self.lastTrick = []
         self.currentTrick = []
-        self.currentTurn = winner
+        self.currentTurn = winner  # Winner leads next trick.
         if all(len(self.players[p]["hand"]) == 0 for p in self.players):
             self.complete_hand()
         else:
