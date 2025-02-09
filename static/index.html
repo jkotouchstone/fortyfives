@@ -213,8 +213,8 @@
     </p>
     <p>
       <strong>Kitty & Draw Phases:</strong><br>
-      - If you win the bid, after selecting trump you enter the Kitty phase, where your combined hand (your 5 cards + kitty) is displayed for selection.<br>
-      - After confirming kitty selection, the Draw phase begins so that unselected cards are replaced until you have 5 cards.
+      - If you win the bid, after selecting trump you enter the Kitty phase, where your combined hand (your 5 cards + kitty) is shown so you can choose which cards to keep.<br>
+      - After confirming your kitty selection, the Draw phase begins so that unselected cards are replaced until you have 5 cards. Also, you’ll see how many cards the computer has discarded.
     </p>
     <p>
       <strong>Card Rankings:</strong><br>
@@ -341,7 +341,7 @@
       "Step 4: In kitty selection, the 'Your Cards' area updates to show your combined hand. Click the cards you want to keep (they turn soft green).",
       "Step 5: In draw phase, the 'Your Cards' area shows your draw hand. Select the cards you want to keep; unselected cards will be replaced.",
       "Step 6: In trick play, every card played is shown in the Trick Area. Hover over a card for a hover effect; click a card to play it.",
-      "Step 7: Game Notes at the top display all computer actions. Won tricks are shown as an 'X' for each trick won. The game continues until someone reaches 120 points."
+      "Step 7: Game Notes at the top display all computer actions. Also, you'll see how many cards the computer has discarded, which may help you plan your strategy. The game continues until someone reaches 120 points."
     ];
     let currentTutorialStep = 0;
 
@@ -380,7 +380,7 @@
         div.className = "card";
         div.textContent = card.text;
         div.dataset.index = index;
-        // In kitty and draw phases, enable toggling selection.
+        // In kitty and draw phases, clicking toggles selection.
         if (gameState.gamePhase === "kitty" || gameState.gamePhase === "draw") {
           div.onclick = function() { this.classList.toggle("selected"); };
         }
@@ -431,6 +431,11 @@
         gnDiv.innerHTML = "<strong>Game Notes:</strong><br>" + state.gameNotes.join("<br>");
       } else {
         gnDiv.innerHTML = "<strong>Game Notes:</strong><br>No computer actions yet.";
+      }
+      
+      // Display computer discard count if available.
+      if (state.computerDiscardCount !== undefined) {
+        gnDiv.innerHTML += `<br><strong>Computer Discarded:</strong> ${state.computerDiscardCount} card(s)`;
       }
       
       // Hide all phase-specific sections.
