@@ -203,29 +203,29 @@
     </p>
     <p>
       <strong>Bidding:</strong><br>
-      - As the dealer, you will immediately see the computer’s bid (e.g., "Bill: bid 20" or "Bill: Passed") in the Game Notes at the top.<br>
-      - When you bid and win the bid, the status message will read: "Player bids 20 and wins the bid. Please select the trump suit."  
+      - As the dealer, the computer’s bid is displayed immediately in the Game Notes (e.g., "Bill: bid 20" or "Bill: Passed").<br>
+      - When you bid and win the bid, the status message will read, for example, "Player bids 20 and wins the bid. Please select the trump suit."
     </p>
     <p>
       <strong>Trump & Trick Play:</strong><br>
       - The winning bidder selects the trump suit while your cards remain visible in the “Your Cards” area.<br>
-      - In trick play, every card played is shown in the Trick Area. If no trick is in progress, the last trick’s cards remain visible until the next trick begins.
+      - In trick play, each card played is shown in the Trick Area. If no trick is active, the last trick’s cards remain visible until the next trick.
     </p>
     <p>
       <strong>Kitty & Draw Phases:</strong><br>
-      - If you win the bid, after selecting trump you enter the Kitty phase. Here your combined hand (your 5 cards + the kitty) is shown for selection.<br>
+      - If you win the bid, after trump selection you enter the Kitty phase, where your combined hand (your 5 cards + kitty) is displayed for selection.<br>
       - After confirming kitty selection, the Draw phase begins so that unselected cards are replaced until you have 5 cards.
     </p>
     <p>
       <strong>Card Rankings:</strong><br>
-      - Trump order (strongest to weakest): 5, J, A, K, Q, 10, 9, 8, 7, 6, 4, 3, 2.<br>
+      - Trump order: 5, J, A, K, Q, 10, 9, 8, 7, 6, 4, 3, 2.<br>
       - Off‑trump order: K, Q, J, 10, 9, 8, 7, 6, 5, 4, 3, 2, A.<br>
       - (Note: The Ace of Hearts is always trump.)
     </p>
     <p>
       <strong>Won Tricks & Scoring:</strong><br>
       - Each trick is worth 5 points (bonus trick adds 5 points).<br>
-      - Won tricks are shown as an "X" for each trick won. When someone reaches 120 points, a detailed score sheet is displayed.
+      - Won tricks are displayed as an "X" for each trick won. When someone reaches 120 points, a detailed score sheet is shown.
     </p>
     <button onclick="toggleInstructions()">Hide Detailed Rules</button>
   </div>
@@ -372,7 +372,7 @@
       document.getElementById("tutorial-modal").style.display = "none";
     }
 
-    // Update "Your Cards" area (single container).
+    // Update "Your Cards" area.
     function updateYourHand(handArray) {
       let container = document.getElementById("your-hand");
       container.innerHTML = "<strong>Your Cards:</strong> ";
@@ -380,7 +380,11 @@
         let div = document.createElement("div");
         div.className = "card";
         div.textContent = card.text;
-        div.dataset.index = index;  // For selection in kitty/draw phases.
+        div.dataset.index = index;
+        // In kitty and draw phases, add click handling to toggle selection.
+        if (gameState.gamePhase === "kitty" || gameState.gamePhase === "draw") {
+          div.onclick = function() { this.classList.toggle("selected"); };
+        }
         container.appendChild(div);
       });
     }
@@ -418,7 +422,7 @@
         document.getElementById("dealer-info").innerHTML = "";
       }
       
-      // Game Notes.
+      // Game Notes (display computer activity at the top).
       let gnDiv = document.getElementById("game-notes");
       if (state.gameNotes && state.gameNotes.length > 0) {
         gnDiv.innerHTML = "<strong>Game Notes:</strong><br>" + state.gameNotes.join("<br>");
@@ -498,7 +502,6 @@
           body: JSON.stringify(data)
         });
         let result = await response.json();
-        // Ensure wonTricks exists.
         if (!result.wonTricks) {
           result.wonTricks = { "player": 0 };
           for (let p in result.bidHistory) {
@@ -528,7 +531,6 @@
     }
     
     function confirmKitty() {
-      // In kitty phase, "Your Cards" area shows the combined hand.
       let container = document.getElementById("your-hand");
       let selectedDivs = container.querySelectorAll(".selected");
       let indices = [];
@@ -537,7 +539,6 @@
     }
     
     function confirmDraw() {
-      // In draw phase, "Your Cards" area shows the draw hand.
       let container = document.getElementById("your-hand");
       let selectedDivs = container.querySelectorAll(".selected");
       let indices = [];
