@@ -13,7 +13,6 @@ class Card:
         return f"{self.rank}{self.suit}"
 
     def to_dict(self):
-        # Return a simple dictionary for UI use.
         return {"suit": self.suit, "rank": self.rank, "text": f"{self.rank}{self.suit}"}
 
 class Deck:
@@ -33,23 +32,25 @@ class Deck:
 # ---------------------------
 # Ranking Definitions
 # ---------------------------
+# Trump rankings remain the same.
 TRUMP_RANKINGS = {
     "♦": ["5", "J", "A", "K", "Q", "10", "9", "8", "7", "6", "4", "3", "2"],
     "♥": ["5", "J", "A", "K", "Q", "10", "9", "8", "7", "6", "4", "3", "2"],
     "♣": ["5", "J", "A", "K", "Q", "2", "3", "4", "6", "7", "8", "9", "10"],
     "♠": ["5", "J", "A", "K", "Q", "2", "3", "4", "6", "7", "8", "9", "10"]
 }
+# Off-trump rankings updated:
 OFFSUIT_RANKINGS = {
     "♦": ["K", "Q", "J", "10", "9", "8", "7", "6", "5", "4", "3", "2", "A"],
     "♥": ["K", "Q", "J", "10", "9", "8", "7", "6", "5", "4", "3", "2", "A"],
-    "♣": ["K", "Q", "J", "A", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
-    "♠": ["K", "Q", "J", "A", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
+    "♣": ["K", "Q", "J", "A", "2", "3", "4", "5", "6", "7", "8", "9"],
+    "♠": ["K", "Q", "J", "A", "2", "3", "4", "5", "6", "7", "8", "9"]
 }
 
 def is_trump(card, trump_suit):
     if card.suit == trump_suit:
         return True
-    if card.suit == "♥" and card.rank == "A":  # Ace of Hearts is always trump.
+    if card.suit == "♥" and card.rank == "A":
         return True
     return False
 
@@ -91,14 +92,11 @@ class Game:
             }
             self.player_order = ["player", names[0], names[1]]
 
-        self.bidHistory = {}  # e.g., {"player": "bid 15", "Bill": "Passed"}
-        # Decide dealer randomly.
+        self.bidHistory = {}
         self.dealer = "player" if random.random() < 0.5 else self.player_order[1]
-
-        # Initialize kitty, trump, phase, messages, etc.
         self.kitty = []
         self.trump_suit = None
-        self.phase = "bidding"  # "bidding", "trump", "kitty", "draw", "trick", "finished"
+        self.phase = "bidding"  # Possible phases: bidding, trump, kitty, draw, trick, finished
         self.biddingMessage = ""
         self.currentTrick = []
         self.lastTrick = []
@@ -121,13 +119,12 @@ class Game:
         self.lastTrick = []
         self.trickLog = []
         self.bidHistory = {}
-        self.gameNotes = []  # Clear previous notes.
-        # If you are the dealer, immediately record the computer's bid.
+        self.gameNotes = []
+        # If player is the dealer, immediately record computer's bid.
         if self.mode == "2p" and self.dealer == "player":
             comp_id = self.player_order[1]
             comp_bid, comp_trump = self.computer_bid(comp_id)
             self.bidHistory[comp_id] = "Passed" if comp_bid == 0 else f"bid {comp_bid}"
-            # (We do not advance phase yet; player still gets to bid.)
         self.currentTurn = "player"
 
     def computer_bid(self, comp_id):
@@ -161,7 +158,7 @@ class Game:
             else:
                 self.bidder = comp_id
                 self.bid = comp_bid
-                self.trump_suit = comp_trump  # Computer auto-selects trump.
+                self.trump_suit = comp_trump
                 self.biddingMessage = f"{comp_id} wins the bid with {comp_bid} and has selected {comp_trump} as trump."
                 self.gameNotes.append(f"{comp_id} selected {comp_trump} as trump.")
                 self.phase = "draw"  # Computer bidder skips kitty.
@@ -171,8 +168,8 @@ class Game:
     def select_trump(self, suit):
         if self.phase == "trump":
             self.trump_suit = suit
-            # Update message using the player's bid value.
-            self.biddingMessage = f"Player bids {self.bidHistory['player'].split()[1]} and wins the bid. Please select the trump suit. (Trump set to {suit}.)"
+            # Update bidding message with the winning bid.
+            self.biddingMessage = f"Player bids {self.bidHistory['player'].split()[1]} and wins the bid. Trump is set to {suit}."
             if self.bidder == "player":
                 self.phase = "kitty"
             else:
@@ -241,9 +238,9 @@ class Game:
         trick_summary += f". Winner: {winner}."
         self.trickLog.append(trick_summary)
         self.players[winner]["tricks"].append(self.currentTrick.copy())
-        self.lastTrick = self.currentTrick.copy()  # Preserve played cards briefly.
+        self.lastTrick = self.currentTrick.copy()
         self.currentTrick = []
-        self.currentTurn = winner  # Winner leads the next trick.
+        self.currentTurn = winner
         if all(len(self.players[p]["hand"]) == 0 for p in self.players):
             self.complete_hand()
         else:
