@@ -49,8 +49,7 @@ OFFSUIT_RANKINGS = {
 def is_trump(card, trump_suit):
     if card.suit == trump_suit:
         return True
-    # Ace of Hearts is always trump.
-    if card.suit == "♥" and card.rank == "A":
+    if card.suit == "♥" and card.rank == "A":  # Ace of Hearts is always trump.
         return True
     return False
 
@@ -84,7 +83,6 @@ class Game:
             }
             self.player_order = ["player", self.computer_name]
         else:
-            # For cut-throat (3p), similar logic applies.
             names = random.sample(computer_names, 2)
             self.players = {
                 "player": {"hand": [], "tricks": [], "score": 0},
@@ -94,12 +92,10 @@ class Game:
             self.player_order = ["player", names[0], names[1]]
 
         self.bidHistory = {}  # e.g., {"player": "bid 15", "Bill": "Passed"}
-        # In 2p mode, if you're the dealer, the computer should have bid already.
-        if self.mode == "2p":
-            # For our purposes, assume that if you are dealer, computer bids immediately.
-            # (In a more advanced version, you might want to automatically trigger that bid.)
-            pass
+        # Decide dealer randomly.
         self.dealer = "player" if random.random() < 0.5 else self.player_order[1]
+
+        # Initialize kitty, trump, phase, messages, etc.
         self.kitty = []
         self.trump_suit = None
         self.phase = "bidding"  # "bidding", "trump", "kitty", "draw", "trick", "finished"
@@ -126,8 +122,14 @@ class Game:
         self.trickLog = []
         self.bidHistory = {}
         self.gameNotes = []  # Clear previous notes.
-        self.currentTurn = "player"  # Always let player bid first.
-    
+        # If you are the dealer, immediately record the computer's bid.
+        if self.mode == "2p" and self.dealer == "player":
+            comp_id = self.player_order[1]
+            comp_bid, comp_trump = self.computer_bid(comp_id)
+            self.bidHistory[comp_id] = "Passed" if comp_bid == 0 else f"bid {comp_bid}"
+            # (We do not advance phase yet; player still gets to bid.)
+        self.currentTurn = "player"
+
     def computer_bid(self, comp_id):
         hand = self.players[comp_id]["hand"]
         has5 = any(card.rank == "5" for card in hand)
@@ -144,9 +146,13 @@ class Game:
         self.bidHistory["player"] = "Passed" if player_bid == 0 else f"bid {player_bid}"
         if self.mode == "2p":
             comp_id = self.player_order[1]
-            comp_bid, comp_trump = self.computer_bid(comp_id)
-            self.bidHistory[comp_id] = "Passed" if comp_bid == 0 else f"bid {comp_bid}"
-            # Compare bids immediately.
+            # Use the computer bid already recorded if available.
+            if comp_id in self.bidHistory:
+                comp_bid_str = self.bidHistory[comp_id]
+                comp_bid = int(comp_bid_str.split()[1]) if "bid" in comp_bid_str else 0
+            else:
+                comp_bid, comp_trump = self.computer_bid(comp_id)
+                self.bidHistory[comp_id] = "Passed" if comp_bid == 0 else f"bid {comp_bid}"
             if player_bid >= comp_bid:
                 self.bidder = "player"
                 self.bid = player_bid
@@ -165,6 +171,7 @@ class Game:
     def select_trump(self, suit):
         if self.phase == "trump":
             self.trump_suit = suit
+            # Update message using the player's bid value.
             self.biddingMessage = f"Player bids {self.bidHistory['player'].split()[1]} and wins the bid. Please select the trump suit. (Trump set to {suit}.)"
             if self.bidder == "player":
                 self.phase = "kitty"
@@ -234,9 +241,9 @@ class Game:
         trick_summary += f". Winner: {winner}."
         self.trickLog.append(trick_summary)
         self.players[winner]["tricks"].append(self.currentTrick.copy())
-        self.lastTrick = self.currentTrick.copy()
+        self.lastTrick = self.currentTrick.copy()  # Preserve played cards briefly.
         self.currentTrick = []
-        self.currentTurn = winner
+        self.currentTurn = winner  # Winner leads the next trick.
         if all(len(self.players[p]["hand"]) == 0 for p in self.players):
             self.complete_hand()
         else:
