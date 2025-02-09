@@ -32,14 +32,13 @@ class Deck:
 # ---------------------------
 # Ranking Definitions
 # ---------------------------
-# Trump rankings remain the same.
 TRUMP_RANKINGS = {
     "♦": ["5", "J", "A", "K", "Q", "10", "9", "8", "7", "6", "4", "3", "2"],
     "♥": ["5", "J", "A", "K", "Q", "10", "9", "8", "7", "6", "4", "3", "2"],
     "♣": ["5", "J", "A", "K", "Q", "2", "3", "4", "6", "7", "8", "9", "10"],
     "♠": ["5", "J", "A", "K", "Q", "2", "3", "4", "6", "7", "8", "9", "10"]
 }
-# Off-trump rankings updated:
+# Off‑trump rankings are updated:
 OFFSUIT_RANKINGS = {
     "♦": ["K", "Q", "J", "10", "9", "8", "7", "6", "5", "4", "3", "2", "A"],
     "♥": ["K", "Q", "J", "10", "9", "8", "7", "6", "5", "4", "3", "2", "A"],
@@ -50,7 +49,7 @@ OFFSUIT_RANKINGS = {
 def is_trump(card, trump_suit):
     if card.suit == trump_suit:
         return True
-    if card.suit == "♥" and card.rank == "A":
+    if card.suit == "♥" and card.rank == "A":  # Ace of Hearts is always trump.
         return True
     return False
 
@@ -71,7 +70,7 @@ class Game:
         self.instructional = instructional
         self.deck = None
 
-        # Use a fixed rotation of computer names.
+        # Fixed rotation of computer names.
         computer_names = ["Jack", "Jennifer", "Patrick", "John", "Liam", "Mary",
                           "Jasper", "Felix", "Holly", "Tom", "Karen", "Stephen",
                           "Leona", "Bill", "Christine", "Chris", "Henry"]
@@ -96,12 +95,12 @@ class Game:
         self.dealer = "player" if random.random() < 0.5 else self.player_order[1]
         self.kitty = []
         self.trump_suit = None
-        self.phase = "bidding"  # Possible phases: bidding, trump, kitty, draw, trick, finished
+        self.phase = "bidding"  # Phases: bidding, trump, kitty, draw, trick, finished
         self.biddingMessage = ""
         self.currentTrick = []
         self.lastTrick = []
         self.trickLog = []
-        self.gameNotes = []  # To record computer actions.
+        self.gameNotes = []  # Record computer actions.
         self.currentTurn = None
         self.bidder = None
         self.bid = 0
@@ -120,7 +119,7 @@ class Game:
         self.trickLog = []
         self.bidHistory = {}
         self.gameNotes = []
-        # If player is the dealer, immediately record computer's bid.
+        # If you are the dealer, immediately record the computer’s bid.
         if self.mode == "2p" and self.dealer == "player":
             comp_id = self.player_order[1]
             comp_bid, comp_trump = self.computer_bid(comp_id)
@@ -158,7 +157,7 @@ class Game:
             else:
                 self.bidder = comp_id
                 self.bid = comp_bid
-                self.trump_suit = comp_trump
+                self.trump_suit = comp_trump  # Computer auto-selects trump.
                 self.biddingMessage = f"{comp_id} wins the bid with {comp_bid} and has selected {comp_trump} as trump."
                 self.gameNotes.append(f"{comp_id} selected {comp_trump} as trump.")
                 self.phase = "draw"  # Computer bidder skips kitty.
@@ -168,7 +167,6 @@ class Game:
     def select_trump(self, suit):
         if self.phase == "trump":
             self.trump_suit = suit
-            # Update bidding message with the winning bid.
             self.biddingMessage = f"Player bids {self.bidHistory['player'].split()[1]} and wins the bid. Trump is set to {suit}."
             if self.bidder == "player":
                 self.phase = "kitty"
@@ -309,11 +307,17 @@ class Game:
             "dealer": self.dealer,
             "gameNotes": self.gameNotes
         }
+        # In kitty phase (if player won the bid), send combined hand.
         if self.phase == "kitty" and self.bidder == "player":
             combined = self.players["player"]["hand"] + self.kitty
             state["combinedHand"] = [card.to_dict() for card in combined]
+        # In draw phase, send the player's current hand.
         if self.phase == "draw":
             state["drawHand"] = [card.to_dict() for card in self.players["player"]["hand"]]
+        # Compute computer discard count (how many cards have been played/discarded)
+        if self.mode == "2p":
+            comp = self.player_order[1]
+            state["computerDiscardCount"] = 5 - len(self.players[comp]["hand"])
         if self.phase == "finished":
             state["scoreSheet"] = "\n".join(self.trickLog)
         return state
