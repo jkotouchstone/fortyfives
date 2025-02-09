@@ -44,7 +44,7 @@
       padding: 10px;
       border-radius: 8px;
     }
-    /* Default hide the rules */
+    /* Hide detailed rules by default */
     #instructions {
       display: none;
       text-align: left;
@@ -125,10 +125,7 @@
     #dealer-info {
       margin-bottom: 10px;
     }
-    /* Hide bid history label since Game Notes shows computer actions */
-    #bid-history {
-      display: none;
-    }
+    /* (Bid history removed, as computer actions are shown in Game Notes) */
     #trick-log {
       margin-top: 10px;
       text-align: left;
@@ -151,9 +148,8 @@
     #won-tricks-section h3 {
       margin-bottom: 10px;
     }
-    /* Scoreboard (always visible) */
+    /* Scoreboard (always visible) - removed yellow border */
     #scoreboard-section {
-      border-top: 2px solid #ffeb3b;
       padding-top: 10px;
       display: block;
     }
@@ -206,7 +202,8 @@
     <p>
       <strong>Bidding:</strong><br>
       - As the dealer, the computer’s bid is displayed immediately in the Game Notes (e.g., "Bill: bid 20" or "Bill: Passed").<br>
-      - When you bid and win the bid, the status message will read, for example, "Player bids 20 and wins the bid. Please select the trump suit."
+      - When you bid and win the bid, the status message will read, for example, "Player bids 20 and wins the bid. Please select the trump suit."<br>
+      - If you are the dealer, your only options are to pass or to bid exactly 5 points more than the computer’s bid.
     </p>
     <p>
       <strong>Trump & Trick Play:</strong><br>
@@ -215,7 +212,7 @@
     </p>
     <p>
       <strong>Kitty & Draw Phases:</strong><br>
-      - If you win the bid, after selecting trump you enter the Kitty phase, where your combined hand (your 5 cards + kitty) is displayed for selection.<br>
+      - If you win the bid, after selecting trump you enter the Kitty phase. Your combined hand (your 5 cards plus the 3‑card kitty) is displayed so you can choose which cards to keep.<br>
       - After confirming your kitty selection, the Draw phase begins so that unselected cards are replaced until you have 5 cards. You’ll also see how many cards the computer has discarded.
     </p>
     <p>
@@ -226,7 +223,7 @@
     <p>
       <strong>Won Tricks & Scoring:</strong><br>
       - Each trick is worth 5 points (bonus trick adds 5 points).<br>
-      - Won tricks are displayed as an "X" for each trick won. When someone reaches 120 points, a detailed score sheet is shown.
+      - Won tricks are shown as an "X" for each trick won. When someone reaches 120 points, a detailed score sheet is displayed.
     </p>
     <button onclick="toggleInstructions()">Hide Detailed Rules</button>
   </div>
@@ -339,8 +336,8 @@
     let tutorialSteps = [
       "Step 1: Cards are dealt. Your 5 cards appear in the 'Your Cards' area and 3 extra cards form the kitty.",
       "Step 2: During bidding, the computer's bid is shown in the Game Notes (e.g., 'Bill bid 20' or 'Bill Passed').",
-      "Step 3: If you win the bid, the status message will read, for example, 'Player bids 20 and wins the bid. Please select the trump suit.'",
-      "Step 4: In kitty selection, the 'Your Cards' area updates to show your combined hand. Click the cards you want to keep (they turn soft green).",
+      "Step 3: If you win the bid, the status message will read, for example, 'Player bids 25 and wins the bid. Please select the trump suit.' (When you're dealer, your only valid bid is to pass or bid 5 more than the computer.)",
+      "Step 4: In kitty selection, the 'Your Cards' area updates to show your combined hand (your 5 cards plus the kitty). Click the cards you want to keep (they turn soft green).",
       "Step 5: In draw phase, the 'Your Cards' area shows your draw hand. Select the cards you want to keep; unselected cards will be replaced.",
       "Step 6: In trick play, every card played is shown in the Trick Area. Hover over a card for a hover effect; click a card to play it.",
       "Step 7: Game Notes at the top display all computer actions. Also, you'll see how many cards the computer has discarded, which helps you gauge its hand strength. The game continues until someone reaches 120 points."
@@ -382,7 +379,7 @@
         div.className = "card";
         div.textContent = card.text;
         div.dataset.index = index;
-        // In kitty and draw phases, enable toggling selection.
+        // In kitty and draw phases, clicking toggles selection.
         if (gameState.gamePhase === "kitty" || gameState.gamePhase === "draw") {
           div.onclick = function() { this.classList.toggle("selected"); };
         }
@@ -441,13 +438,15 @@
       }
       
       // Hide all phase-specific sections.
-      let sections = ["bidding-section", "trump-section", "draw-section", "trick-section", "result-section", "won-tricks-section"];
+      let sections = ["bidding-section", "trump-section", "kitty-section", "draw-section", "trick-section", "result-section", "won-tricks-section"];
       sections.forEach(id => document.getElementById(id).classList.remove("visible"));
       
       if (state.gamePhase === "bidding") {
         document.getElementById("bidding-section").classList.add("visible");
       } else if (state.gamePhase === "trump") {
         document.getElementById("trump-section").classList.add("visible");
+      } else if (state.gamePhase === "kitty") {
+        document.getElementById("kitty-section").classList.add("visible");
       } else if (state.gamePhase === "draw") {
         document.getElementById("draw-section").classList.add("visible");
       } else if (state.gamePhase === "trick") {
