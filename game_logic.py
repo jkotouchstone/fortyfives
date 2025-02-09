@@ -196,6 +196,7 @@ class Game:
                     timestamp = time.strftime("%H:%M:%S")
                     self.gameNotes.append(f"{timestamp} - {comp_id} selected {comp_trump} as trump.")
                     self.phase = "draw"
+            # Set turn: if the computer wins, it should lead the first trick.
             self.currentTurn = self.bidder
         elif self.mode == "3p":
             comp1 = self.player_order[1]
@@ -269,8 +270,9 @@ class Game:
             card.selected = False
         self.biddingMessage = "Draw complete. Proceeding to trick play."
         self.phase = "trick"
-        # Force the trick phase to begin with the player's turn so that your cards remain visible.
-        self.currentTurn = "player"
+        # If the computer won the bid, let it lead the first trick;
+        # otherwise, the player leads.
+        self.currentTurn = self.bidder
         self.auto_play()
         return
 
@@ -284,6 +286,8 @@ class Game:
         if cardIndex < 0 or cardIndex >= len(self.players[player]["hand"]):
             return
         card = self.players[player]["hand"].pop(cardIndex)
+        # Mark the card as selected so it appears highlighted in the trick area.
+        card.selected = True
         self.currentTrick.append({"player": player, "card": card})
         timestamp = time.strftime("%H:%M:%S")
         if player != "player":
