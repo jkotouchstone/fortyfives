@@ -103,7 +103,7 @@ class Game:
         self.phase = "bidding"  # Phases: bidding, trump, kitty, draw, trick, finished
         self.biddingMessage = ""
         self.currentTrick = []
-        self.lastTrick = []  # Will hold the last completed trick
+        self.lastTrick = []  # Will hold the finished trick for UI display
         self.trickLog = []  # (No longer directly displayed in UI)
         self.gameNotes = []  # Chronological log with timestamps
         self.currentTurn = None
@@ -269,7 +269,7 @@ class Game:
             card.selected = False
         self.biddingMessage = "Draw complete. Proceeding to trick play."
         self.phase = "trick"
-        # Set the turn to the bidder (if computer won the bid, it will lead)
+        # Set turn according to the bidder: if computer won the bid, it leads; otherwise, player leads.
         self.currentTurn = self.bidder
         self.auto_play()
         return
@@ -279,11 +279,9 @@ class Game:
         return self.player_order[(idx + 1) % len(self.player_order)]
 
     def play_card(self, player, cardIndex):
+        # (Removed the code that clears lastTrick so finished trick remains visible.)
         if self.currentTurn != player:
             return
-        # When starting a new trick, clear lastTrick so new cards appear fresh.
-        if len(self.currentTrick) == 0:
-            self.lastTrick = []
         if cardIndex < 0 or cardIndex >= len(self.players[player]["hand"]):
             return
         card = self.players[player]["hand"].pop(cardIndex)
@@ -295,7 +293,6 @@ class Game:
             self.gameNotes.append(f"{timestamp} - {player} played {card}")
         else:
             self.gameNotes.append(f"{timestamp} - Player played {card}")
-            # No delay here so the card appears immediately.
         self.currentTurn = self.next_player(player)
         self.auto_play()
         if len(self.currentTrick) == len(self.player_order):
@@ -319,9 +316,10 @@ class Game:
         trick_summary += f". Winner: {winner}."
         self.gameNotes.append(trick_summary)
         self.trickLog.append(trick_summary)
+        # Copy the finished trick into lastTrick so that all played cards remain visible.
+        self.lastTrick = self.currentTrick.copy()
         # Keep played cards visible for 2 seconds.
         time.sleep(2)
-        # Do not clear lastTrick here so that the trick area still displays the last trick until a new card is played.
         self.currentTrick = []
         self.currentTurn = winner  # Winner leads next trick.
         if all(len(self.players[p]["hand"]) == 0 for p in self.players):
