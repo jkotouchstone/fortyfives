@@ -95,7 +95,7 @@ class Game:
         self.dealer = "player" if random.random() < 0.5 else self.player_order[1]
         self.kitty = []
         self.trump_suit = None
-        self.phase = "bidding"  # bidding, trump, kitty, draw, trick, finished
+        self.phase = "bidding"  # Possible phases: bidding, trump, kitty, draw, trick, finished
         self.biddingMessage = ""
         self.currentTrick = []
         self.lastTrick = []
@@ -119,7 +119,7 @@ class Game:
         self.trickLog = []
         self.bidHistory = {}
         self.gameNotes = []
-        # If player is the dealer in 2p mode, immediately record computer's bid.
+        # In 2p mode, if the player is the dealer, record the computer's bid immediately.
         if self.mode == "2p" and self.dealer == "player":
             comp_id = self.player_order[1]
             comp_bid, comp_trump = self.computer_bid(comp_id)
@@ -148,20 +148,40 @@ class Game:
             else:
                 comp_bid, comp_trump = self.computer_bid(comp_id)
                 self.bidHistory[comp_id] = "Passed" if comp_bid == 0 else f"bid {comp_bid}"
-            if player_bid >= comp_bid:
-                self.bidder = "player"
-                self.bid = player_bid
-                self.biddingMessage = f"Player bids {player_bid} and wins the bid. Please select the trump suit."
-                self.phase = "trump"
+            if self.dealer == "player":
+                # When you are the dealer, allowed bids are only: Pass (0) or exactly comp_bid + 5.
+                if player_bid != 0 and player_bid != comp_bid + 5:
+                    self.biddingMessage = f"As dealer, you must either pass or bid {comp_bid + 5}."
+                    return  # Do not advance phase.
+                if player_bid == 0:
+                    self.bidder = comp_id
+                    self.bid = comp_bid
+                    self.trump_suit = comp_trump
+                    self.biddingMessage = f"{comp_id} wins the bid with {comp_bid} and has selected {comp_trump} as trump."
+                    self.gameNotes.append(f"{comp_id} selected {comp_trump} as trump.")
+                    self.phase = "draw"  # Computer bidder skips kitty.
+                else:
+                    self.bidder = "player"
+                    self.bid = player_bid
+                    self.biddingMessage = f"Player bids {player_bid} and wins the bid. Please select the trump suit."
+                    self.phase = "trump"
             else:
-                self.bidder = comp_id
-                self.bid = comp_bid
-                self.trump_suit = comp_trump
-                self.biddingMessage = f"{comp_id} wins the bid with {comp_bid} and has selected {comp_trump} as trump."
-                self.gameNotes.append(f"{comp_id} selected {comp_trump} as trump.")
-                self.phase = "draw"
+                # When you are not the dealer, any bid higher than the computer's bid wins.
+                if player_bid >= comp_bid:
+                    self.bidder = "player"
+                    self.bid = player_bid
+                    self.biddingMessage = f"Player bids {player_bid} and wins the bid. Please select the trump suit."
+                    self.phase = "trump"
+                else:
+                    self.bidder = comp_id
+                    self.bid = comp_bid
+                    self.trump_suit = comp_trump
+                    self.biddingMessage = f"{comp_id} wins the bid with {comp_bid} and has selected {comp_trump} as trump."
+                    self.gameNotes.append(f"{comp_id} selected {comp_trump} as trump.")
+                    self.phase = "draw"
             self.currentTurn = self.bidder
         elif self.mode == "3p":
+            # 3-player bidding logic.
             comp1 = self.player_order[1]
             comp2 = self.player_order[2]
             comp_bid1, comp_trump1 = self.computer_bid(comp1)
@@ -183,7 +203,7 @@ class Game:
                     self.trump_suit = comp_trump2
                 self.biddingMessage = f"{highest_bidder} wins the bid with {highest_bid} and has selected {self.trump_suit} as trump."
                 self.gameNotes.append(f"{highest_bidder} selected {self.trump_suit} as trump.")
-                self.phase = "draw"  # Computer bidder skips kitty.
+                self.phase = "draw"
             self.currentTurn = self.bidder
         return
 
