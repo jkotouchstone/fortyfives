@@ -103,7 +103,7 @@ class Game:
         self.phase = "bidding"  # Phases: bidding, trump, kitty, draw, trick, finished
         self.biddingMessage = ""
         self.currentTrick = []
-        self.lastTrick = []
+        self.lastTrick = []  # Will hold the last completed trick
         self.trickLog = []  # (No longer directly displayed in UI)
         self.gameNotes = []  # Chronological log with timestamps
         self.currentTurn = None
@@ -196,7 +196,6 @@ class Game:
                     timestamp = time.strftime("%H:%M:%S")
                     self.gameNotes.append(f"{timestamp} - {comp_id} selected {comp_trump} as trump.")
                     self.phase = "draw"
-            # Set turn: if the computer wins, it should lead the first trick.
             self.currentTurn = self.bidder
         elif self.mode == "3p":
             comp1 = self.player_order[1]
@@ -270,8 +269,7 @@ class Game:
             card.selected = False
         self.biddingMessage = "Draw complete. Proceeding to trick play."
         self.phase = "trick"
-        # If the computer won the bid, let it lead the first trick;
-        # otherwise, the player leads.
+        # Set the turn to the bidder (if computer won the bid, it will lead)
         self.currentTurn = self.bidder
         self.auto_play()
         return
@@ -283,6 +281,9 @@ class Game:
     def play_card(self, player, cardIndex):
         if self.currentTurn != player:
             return
+        # When starting a new trick, clear lastTrick so new cards appear fresh.
+        if len(self.currentTrick) == 0:
+            self.lastTrick = []
         if cardIndex < 0 or cardIndex >= len(self.players[player]["hand"]):
             return
         card = self.players[player]["hand"].pop(cardIndex)
@@ -320,7 +321,7 @@ class Game:
         self.trickLog.append(trick_summary)
         # Keep played cards visible for 2 seconds.
         time.sleep(2)
-        self.lastTrick = []
+        # Do not clear lastTrick here so that the trick area still displays the last trick until a new card is played.
         self.currentTrick = []
         self.currentTurn = winner  # Winner leads next trick.
         if all(len(self.players[p]["hand"]) == 0 for p in self.players):
