@@ -141,10 +141,9 @@
       padding-top: 10px;
       display: block;
     }
-    /* Game Notes area (chronological log, most recent at the top) */
+    /* Game Notes area split into two columns */
     #game-notes {
       margin-top: 10px;
-      text-align: left;
       background: rgba(255,255,255,0.1);
       padding: 10px;
       border-radius: 5px;
@@ -152,6 +151,22 @@
       max-width: 900px;
       margin-left: auto;
       margin-right: auto;
+      overflow: auto;
+    }
+    #game-notes .left,
+    #game-notes .right {
+      display: inline-block;
+      vertical-align: top;
+      width: 48%;
+      text-align: left;
+    }
+    #game-notes .right {
+      text-align: right;
+    }
+    #game-notes::after {
+      content: "";
+      display: table;
+      clear: both;
     }
     #feedback {
       background: rgba(255,255,255,0.2);
@@ -196,7 +211,7 @@
     <p>
       <strong>Trump & Trick Play:</strong><br>
       - The winning bidder selects the trump suit while your cards remain visible in the “Your Cards” area.<br>
-      - In trick play, when you click a card it immediately moves from your hand to the trick area (and is highlighted), then the computer plays its card. Both cards remain visible until the trick is complete.
+      - In trick play, when you click a card it immediately moves from your hand to the trick area (and is highlighted). After 0.5 seconds the computer plays its card, and then both cards remain visible for 2 seconds before the trick area is cleared.
     </p>
     <p>
       <strong>Kitty & Draw Phases:</strong><br>
@@ -204,8 +219,8 @@
       - After confirming your kitty selection, the Draw phase begins so that unselected cards are replaced until you have 5 cards. Cards kept from kitty remain selected.
     </p>
     <p>
-      <strong>Game Notes:</strong><br>
-      A chronological log (with timestamps) of all actions is recorded below, with the most recent event at the top.
+      <strong>Game Notes & Score Tally:</strong><br>
+      The left side displays the chronological events (most recent at the top) and the right side shows a running tally of each hand’s score (hand score/total score).
     </p>
     <button onclick="toggleInstructions()">Hide Detailed Rules</button>
   </div>
@@ -300,7 +315,7 @@
       <div id="scoreboard"></div>
     </div>
 
-    <!-- Game Notes (chronological log, most recent at the top) -->
+    <!-- Game Notes & Score Tally (split into two columns) -->
     <div id="game-notes"></div>
 
     <!-- Feedback Area -->
@@ -315,8 +330,8 @@
       "Step 3: If you win the bid, the status message will read, for example, 'Player bids 25 and wins the bid. Please select the trump suit.' (As dealer, you may only pass or bid exactly 5 more than the computer. If the computer passes, you are bagged and automatically bid 15.)",
       "Step 4: In kitty selection, your combined hand is shown below. The top row shows your original 5 cards; the bottom row shows the 3 kitty cards (highlighted in light red). Click the cards you want to keep.",
       "Step 5: In draw phase, your hand is shown. Cards kept from kitty remain selected. Select any additional cards to keep; unselected cards will be replaced from the deck.",
-      "Step 6: In trick play, when you click a card it immediately moves from your hand to the trick area (and is highlighted), then the computer plays its card. Both cards remain visible until the trick is complete.",
-      "Step 7: Game Notes below display a chronological log (with timestamps) of all actions, with the most recent event at the top. The game continues until someone reaches 120 points."
+      "Step 6: In trick play, when you click a card it immediately moves from your hand to the trick area (and is highlighted). After 0.5 seconds the computer plays its card. Both cards remain visible for 2 seconds before the trick area is cleared.",
+      "Step 7: The left side of the Game Notes displays all events (most recent at the top) while the right side shows the running score tally (hand score/total score for each player)."
     ];
     let currentTutorialStep = 0;
 
@@ -432,12 +447,24 @@
         document.getElementById("dealer-info").innerHTML = "";
       }
       
-      // Game Notes (displayed in reverse order so most recent event is on top).
-      let gnDiv = document.getElementById("game-notes");
-      if (state.gameNotes && state.gameNotes.length > 0) {
-        gnDiv.innerHTML = "<strong>Game Notes:</strong><br>" + state.gameNotes.slice().reverse().join("<br>");
-      } else {
-        gnDiv.innerHTML = "<strong>Game Notes:</strong><br>No actions recorded yet.";
+      // Update trick area.
+      if (state.gamePhase === "trick") {
+        document.getElementById("trick-section").classList.add("visible");
+        let trickArea = document.getElementById("trick-area");
+        // Always show current trick if available; if not, show the last completed trick.
+        let trickCards = (state.currentTrick.length > 0) ? state.currentTrick : state.lastTrick;
+        // Determine the number of players (for 2p, 2 cards; for 3p, 3 cards)
+        let numPlayers = state.mode === "2p" ? 2 : (state.mode === "3p" ? 3 : state.playerHand.length);
+        if (trickCards.length > numPlayers) {
+          trickCards = trickCards.slice(0, numPlayers);
+        }
+        trickArea.innerHTML = "";
+        trickCards.forEach(entry => {
+          let div = document.createElement("div");
+          div.className = "card";
+          div.textContent = entry.card.text;
+          trickArea.appendChild(div);
+        });
       }
       
       // Hide all phase-specific sections.
@@ -452,21 +479,6 @@
         document.getElementById("kitty-section").classList.add("visible");
       } else if (state.gamePhase === "draw") {
         document.getElementById("draw-section").classList.add("visible");
-      } else if (state.gamePhase === "trick") {
-        document.getElementById("trick-section").classList.add("visible");
-        let trickArea = document.getElementById("trick-area");
-        // In a 2-player game, only two cards should be shown.
-        let trickCards = (state.currentTrick.length > 0) ? state.currentTrick : state.lastTrick;
-        if (state.gamePhase === "trick" && state.playerHand && state.computerHandCount === 1 && trickCards.length > 2) {
-          trickCards = trickCards.slice(0,2);
-        }
-        trickArea.innerHTML = "";
-        trickCards.forEach(entry => {
-          let div = document.createElement("div");
-          div.className = "card";
-          div.textContent = entry.card.text;
-          trickArea.appendChild(div);
-        });
       } else if (state.gamePhase === "finished") {
         document.getElementById("result-section").classList.add("visible");
         document.getElementById("result-message").textContent = "Game Over!";
@@ -475,6 +487,15 @@
       
       // Update the scoreboard.
       document.getElementById("scoreboard").textContent = state.scoreboard || "";
+      
+      // Update the Game Notes area split into two columns:
+      // Left: Chronological events (most recent on top)
+      // Right: Running score tally from the score sheet.
+      let gnDiv = document.getElementById("game-notes");
+      let eventsHTML = "<strong>Game Events:</strong><br>" + state.gameNotes.slice().reverse().join("<br>");
+      let scoreTally = state.scoreSheet || "";
+      gnDiv.innerHTML = "<div class='left'>" + eventsHTML + "</div>" +
+                        "<div class='right'><strong>Score Tally:</strong><br>" + scoreTally.replace(/\|/g, "<br>") + "</div>";
       
       document.getElementById("feedback").textContent = state.feedback || "";
     }
