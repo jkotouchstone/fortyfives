@@ -96,15 +96,5 @@ def reset_game():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route("/state", methods=["GET"])
-def state():
-    global current_game
-    try:
-        if not current_game:
-            return jsonify({"error": "No game started."}), 500
-        return jsonify(current_game.to_dict())
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
 if __name__ == "__main__":
     app.run(debug=True)
