@@ -13,7 +13,13 @@ class Card:
         return f"{self.rank}{self.suit}"
 
     def to_dict(self):
-        return {"suit": self.suit, "rank": self.rank, "text": f"{self.rank}{self.suit}"}
+        # Include a "selected" flag (default False)
+        return {
+            "suit": self.suit,
+            "rank": self.rank,
+            "text": f"{self.rank}{self.suit}",
+            "selected": getattr(self, "selected", False)
+        }
 
 class Deck:
     def __init__(self):
@@ -38,7 +44,6 @@ TRUMP_RANKINGS = {
     "♣": ["5", "J", "A", "K", "Q", "2", "3", "4", "6", "7", "8", "9", "10"],
     "♠": ["5", "J", "A", "K", "Q", "2", "3", "4", "6", "7", "8", "9", "10"]
 }
-# Off‑trump orders updated:
 OFFSUIT_RANKINGS = {
     "♦": ["K", "Q", "J", "10", "9", "8", "7", "6", "5", "4", "3", "2", "A"],
     "♥": ["K", "Q", "J", "10", "9", "8", "7", "6", "5", "4", "3", "2", "A"],
@@ -135,6 +140,7 @@ class Game:
         for card in hand:
             suit_counts[card.suit] = suit_counts.get(card.suit, 0) + 1
         best_suit = max(suit_counts, key=suit_counts.get)
+        # For non-dealer cases, show computer action as Passed if appropriate.
         self.gameNotes.append(f"{comp_id} " + ("Passed" if bid == 0 else f"bid {bid}"))
         return bid, best_suit
 
@@ -149,27 +155,28 @@ class Game:
                 comp_bid, comp_trump = self.computer_bid(comp_id)
                 self.bidHistory[comp_id] = "Passed" if comp_bid == 0 else f"bid {comp_bid}"
             if self.dealer == "player":
-                # Allowed options: either pass (0) or bid exactly comp_bid + 5.
+                # Allowed options: pass (0) or bid exactly comp_bid+5.
                 if player_bid != 0 and player_bid != comp_bid + 5:
                     self.biddingMessage = f"As dealer, you must either pass or bid {comp_bid + 5}."
-                    return  # Do not advance phase.
+                    return  # Do not advance.
                 if player_bid == 0:
                     self.bidder = comp_id
                     self.bid = comp_bid
                     self.trump_suit = comp_trump
                     self.biddingMessage = f"{comp_id} wins the bid with {comp_bid} and has selected {comp_trump} as trump."
                     self.gameNotes.append(f"{comp_id} selected {comp_trump} as trump.")
-                    self.phase = "draw"  # Computer bidder skips kitty.
+                    self.phase = "draw"  # Dealer player bagged.
                 else:
                     self.bidder = "player"
                     self.bid = player_bid
                     self.biddingMessage = f"Player bids {player_bid} and wins the bid. Please select the trump suit."
                     self.phase = "trump"
             else:
-                # When you are not the dealer, any bid equal to or higher than comp_bid wins.
+                # Non-dealer: if player wins the bid, show computer as Passed.
                 if player_bid >= comp_bid:
                     self.bidder = "player"
                     self.bid = player_bid
+                    self.bidHistory[comp_id] = "Passed"
                     self.biddingMessage = f"Player bids {player_bid} and wins the bid. Please select the trump suit."
                     self.phase = "trump"
                 else:
@@ -181,7 +188,7 @@ class Game:
                     self.phase = "draw"
             self.currentTurn = self.bidder
         elif self.mode == "3p":
-            # 3-player bidding logic:
+            # 3-player bidding logic.
             comp1 = self.player_order[1]
             comp2 = self.player_order[2]
             comp_bid1, comp_trump1 = self.computer_bid(comp1)
@@ -212,7 +219,6 @@ class Game:
             self.trump_suit = suit
             self.biddingMessage = f"Player bids {self.bidHistory['player'].split()[1]} and wins the bid. Trump is set to {suit}."
             if self.bidder == "player":
-                # Advance to kitty phase so that the backend sends a combined hand.
                 self.phase = "kitty"
             else:
                 self.phase = "draw"
@@ -221,7 +227,12 @@ class Game:
     def confirm_kitty(self, keptIndices):
         if self.bidder == "player":
             combined = self.players["player"]["hand"] + self.kitty
-            new_hand = [combined[i] for i in keptIndices if i < len(combined)]
+            new_hand = []
+            for i in keptIndices:
+                if i < len(combined):
+                    card = combined[i]
+                    card.selected = True  # Mark this card as kept
+                    new_hand.append(card)
             if len(new_hand) < 1:
                 new_hand = self.players["player"]["hand"][:1]
             if len(new_hand) > 5:
@@ -235,7 +246,13 @@ class Game:
 
     def confirm_draw(self, keptIndices=None):
         if keptIndices is not None:
-            kept_cards = [self.players["player"]["hand"][i] for i in keptIndices if i < len(self.players["player"]["hand"])]
+            kept_cards = []
+            for i in keptIndices:
+                if i < len(self.players["player"]["hand"]):
+                    card = self.players["player"]["hand"][i]
+                    # Preserve the "selected" flag (if any)
+                    card.selected = getattr(card, "selected", True)
+                    kept_cards.append(card)
             self.players["player"]["hand"] = kept_cards
         while len(self.players["player"]["hand"]) < 5 and len(self.deck.cards) > 0:
             self.players["player"]["hand"].append(self.deck.deal(1)[0])
@@ -259,7 +276,7 @@ class Game:
         if player != "player":
             self.gameNotes.append(f"{player} played {card}")
         else:
-            # When the player plays, update UI and wait briefly before computer reacts.
+            # When the player plays, wait 0.5 seconds so the card is visible.
             time.sleep(0.5)
         self.currentTurn = self.next_player(player)
         self.auto_play()
@@ -283,9 +300,10 @@ class Game:
         trick_summary += f". Winner: {winner}."
         self.trickLog.append(trick_summary)
         self.players[winner]["tricks"].append(self.currentTrick.copy())
-        # Delay so the player can see the played cards.
-        time.sleep(0.5)
-        self.lastTrick = self.currentTrick.copy()
+        # Wait 3 seconds so both played cards remain visible.
+        time.sleep(3)
+        # Clear the trick area for the next trick.
+        self.lastTrick = []   # Clear the last trick (so UI clears the table)
         self.currentTrick = []
         self.currentTurn = winner  # Winner leads next trick.
         if all(len(self.players[p]["hand"]) == 0 for p in self.players):
@@ -332,6 +350,7 @@ class Game:
         return
 
     def new_hand(self):
+        # Reset phase so that no card play can occur until a new hand is fully dealt.
         current_idx = self.player_order.index(self.dealer)
         self.dealer = self.player_order[(current_idx + 1) % len(self.player_order)]
         self.deal_hands()
@@ -356,7 +375,6 @@ class Game:
             "dealer": self.dealer,
             "gameNotes": self.gameNotes
         }
-        # In kitty phase (if player won the bid), send combined hand.
         if self.phase == "kitty" and self.bidder == "player":
             combined = self.players["player"]["hand"] + self.kitty
             state["combinedHand"] = [card.to_dict() for card in combined]
