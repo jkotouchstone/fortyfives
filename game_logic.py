@@ -269,7 +269,7 @@ class Game:
             card.selected = False
         self.biddingMessage = "Draw complete. Proceeding to trick play."
         self.phase = "trick"
-        # Regardless of who won the bid, force the trick phase to begin with the player’s turn
+        # Force the trick phase to begin with the player's turn so that your cards remain visible.
         self.currentTurn = "player"
         self.auto_play()
         return
@@ -290,7 +290,7 @@ class Game:
             self.gameNotes.append(f"{timestamp} - {player} played {card}")
         else:
             self.gameNotes.append(f"{timestamp} - Player played {card}")
-            // No delay here so the card appears immediately.
+            # No delay here so the card appears immediately.
         self.currentTurn = self.next_player(player)
         self.auto_play()
         if len(self.currentTrick) == len(self.player_order):
