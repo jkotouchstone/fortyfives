@@ -21,14 +21,14 @@
       padding: 20px;
       border-radius: 8px;
     }
-    /* "Your Cards" area (fixed and unique) */
+    /* "Your Cards" area */
     #your-hand {
       margin-bottom: 20px;
       text-align: center;
       padding: 5px;
       border-bottom: 1px solid #fff;
     }
-    /* Only one phase section is visible */
+    /* Only one phase section visible */
     .section {
       margin: 20px 0;
       display: none;
@@ -87,7 +87,7 @@
       margin-bottom: 10px;
       font-weight: bold;
     }
-    /* Card style with hover and selection effects */
+    /* Card style */
     .card {
       display: inline-block;
       width: 60px;
@@ -136,12 +136,12 @@
       border: 1px dashed #fff;
       padding: 10px;
     }
-    /* Scoreboard (always visible) */
+    /* Scoreboard */
     #scoreboard-section {
       padding-top: 10px;
       display: block;
     }
-    /* Game Notes area split into two columns */
+    /* Game Notes area (single column) */
     #game-notes {
       margin-top: 10px;
       background: rgba(255,255,255,0.1);
@@ -151,22 +151,8 @@
       max-width: 900px;
       margin-left: auto;
       margin-right: auto;
-      overflow: auto;
-    }
-    #game-notes .left,
-    #game-notes .right {
-      display: inline-block;
-      vertical-align: top;
-      width: 48%;
       text-align: left;
-    }
-    #game-notes .right {
-      text-align: right;
-    }
-    #game-notes::after {
-      content: "";
-      display: table;
-      clear: both;
+      overflow: auto;
     }
     #feedback {
       background: rgba(255,255,255,0.2);
@@ -210,17 +196,17 @@
     </p>
     <p>
       <strong>Trump & Trick Play:</strong><br>
-      - The winning bidder selects the trump suit while your cards remain visible in the “Your Cards” area.<br>
+      - The winning bidder selects the trump suit while your cards remain visible in the "Your Cards" area.<br>
       - In trick play, when you click a card it immediately moves to the trick area and is highlighted. After 0.5 seconds the computer plays its card; both cards remain visible for 2 seconds before the trick area is cleared.
     </p>
     <p>
       <strong>Kitty & Draw Phases:</strong><br>
       - If you win the bid, after selecting trump you enter the Kitty phase. Your combined hand (your original 5 cards plus the 3‑card kitty) is displayed. The kitty cards are highlighted in light red. Click the cards you want to keep.<br>
-      - After confirming your kitty selection, the Draw phase begins so that unselected cards are replaced until you have 5 cards. Cards kept from kitty remain selected.
+      - After confirming your kitty selection, the Draw phase begins so that unselected cards are replaced until you have 5 cards. Cards kept from kitty remain selected. (Note: In the Draw Phase, your hand appears above.)
     </p>
     <p>
-      <strong>Game Notes & Score Tally:</strong><br>
-      The left side shows the chronological events (most recent at the top) and the right side shows the running score tally (hand score/total score for each player).
+      <strong>Game Notes:</strong><br>
+      The Game Notes display all events in chronological order (most recent at the top).
     </p>
     <button onclick="toggleInstructions()">Hide Detailed Rules</button>
   </div>
@@ -249,7 +235,7 @@
     <!-- Status Message -->
     <div id="status-message"></div>
 
-    <!-- "Your Cards" Area (fixed, unique) -->
+    <!-- "Your Cards" Area (fixed) -->
     <div id="your-hand"></div>
 
     <!-- Phase-Specific Sections -->
@@ -277,7 +263,7 @@
       </div>
     </div>
 
-    <!-- Kitty Phase (for player bidder only) -->
+    <!-- Kitty Phase -->
     <div id="kitty-section" class="section">
       <h2>Kitty Phase</h2>
       <div id="kitty-instructions">
@@ -290,7 +276,7 @@
     <div id="draw-section" class="section">
       <h2>Draw Phase</h2>
       <div id="draw-phase-instructions">
-        Your hand appears below. Cards kept from the kitty phase remain selected. Select any additional cards to keep; unselected cards will be replaced from the deck.
+        Your hand appears above. Cards kept from the kitty phase remain selected. Select any additional cards to keep; unselected cards will be replaced from the deck.
       </div>
       <button onclick="confirmDraw()">Draw Cards</button>
     </div>
@@ -306,16 +292,17 @@
       <h2>Game Over</h2>
       <div id="result-message"></div>
       <pre id="score-sheet"></pre>
-      <button onclick="resetGame()">Play Again</button>
+      <button onclick="resetGame()">Play Again (Same Opponent)</button>
+      <button onclick="newOpponent()">Play Again (New Opponent)</button>
     </div>
 
-    <!-- Scoreboard (always visible) -->
+    <!-- Scoreboard -->
     <div id="scoreboard-section">
       <h2>Scoreboard</h2>
       <div id="scoreboard"></div>
     </div>
 
-    <!-- Game Notes & Score Tally (split into two columns) -->
+    <!-- Game Notes (single column) -->
     <div id="game-notes"></div>
 
     <!-- Feedback Area -->
@@ -328,10 +315,10 @@
       "Step 1: Cards are dealt. Your 5 cards appear in the 'Your Cards' area and 3 extra cards form the kitty.",
       "Step 2: During bidding, the computer's bid is shown in the Game Notes (e.g., 'Bill bid 20' or 'Bill Passed').",
       "Step 3: If you win the bid, the status message will read, for example, 'Player bids 25 and wins the bid. Please select the trump suit.'",
-      "Step 4: In kitty selection, your combined hand is shown below. The top row shows your original 5 cards; the bottom row shows the 3 kitty cards (highlighted in light red). Click the cards you want to keep.",
-      "Step 5: In draw phase, your hand is shown. Cards kept from kitty remain selected. Select any additional cards to keep; unselected cards will be replaced from the deck.",
-      "Step 6: In trick play, when you click a card it immediately moves to the trick area (and is highlighted). After 0.5 seconds the computer plays its card; both cards remain visible for 2 seconds before the trick area is cleared.",
-      "Step 7: The left side of the Game Notes displays events (most recent at the top) while the right side shows the running score tally (hand score/total score)."
+      "Step 4: In kitty selection, your combined hand is shown. The top row shows your original 5 cards; the bottom row shows the 3 kitty cards (highlighted in light red). Click the cards you want to keep.",
+      "Step 5: In draw phase, your hand appears above. Cards kept from kitty remain selected. Select any additional cards to keep; unselected cards will be replaced from the deck.",
+      "Step 6: In trick play, when you click a card it immediately moves to the trick area and is highlighted. After 0.5 seconds the computer plays its card; both cards remain visible for 2 seconds before the trick area is cleared.",
+      "Step 7: The Game Notes display all events in chronological order (most recent at the top)."
     ];
     let currentTutorialStep = 0;
 
@@ -351,7 +338,6 @@
       }
     }
 
-    // Tutorial Modal Functions
     function openTutorial() {
       currentTutorialStep = 0;
       showTutorialStep();
@@ -361,7 +347,6 @@
       document.getElementById("tutorial-modal").style.display = "none";
     }
 
-    // Update "Your Cards" area.
     function updateYourHand(handArray) {
       let container = document.getElementById("your-hand");
       container.innerHTML = "<strong>Your Cards:</strong> ";
@@ -400,8 +385,7 @@
           div.dataset.index = index;
           if (gameState.gamePhase === "kitty" || gameState.gamePhase === "draw") {
             div.onclick = function() { this.classList.toggle("selected"); };
-          }
-          else if (gameState.gamePhase === "trick" && gameState.currentTurn === "player") {
+          } else if (gameState.gamePhase === "trick" && gameState.currentTurn === "player") {
             div.onclick = function() { playCard(parseInt(this.dataset.index)); };
           }
           container.appendChild(div);
@@ -433,10 +417,8 @@
       } else {
         document.getElementById("dealer-info").innerHTML = "";
       }
-      // First, remove "visible" from all phase sections.
       let sections = ["bidding-section", "trump-section", "kitty-section", "draw-section", "trick-section", "result-section"];
       sections.forEach(id => document.getElementById(id).classList.remove("visible"));
-      // Then, show the section for the current game phase.
       if (state.gamePhase === "bidding") {
         document.getElementById("bidding-section").classList.add("visible");
       } else if (state.gamePhase === "trump") {
@@ -447,13 +429,6 @@
         document.getElementById("draw-section").classList.add("visible");
       } else if (state.gamePhase === "trick") {
         document.getElementById("trick-section").classList.add("visible");
-      } else if (state.gamePhase === "finished") {
-        document.getElementById("result-section").classList.add("visible");
-        document.getElementById("result-message").textContent = "Game Over!";
-        document.getElementById("score-sheet").textContent = state.scoreSheet || "";
-      }
-      // Update trick area if in trick phase.
-      if (state.gamePhase === "trick") {
         let trickArea = document.getElementById("trick-area");
         let trickCards = (state.currentTrick.length > 0) ? state.currentTrick : state.lastTrick;
         let numPlayers = state.mode === "2p" ? 2 : (state.mode === "3p" ? 3 : state.playerHand.length);
@@ -467,13 +442,15 @@
           div.textContent = entry.card.text;
           trickArea.appendChild(div);
         });
+      } else if (state.gamePhase === "finished") {
+        document.getElementById("result-section").classList.add("visible");
+        document.getElementById("result-message").textContent = "Game Over!";
+        document.getElementById("score-sheet").textContent = state.scoreSheet || "";
       }
       document.getElementById("scoreboard").textContent = state.scoreboard || "";
       let gnDiv = document.getElementById("game-notes");
-      let eventsHTML = "<strong>Game Events:</strong><br>" + state.gameNotes.slice().reverse().join("<br>");
-      let scoreTally = state.scoreSheet || "";
-      gnDiv.innerHTML = "<div class='left'>" + eventsHTML + "</div>" +
-                        "<div class='right'><strong>Score Tally:</strong><br>" + scoreTally.replace(/\|/g, "<br>") + "</div>";
+      let eventsHTML = "<strong>Game Notes:</strong><br>" + state.gameNotes.slice().reverse().join("<br>");
+      gnDiv.innerHTML = eventsHTML;
       document.getElementById("feedback").textContent = state.feedback || "";
     }
 
@@ -541,6 +518,14 @@
 
     function resetGame() {
       callAPI("/reset_game", "POST", {});
+    }
+    
+    function newOpponent() {
+      // Reset the game and show the game options panel so the user can select a new opponent.
+      callAPI("/reset_game", "POST", {}).then(() => {
+          document.getElementById("game-container").style.display = "none";
+          document.getElementById("game-options").style.display = "block";
+      });
     }
 
     function toggleInstructions() {
