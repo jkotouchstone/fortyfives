@@ -129,13 +129,19 @@
     #dealer-info {
       margin-bottom: 10px;
     }
-    /* Remove trick play notes (trick-log) from the UI */
+    /* Trick area for played cards */
+    #trick-area {
+      min-height: 100px;
+      margin-top: 10px;
+      border: 1px dashed #fff;
+      padding: 10px;
+    }
     /* Scoreboard (always visible) - no extra border */
     #scoreboard-section {
       padding-top: 10px;
       display: block;
     }
-    /* Game Notes area (displays computer activity at the top) */
+    /* Game Notes area (chronological log of actions) */
     #game-notes {
       margin-top: 10px;
       text-align: left;
@@ -154,11 +160,6 @@
       margin: 10px auto;
       max-width: 800px;
       font-size: 14px;
-    }
-    /* Trick area styling: ensure played cards appear clearly on the felt */
-    #trick-area {
-      min-height: 100px;
-      margin-top: 10px;
     }
   </style>
 </head>
@@ -189,8 +190,8 @@
     <p>
       <strong>Bidding:</strong><br>
       - As the dealer, the computer’s bid is displayed immediately in the Game Notes (e.g., "Bill: bid 20" or "Bill: Passed").<br>
-      - When you bid and win the bid, the status message will read, for example, "Player bids 25 and wins the bid. Please select the trump suit."<br>
-      - If you are the dealer, your only options are to pass or to bid exactly 5 points more than the computer’s bid.
+      - When you bid and win the bid, the status message will read, for example, "Player bids 25 and wins the bid. Please select the trump suit." (As dealer, you may only pass or bid exactly 5 more than the computer.)<br>
+      - In non-dealer cases, if you win the bid the computer’s bid is shown as "Passed."
     </p>
     <p>
       <strong>Trump & Trick Play:</strong><br>
@@ -199,18 +200,12 @@
     </p>
     <p>
       <strong>Kitty & Draw Phases:</strong><br>
-      - If you win the bid, after selecting trump you enter the Kitty phase. Your combined hand (your original 5 cards plus the 3‑card kitty) is displayed. The kitty cards are highlighted in light red so you know which cards came from the kitty. Select the cards you want to keep.<br>
+      - If you win the bid, after selecting trump you enter the Kitty phase. Your combined hand (your original 5 cards plus the 3‑card kitty) is displayed. The kitty cards are highlighted in light red so you know which cards came from the kitty. Click the cards you want to keep.<br>
       - After confirming your kitty selection, the Draw phase begins so that unselected cards are replaced until you have 5 cards. Cards kept from kitty remain selected.
     </p>
     <p>
-      <strong>Card Rankings:</strong><br>
-      - Trump order (strongest to weakest): 5, J, A, K, Q, 10, 9, 8, 7, 6, 4, 3, 2.<br>
-      - Off‑trump order: For hearts/diamonds – K, Q, J, 10, 9, 8, 7, 6, 5, 4, 3, 2, A; for clubs/spades – K, Q, J, A, 2, 3, 4, 5, 6, 7, 8, 9.
-    </p>
-    <p>
-      <strong>Won Tricks & Scoring:</strong><br>
-      - Each trick is worth 5 points (bonus trick adds 5 points).<br>
-      - Won tricks are shown as an "X" for each trick won. When someone reaches 120 points, a detailed score sheet is displayed.
+      <strong>Game Notes:</strong><br>
+      A chronological log (with timestamps) of all actions is recorded in the Game Notes at the bottom of the screen.
     </p>
     <button onclick="toggleInstructions()">Hide Detailed Rules</button>
   </div>
@@ -291,14 +286,6 @@
       <div id="trick-area" class="cards-container"></div>
     </div>
 
-    <!-- Won Tricks Section -->
-    <div id="won-tricks-section" class="section">
-      <h3>Your Won Tricks</h3>
-      <div id="player-won-tricks" class="cards-container"></div>
-      <h3>Opponent Won Tricks</h3>
-      <div id="opponent-won-tricks" class="cards-container"></div>
-    </div>
-
     <!-- Result Section -->
     <div id="result-section" class="section">
       <h2>Game Over</h2>
@@ -313,7 +300,7 @@
       <div id="scoreboard"></div>
     </div>
 
-    <!-- Game Notes (displays computer activity at the top) -->
+    <!-- Game Notes (chronological log of actions) -->
     <div id="game-notes"></div>
 
     <!-- Feedback Area -->
@@ -328,8 +315,8 @@
       "Step 3: If you win the bid, the status message will read, for example, 'Player bids 25 and wins the bid. Please select the trump suit.' (As dealer, you may only pass or bid exactly 5 more than the computer.)",
       "Step 4: In kitty selection, your combined hand is shown below. The top row shows your original 5 cards; the bottom row shows the 3 kitty cards (highlighted in light red). Click the cards you want to keep.",
       "Step 5: In draw phase, your hand is shown. Cards kept from kitty remain selected. Select any additional cards to keep; unselected cards will be replaced from the deck.",
-      "Step 6: In trick play, when you play a card it is shown alone on the table; then, after a brief delay, the computer reacts. Once both (or all) cards are played, they remain visible for 3 seconds before clearing for the next trick.",
-      "Step 7: Game Notes at the top display all computer actions, including how many cards the computer has discarded. The game continues until someone reaches 120 points."
+      "Step 6: In trick play, when you play a card it is shown alone on the table; then after a brief delay, the computer reacts. Once both cards are played, they remain visible for 3 seconds before the table is cleared for the next trick.",
+      "Step 7: Game Notes at the bottom display a chronological log (with timestamps) of all actions. The game continues until someone reaches 120 points."
     ];
     let currentTutorialStep = 0;
 
@@ -364,7 +351,7 @@
       let container = document.getElementById("your-hand");
       container.innerHTML = "<strong>Your Cards:</strong> ";
       
-      // In kitty phase, if combined hand exists (8 cards), split it.
+      // In kitty phase, if a combined hand exists (8 cards), split into two rows.
       if (gameState.gamePhase === "kitty" && gameState.combinedHand && gameState.combinedHand.length === 8) {
         let combined = gameState.combinedHand;
         let originalHand = combined.slice(0, 5);
@@ -374,11 +361,9 @@
         origDiv.innerHTML = "<em>Your original hand:</em><br>";
         originalHand.forEach((card, index) => {
           let div = document.createElement("div");
-          // Apply 'selected' class if card.selected is true.
           div.className = "card" + (card.selected ? " selected" : "");
           div.textContent = card.text;
           div.dataset.index = index;
-          // In kitty phase, clicking toggles selection.
           div.onclick = function() { this.classList.toggle("selected"); };
           origDiv.appendChild(div);
         });
@@ -391,14 +376,13 @@
           let div = document.createElement("div");
           div.className = "card kitty" + (card.selected ? " selected" : "");
           div.textContent = card.text;
-          // Offset index by 5 for combined hand.
           div.dataset.index = index + 5;
           div.onclick = function() { this.classList.toggle("selected"); };
           kittyDiv.appendChild(div);
         });
         container.appendChild(kittyDiv);
       } else {
-        // For all other phases, simply display each card.
+        // For other phases, simply display the hand.
         handArray.forEach((card, index) => {
           let div = document.createElement("div");
           div.className = "card" + (card.selected ? " selected" : "");
@@ -453,16 +437,11 @@
       if (state.gameNotes && state.gameNotes.length > 0) {
         gnDiv.innerHTML = "<strong>Game Notes:</strong><br>" + state.gameNotes.join("<br>");
       } else {
-        gnDiv.innerHTML = "<strong>Game Notes:</strong><br>No computer actions yet.";
-      }
-      
-      // Display computer discard count if available.
-      if (state.computerDiscardCount !== undefined) {
-        gnDiv.innerHTML += `<br><strong>Computer Discarded:</strong> ${state.computerDiscardCount} card(s)`;
+        gnDiv.innerHTML = "<strong>Game Notes:</strong><br>No actions recorded yet.";
       }
       
       // Hide all phase-specific sections.
-      let sections = ["bidding-section", "trump-section", "kitty-section", "draw-section", "trick-section", "result-section", "won-tricks-section"];
+      let sections = ["bidding-section", "trump-section", "kitty-section", "draw-section", "trick-section", "result-section"];
       sections.forEach(id => document.getElementById(id).classList.remove("visible"));
       
       if (state.gamePhase === "bidding") {
@@ -476,7 +455,7 @@
       } else if (state.gamePhase === "trick") {
         document.getElementById("trick-section").classList.add("visible");
         let trickArea = document.getElementById("trick-area");
-        // Show currently played cards (if any)
+        // If currentTrick is non-empty, display those cards; otherwise, display lastTrick.
         let trickCards = (state.currentTrick.length > 0) ? state.currentTrick : state.lastTrick;
         trickArea.innerHTML = "";
         trickCards.forEach(entry => {
@@ -489,30 +468,6 @@
         document.getElementById("result-section").classList.add("visible");
         document.getElementById("result-message").textContent = "Game Over!";
         document.getElementById("score-sheet").textContent = state.scoreSheet || "";
-      }
-      
-      // Update Won Tricks Section.
-      if (state.gamePhase === "trick" || state.gamePhase === "finished") {
-        document.getElementById("won-tricks-section").classList.add("visible");
-        let playerWonDiv = document.getElementById("player-won-tricks");
-        playerWonDiv.innerHTML = "";
-        for (let i = 0; i < state.wonTricks["player"]; i++) {
-          let div = document.createElement("div");
-          div.className = "card";
-          div.textContent = "X";
-          playerWonDiv.appendChild(div);
-        }
-        let opponentWonDiv = document.getElementById("opponent-won-tricks");
-        opponentWonDiv.innerHTML = "";
-        if (state.computerHandCount !== null) {
-          let opponent = Object.keys(state.bidHistory).find(p => p !== "player");
-          for (let i = 0; i < state.wonTricks[opponent]; i++) {
-            let div = document.createElement("div");
-            div.className = "card";
-            div.textContent = "X";
-            opponentWonDiv.appendChild(div);
-          }
-        }
       }
       
       // Update the scoreboard.
@@ -529,12 +484,6 @@
           body: JSON.stringify(data)
         });
         let result = await response.json();
-        if (!result.wonTricks) {
-          result.wonTricks = { "player": 0 };
-          for (let p in result.bidHistory) {
-            if (p !== "player") result.wonTricks[p] = 0;
-          }
-        }
         updateUI(result);
       } catch (err) {
         console.error("API call error:", err);
