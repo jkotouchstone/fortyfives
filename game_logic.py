@@ -73,6 +73,7 @@ class Game:
         self.mode = mode
         self.instructional = instructional
         self.deck = None
+        # Fixed rotation of computer names.
         computer_names = ["Jack", "Jennifer", "Patrick", "John", "Liam", "Mary",
                           "Jasper", "Felix", "Holly", "Tom", "Karen", "Stephen",
                           "Leona", "Bill", "Christine", "Chris", "Henry"]
@@ -98,14 +99,14 @@ class Game:
         self.phase = "bidding"  # bidding, trump, kitty, draw, trick, finished
         self.biddingMessage = ""
         self.currentTrick = []
-        self.lastTrick = []  # Holds finished trick so it remains visible
+        self.lastTrick = []  # Holds finished trick so it remains visible for a short delay
         self.trickLog = []  # Overall hand log
-        self.gameNotes = []  # Chronological log with timestamps
-        self.handScores = []  # Running tally for each hand
+        # Persist gameNotes throughout the game (do not clear on new hand)
+        self.gameNotes = [] if not hasattr(self, "gameNotes") else self.gameNotes
         self.currentTurn = None
         self.bidder = None
         self.bid = 0
-        self.trumpCardsPlayed = []  # (player, card) tuples for trump cards played this hand
+        self.trumpCardsPlayed = []  # List of (player, card) tuples for trump cards played this hand
         self.deal_hands()
 
     def deal_hands(self):
@@ -113,7 +114,7 @@ class Game:
         self.trump_suit = None
         for p in self.players:
             self.players[p]["hand"] = self.deck.deal(5)
-            self.players[p]["tricks"] = []
+            self.players[p]["tricks"] = []  # Reset tricks for each hand
         self.kitty = self.deck.deal(3)
         self.phase = "bidding"
         self.biddingMessage = "Place your bid (15, 20, 25, or 30)."
@@ -121,7 +122,7 @@ class Game:
         self.lastTrick = []
         self.trickLog = []
         self.bidHistory = {}
-        self.gameNotes = []
+        # Do not clear gameNotes so they persist.
         self.trumpCardsPlayed = []
         if self.mode == "2p" and self.dealer == "player":
             comp_id = self.player_order[1]
@@ -316,8 +317,9 @@ class Game:
             if is_trump(entry["card"], self.trump_suit):
                 self.trumpCardsPlayed.append((entry["player"], entry["card"]))
         self.lastTrick = self.currentTrick.copy()
-        time.sleep(2)
+        time.sleep(2)  # Wait 2 seconds so the trick area is visible.
         self.currentTrick = []
+        self.lastTrick = []  # Clear the trick area.
         self.currentTurn = winner
         if all(len(self.players[p]["hand"]) == 0 for p in self.players):
             self.complete_hand()
@@ -354,18 +356,11 @@ class Game:
             points[bonus_winner] += bonus_value
         if self.bidder in points and points[self.bidder] < self.bid:
             points[self.bidder] = -self.bid
-        hand_summary_parts = []
         for p in self.players:
-            hand_points = points[p]
-            total = self.players[p]["score"] + hand_points
-            name = "Player" if p == "player" else p
-            hand_summary_parts.append(f"{name}: {hand_points}/{total}")
-            self.players[p]["score"] = total
-        summary = "Hand over. " + " | ".join(hand_summary_parts)
+            self.players[p]["score"] += points[p]
+        summary = "Hand over. " + " | ".join(f"{'Player' if p=='player' else p}: {points[p]}/{self.players[p]['score']}" for p in self.players)
         self.trickLog.append(summary)
-        if not hasattr(self, "handScores"):
-            self.handScores = []
-        self.handScores.append(summary)
+        # Do not use a separate score tally; the scoreboard is handled separately.
         if any(self.players[p]["score"] >= 120 for p in self.players):
             self.phase = "finished"
         else:
@@ -394,7 +389,6 @@ class Game:
             "currentTurn": self.currentTurn,
             "dealer": self.dealer,
             "gameNotes": self.gameNotes,
-            "handScores": self.handScores,
             "mode": self.mode
         }
         if self.phase == "kitty" and self.bidder == "player":
@@ -406,5 +400,5 @@ class Game:
             comp = self.player_order[1]
             state["computerDiscardCount"] = 5 - len(self.players[comp]["hand"])
         if self.phase == "finished":
-            state["scoreSheet"] = "\n".join(self.handScores)
+            state["scoreSheet"] = "\n".join(self.trickLog)
         return state
