@@ -44,7 +44,9 @@
       padding: 10px;
       border-radius: 8px;
     }
+    /* Default hide the rules */
     #instructions {
+      display: none;
       text-align: left;
       font-size: 14px;
     }
@@ -194,7 +196,7 @@
     <button onclick="toggleInstructions()">Show Detailed Rules</button>
   </div>
 
-  <!-- Detailed Instructions Panel -->
+  <!-- Detailed Instructions Panel (hidden by default) -->
   <div id="instructions">
     <h3>Detailed Rules & Strategies for Forty‑Fives</h3>
     <p>
@@ -213,8 +215,8 @@
     </p>
     <p>
       <strong>Kitty & Draw Phases:</strong><br>
-      - If you win the bid, after selecting trump you enter the Kitty phase, where your combined hand (your 5 cards + kitty) is shown so you can choose which cards to keep.<br>
-      - After confirming your kitty selection, the Draw phase begins so that unselected cards are replaced until you have 5 cards. Also, you’ll see how many cards the computer has discarded.
+      - If you win the bid, after selecting trump you enter the Kitty phase, where your combined hand (your 5 cards + kitty) is displayed for selection.<br>
+      - After confirming your kitty selection, the Draw phase begins so that unselected cards are replaced until you have 5 cards. You’ll also see how many cards the computer has discarded.
     </p>
     <p>
       <strong>Card Rankings:</strong><br>
@@ -341,7 +343,7 @@
       "Step 4: In kitty selection, the 'Your Cards' area updates to show your combined hand. Click the cards you want to keep (they turn soft green).",
       "Step 5: In draw phase, the 'Your Cards' area shows your draw hand. Select the cards you want to keep; unselected cards will be replaced.",
       "Step 6: In trick play, every card played is shown in the Trick Area. Hover over a card for a hover effect; click a card to play it.",
-      "Step 7: Game Notes at the top display all computer actions. Also, you'll see how many cards the computer has discarded, which may help you plan your strategy. The game continues until someone reaches 120 points."
+      "Step 7: Game Notes at the top display all computer actions. Also, you'll see how many cards the computer has discarded, which helps you gauge its hand strength. The game continues until someone reaches 120 points."
     ];
     let currentTutorialStep = 0;
 
@@ -380,7 +382,7 @@
         div.className = "card";
         div.textContent = card.text;
         div.dataset.index = index;
-        // In kitty and draw phases, clicking toggles selection.
+        // In kitty and draw phases, enable toggling selection.
         if (gameState.gamePhase === "kitty" || gameState.gamePhase === "draw") {
           div.onclick = function() { this.classList.toggle("selected"); };
         }
@@ -396,7 +398,7 @@
     function updateUI(state) {
       gameState = state;
       
-      // Update "Your Cards" area based on phase.
+      // Update "Your Cards" area.
       if (state.gamePhase === "kitty" && state.bidder === "player" && state.combinedHand) {
         updateYourHand(state.combinedHand);
       } else if (state.gamePhase === "draw" && state.drawHand) {
