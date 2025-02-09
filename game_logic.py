@@ -122,7 +122,6 @@ class Game:
         self.lastTrick = []
         self.trickLog = []
         self.bidHistory = {}
-        # Do not clear gameNotes so they persist.
         self.trumpCardsPlayed = []
         if self.mode == "2p" and self.dealer == "player":
             comp_id = self.player_order[1]
@@ -269,21 +268,16 @@ class Game:
 
         # --- Computer Draw Phase Logic ---
         if self.bidder != "player":
-            # For each computer player, if they have fewer than 3 trump cards,
-            # discard all non-trump cards and draw until they have 5 cards.
             for p in self.players:
                 if p != "player":
                     trump_count = sum(1 for card in self.players[p]["hand"] if is_trump(card, self.trump_suit))
                     if trump_count < 3:
-                        # Keep trump cards only.
                         self.players[p]["hand"] = [card for card in self.players[p]["hand"] if is_trump(card, self.trump_suit)]
-                        # Draw until hand size is 5.
                         while len(self.players[p]["hand"]) < 5 and len(self.deck.cards) > 0:
                             self.players[p]["hand"].append(self.deck.deal(1)[0])
                         timestamp = time.strftime("%H:%M:%S")
                         self.gameNotes.append(f"{timestamp} - {p} discarded non-trump cards and drew new cards.")
         else:
-            # For player bidder, log that computer did not draw.
             comp = self.player_order[1]
             timestamp = time.strftime("%H:%M:%S")
             self.gameNotes.append(f"{timestamp} - {comp} did not draw any cards in draw phase.")
@@ -294,15 +288,47 @@ class Game:
         self.auto_play()
         return
 
-    def next_player(self, current):
-        idx = self.player_order.index(current)
-        return self.player_order[(idx + 1) % len(self.player_order)]
+    def validate_move(self, player, card):
+        # If this is the first card of the trick, any move is valid.
+        if not self.currentTrick:
+            return True, ""
+        lead_suit = self.currentTrick[0]["card"].suit
+        # If the played card follows suit, it is allowed.
+        if card.suit == lead_suit:
+            return True, ""
+        # Otherwise, check if the player holds any card of the lead suit.
+        if any(c.suit == lead_suit for c in self.players[player]["hand"]):
+            # The move is normally illegal.
+            # Reneging is allowed only when the played card is one of the three major cards
+            # (the 5 of trump, the Jack of trump, or the Ace of Hearts) and only when the led suit is trump.
+            if self.trump_suit is not None and lead_suit == self.trump_suit:
+                if (card.rank == "5" and card.suit == self.trump_suit) or \
+                   (card.rank == "J" and card.suit == self.trump_suit) or \
+                   (card.rank == "A" and card.suit == "♥"):
+                    # Additional condition: if the led card is a 5 of trump, and the player has any trump card
+                    # that is not an allowed reneging card, they must follow suit.
+                    if self.currentTrick[0]["card"].rank == "5" and self.currentTrick[0]["card"].suit == self.trump_suit:
+                        trump_cards = [c for c in self.players[player]["hand"] if c.suit == self.trump_suit]
+                        if any(c.rank not in ["5", "J"] and not (c.rank=="A" and c.suit=="♥") for c in trump_cards):
+                            return False, "You must follow suit when holding a higher trump card."
+                    return True, ""
+            return False, "You must follow suit if possible."
+        return True, ""
 
     def play_card(self, player, cardIndex):
         if self.currentTurn != player:
             return
         if cardIndex < 0 or cardIndex >= len(self.players[player]["hand"]):
             return
+        card = self.players[player]["hand"][cardIndex]
+        # Only validate the move if it's the human player.
+        if player == "player":
+            valid, message = self.validate_move(player, card)
+            if not valid:
+                self.biddingMessage = message
+                timestamp = time.strftime("%H:%M:%S")
+                self.gameNotes.append(f"{timestamp} - Illegal move attempted: {message}")
+                return
         card = self.players[player]["hand"].pop(cardIndex)
         card.selected = True
         self.currentTrick.append({"player": player, "card": card})
@@ -339,11 +365,11 @@ class Game:
         for entry in self.currentTrick:
             if is_trump(entry["card"], self.trump_suit):
                 self.trumpCardsPlayed.append((entry["player"], entry["card"]))
-        # Copy the finished trick into lastTrick so both cards (or all cards, for 3p) are visible.
+        # Copy the finished trick into lastTrick so all played cards are visible.
         self.lastTrick = self.currentTrick.copy()
         # Reduced delay: 2 sec → 1.3 sec.
         time.sleep(1.3)
-        # Clear both currentTrick and lastTrick to ensure the trick area is empty.
+        # Clear the trick area so that only the next trick’s cards are displayed.
         self.currentTrick = []
         self.lastTrick = []
         self.currentTurn = winner
@@ -390,7 +416,6 @@ class Game:
             hand_summary_parts.append(f"{name}: {hand_points}/{total}")
             self.players[p]["score"] = total
         summary = "Hand over. " + " | ".join(hand_summary_parts)
-        # Append the summary to both the trickLog and gameNotes for continuous record.
         self.trickLog.append(summary)
         self.handScores.append(summary)
         self.gameNotes.append(summary)
