@@ -165,9 +165,9 @@
       max-width: 800px;
       font-size: 14px;
     }
-    /* Footer with copyright info */
+    /* Footer */
     footer {
-      position: absolute;
+      position: fixed;
       bottom: 0;
       left: 0;
       width: 100%;
@@ -207,21 +207,22 @@
       <strong>Bidding:</strong><br>
       - As the dealer, the computer’s bid is displayed immediately in the Game Notes (e.g., "Bill: bid 20" or "Bill: Passed").<br>
       - When you bid and win the bid, the status message will read, for example, "Player bids 25 and wins the bid. Please select the trump suit." (As dealer, you may only pass or bid exactly 5 more than the computer. If the computer passes, you are bagged and automatically bid 15.)<br>
-      - In non-dealer cases, if you win the bid the computer’s bid is shown as "Passed."
+      - In non‑dealer cases, if you win the bid the computer’s bid is shown as "Passed."
     </p>
     <p>
       <strong>Trump & Trick Play:</strong><br>
       - The winning bidder selects the trump suit while your cards remain visible in the "Your Cards" area.<br>
-      - In trick play, when you click a card it immediately moves to the trick area and is highlighted. After 0.5 seconds the computer plays its card; both cards remain visible for 2 seconds before the trick area is cleared.
+      - In trick play, when you click a card it immediately moves to the trick area and is highlighted. After 0.5 seconds the computer plays its card; both cards remain visible for 2 seconds (reduced to ~1.3 seconds now) before the trick area is cleared.
     </p>
     <p>
       <strong>Kitty & Draw Phases:</strong><br>
       - If you win the bid, after selecting trump you enter the Kitty phase. Your combined hand (your original 5 cards plus the 3‑card kitty) is displayed. The kitty cards are highlighted in light red. Click the cards you want to keep.<br>
-      - After confirming your kitty selection, the Draw phase begins so that unselected cards are replaced until you have 5 cards. (Note: In the Draw Phase, your hand appears above.)
+      - After confirming your kitty selection, the Draw phase begins so that unselected cards are replaced until you have 5 cards. (Note: In the Draw Phase, your hand appears above.)<br>
+      - Additionally, during the draw phase, the game notes now record the number of cards the computer discards/draws.
     </p>
     <p>
       <strong>Game Notes:</strong><br>
-      The Game Notes display all events continuously (most recent at the top) in a fixed, scrollable area. They also include, for each hand, the number of cards the computer drew.
+      The Game Notes display all events continuously in a fixed, scrollable area.
     </p>
     <button onclick="toggleInstructions()">Hide Detailed Rules</button>
   </div>
@@ -337,8 +338,8 @@
       "Step 3: If you win the bid, the status message will read, for example, 'Player bids 25 and wins the bid. Please select the trump suit.'",
       "Step 4: In kitty selection, your combined hand is shown. The top row shows your original 5 cards; the bottom row shows the 3 kitty cards (highlighted in light red). Click the cards you want to keep.",
       "Step 5: In draw phase, your hand appears above. Cards kept from kitty remain selected. Select any additional cards to keep; unselected cards will be replaced from the deck.",
-      "Step 6: In trick play, when you click a card it immediately moves to the trick area and is highlighted. After 0.5 seconds the computer plays its card; both cards remain visible for 2 seconds before the trick area is cleared.",
-      "Step 7: The Game Notes display all events continuously in a fixed, scrollable area."
+      "Step 6: In trick play, when you click a card it immediately moves to the trick area and is highlighted. After 0.5 seconds the computer plays its card; both cards remain visible for 1.3 seconds before the trick area is cleared.",
+      "Step 7: The Game Notes display all events continuously in a fixed, scrollable area, including a summary of each hand and the number of cards the computer drew."
     ];
     let currentTutorialStep = 0;
 
@@ -437,7 +438,7 @@
       } else {
         document.getElementById("dealer-info").innerHTML = "";
       }
-      // Hide all phase sections first.
+      // Hide all phase sections.
       let sections = ["bidding-section", "trump-section", "kitty-section", "draw-section", "trick-section", "result-section"];
       sections.forEach(id => document.getElementById(id).classList.remove("visible"));
       if (state.gamePhase === "bidding") {
@@ -451,8 +452,9 @@
       } else if (state.gamePhase === "trick") {
         document.getElementById("trick-section").classList.add("visible");
         let trickArea = document.getElementById("trick-area");
-        // Use currentTrick if non-empty; otherwise, use lastTrick.
+        // Use currentTrick if available; otherwise, use lastTrick.
         let trickCards = (state.currentTrick.length > 0) ? state.currentTrick : state.lastTrick;
+        // Force number of cards equals number of players.
         let numPlayers = state.mode === "2p" ? 2 : (state.mode === "3p" ? 3 : state.playerHand.length);
         if (trickCards.length > numPlayers) {
           trickCards = trickCards.slice(0, numPlayers);
@@ -470,6 +472,7 @@
         document.getElementById("score-sheet").textContent = state.scoreSheet || "";
       }
       document.getElementById("scoreboard").textContent = state.scoreboard || "";
+      // Update game notes in a fixed, scrollable area.
       let gnDiv = document.getElementById("game-notes");
       let eventsHTML = "<strong>Game Notes:</strong><br>" + state.gameNotes.slice().reverse().join("<br>");
       gnDiv.innerHTML = eventsHTML;
