@@ -38,7 +38,7 @@ TRUMP_RANKINGS = {
     "♣": ["5", "J", "A", "K", "Q", "2", "3", "4", "6", "7", "8", "9", "10"],
     "♠": ["5", "J", "A", "K", "Q", "2", "3", "4", "6", "7", "8", "9", "10"]
 }
-# Off‑trump rankings are updated:
+# Updated off‑trump orders:
 OFFSUIT_RANKINGS = {
     "♦": ["K", "Q", "J", "10", "9", "8", "7", "6", "5", "4", "3", "2", "A"],
     "♥": ["K", "Q", "J", "10", "9", "8", "7", "6", "5", "4", "3", "2", "A"],
@@ -95,7 +95,7 @@ class Game:
         self.dealer = "player" if random.random() < 0.5 else self.player_order[1]
         self.kitty = []
         self.trump_suit = None
-        self.phase = "bidding"  # Phases: bidding, trump, kitty, draw, trick, finished
+        self.phase = "bidding"  # bidding, trump, kitty, draw, trick, finished
         self.biddingMessage = ""
         self.currentTrick = []
         self.lastTrick = []
@@ -119,7 +119,7 @@ class Game:
         self.trickLog = []
         self.bidHistory = {}
         self.gameNotes = []
-        # If you are the dealer, immediately record the computer’s bid.
+        # If player is the dealer in 2p mode, immediately record computer's bid.
         if self.mode == "2p" and self.dealer == "player":
             comp_id = self.player_order[1]
             comp_bid, comp_trump = self.computer_bid(comp_id)
@@ -142,7 +142,6 @@ class Game:
         self.bidHistory["player"] = "Passed" if player_bid == 0 else f"bid {player_bid}"
         if self.mode == "2p":
             comp_id = self.player_order[1]
-            # Use the computer bid already recorded if available.
             if comp_id in self.bidHistory:
                 comp_bid_str = self.bidHistory[comp_id]
                 comp_bid = int(comp_bid_str.split()[1]) if "bid" in comp_bid_str else 0
@@ -157,9 +156,33 @@ class Game:
             else:
                 self.bidder = comp_id
                 self.bid = comp_bid
-                self.trump_suit = comp_trump  # Computer auto-selects trump.
+                self.trump_suit = comp_trump
                 self.biddingMessage = f"{comp_id} wins the bid with {comp_bid} and has selected {comp_trump} as trump."
                 self.gameNotes.append(f"{comp_id} selected {comp_trump} as trump.")
+                self.phase = "draw"
+            self.currentTurn = self.bidder
+        elif self.mode == "3p":
+            comp1 = self.player_order[1]
+            comp2 = self.player_order[2]
+            comp_bid1, comp_trump1 = self.computer_bid(comp1)
+            comp_bid2, comp_trump2 = self.computer_bid(comp2)
+            self.bidHistory[comp1] = "Passed" if comp_bid1 == 0 else f"bid {comp_bid1}"
+            self.bidHistory[comp2] = "Passed" if comp_bid2 == 0 else f"bid {comp_bid2}"
+            bids = {"player": player_bid, comp1: comp_bid1, comp2: comp_bid2}
+            highest_bidder = max(bids, key=bids.get)
+            highest_bid = bids[highest_bidder]
+            self.bidder = highest_bidder
+            self.bid = highest_bid
+            if highest_bidder == "player":
+                self.biddingMessage = f"Player bids {player_bid} and wins the bid. Please select the trump suit."
+                self.phase = "trump"
+            else:
+                if highest_bidder == comp1:
+                    self.trump_suit = comp_trump1
+                else:
+                    self.trump_suit = comp_trump2
+                self.biddingMessage = f"{highest_bidder} wins the bid with {highest_bid} and has selected {self.trump_suit} as trump."
+                self.gameNotes.append(f"{highest_bidder} selected {self.trump_suit} as trump.")
                 self.phase = "draw"  # Computer bidder skips kitty.
             self.currentTurn = self.bidder
         return
@@ -307,14 +330,11 @@ class Game:
             "dealer": self.dealer,
             "gameNotes": self.gameNotes
         }
-        # In kitty phase (if player won the bid), send combined hand.
         if self.phase == "kitty" and self.bidder == "player":
             combined = self.players["player"]["hand"] + self.kitty
             state["combinedHand"] = [card.to_dict() for card in combined]
-        # In draw phase, send the player's current hand.
         if self.phase == "draw":
             state["drawHand"] = [card.to_dict() for card in self.players["player"]["hand"]]
-        # Compute computer discard count (how many cards have been played/discarded)
         if self.mode == "2p":
             comp = self.player_order[1]
             state["computerDiscardCount"] = 5 - len(self.players[comp]["hand"])
