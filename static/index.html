@@ -220,7 +220,7 @@
     </p>
     <p>
       <strong>Game Notes & Score Tally:</strong><br>
-      The left side displays the chronological events (most recent at the top) and the right side shows a running tally of each hand’s score (hand score/total score).
+      The left side displays the chronological events (most recent at the top) while the right side shows the running hand score/total score for each player.
     </p>
     <button onclick="toggleInstructions()">Hide Detailed Rules</button>
   </div>
@@ -449,12 +449,14 @@
       
       // Update trick area.
       if (state.gamePhase === "trick") {
+        // Ensure the trick section is visible.
         document.getElementById("trick-section").classList.add("visible");
         let trickArea = document.getElementById("trick-area");
         // Always show current trick if available; if not, show the last completed trick.
         let trickCards = (state.currentTrick.length > 0) ? state.currentTrick : state.lastTrick;
-        // Determine the number of players (for 2p, 2 cards; for 3p, 3 cards)
+        // Determine the number of players (e.g., 2 for 2p, 3 for 3p)
         let numPlayers = state.mode === "2p" ? 2 : (state.mode === "3p" ? 3 : state.playerHand.length);
+        // Only display as many cards as there are players.
         if (trickCards.length > numPlayers) {
           trickCards = trickCards.slice(0, numPlayers);
         }
@@ -575,3 +577,4 @@
   </script>
 </body>
 </html>
+
