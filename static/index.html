@@ -213,14 +213,13 @@
     </p>
     <p>
       <strong>Kitty & Draw Phases:</strong><br>
-      - If you win the bid, after trump selection you enter the Kitty phase, where your combined hand (your 5 cards + kitty) is displayed for selection.<br>
+      - If you win the bid, after selecting trump you enter the Kitty phase, where your combined hand (your 5 cards + kitty) is displayed for selection.<br>
       - After confirming kitty selection, the Draw phase begins so that unselected cards are replaced until you have 5 cards.
     </p>
     <p>
       <strong>Card Rankings:</strong><br>
-      - Trump order: 5, J, A, K, Q, 10, 9, 8, 7, 6, 4, 3, 2.<br>
-      - Off‑trump order: K, Q, J, 10, 9, 8, 7, 6, 5, 4, 3, 2, A.<br>
-      - (Note: The Ace of Hearts is always trump.)
+      - Trump order (strongest to weakest): 5, J, A, K, Q, 10, 9, 8, 7, 6, 4, 3, 2.<br>
+      - Off‑trump order: For hearts/diamonds – K, Q, J, 10, 9, 8, 7, 6, 5, 4, 3, 2, A; for clubs/spades – K, Q, J, A, 2, 3, 4, 5, 6, 7, 8, 9.
     </p>
     <p>
       <strong>Won Tricks & Scoring:</strong><br>
@@ -372,7 +371,7 @@
       document.getElementById("tutorial-modal").style.display = "none";
     }
 
-    // Update "Your Cards" area.
+    // Update "Your Cards" area (single container).
     function updateYourHand(handArray) {
       let container = document.getElementById("your-hand");
       container.innerHTML = "<strong>Your Cards:</strong> ";
@@ -381,7 +380,7 @@
         div.className = "card";
         div.textContent = card.text;
         div.dataset.index = index;
-        // In kitty and draw phases, add click handling to toggle selection.
+        // Attach click events in kitty and draw phases.
         if (gameState.gamePhase === "kitty" || gameState.gamePhase === "draw") {
           div.onclick = function() { this.classList.toggle("selected"); };
         }
@@ -393,7 +392,7 @@
     function updateUI(state) {
       gameState = state;
       
-      // Update "Your Cards" area based on phase.
+      // Update "Your Cards" area.
       if (state.gamePhase === "kitty" && state.bidder === "player" && state.combinedHand) {
         updateYourHand(state.combinedHand);
       } else if (state.gamePhase === "draw" && state.drawHand) {
@@ -422,7 +421,7 @@
         document.getElementById("dealer-info").innerHTML = "";
       }
       
-      // Game Notes (display computer activity at the top).
+      // Game Notes.
       let gnDiv = document.getElementById("game-notes");
       if (state.gameNotes && state.gameNotes.length > 0) {
         gnDiv.innerHTML = "<strong>Game Notes:</strong><br>" + state.gameNotes.join("<br>");
