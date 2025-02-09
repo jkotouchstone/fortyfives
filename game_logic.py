@@ -165,7 +165,7 @@ class Game:
                 else:
                     if player_bid != 0 and player_bid != comp_bid + 5:
                         self.biddingMessage = f"As dealer, you must either pass or bid {comp_bid + 5}."
-                        return
+                        return  # Do not advance phase.
                     if player_bid == 0:
                         self.bidder = comp_id
                         self.bid = comp_bid
@@ -265,12 +265,12 @@ class Game:
             self.players["player"]["hand"] = kept_cards
         while len(self.players["player"]["hand"]) < 5 and len(self.deck.cards) > 0:
             self.players["player"]["hand"].append(self.deck.deal(1)[0])
-        # Clear any selection for trick play.
         for card in self.players["player"]["hand"]:
             card.selected = False
         self.biddingMessage = "Draw complete. Proceeding to trick play."
         self.phase = "trick"
-        self.currentTurn = self.bidder  # Trick play starts with the winning bidder.
+        # Regardless of who won the bid, force the trick phase to begin with the player’s turn
+        self.currentTurn = "player"
         self.auto_play()
         return
 
@@ -290,7 +290,7 @@ class Game:
             self.gameNotes.append(f"{timestamp} - {player} played {card}")
         else:
             self.gameNotes.append(f"{timestamp} - Player played {card}")
-            # Removed delay so the card appears instantly.
+            // No delay here so the card appears immediately.
         self.currentTurn = self.next_player(player)
         self.auto_play()
         if len(self.currentTrick) == len(self.player_order):
@@ -316,7 +316,6 @@ class Game:
         self.trickLog.append(trick_summary)
         # Keep played cards visible for 2 seconds.
         time.sleep(2)
-        # Clear the trick area.
         self.lastTrick = []
         self.currentTrick = []
         self.currentTurn = winner  # Winner leads next trick.
