@@ -99,9 +99,9 @@ class Game:
         self.phase = "bidding"  # bidding, trump, kitty, draw, trick, finished
         self.biddingMessage = ""
         self.currentTrick = []
-        self.lastTrick = []  # Holds finished trick so it remains visible for a delay
+        self.lastTrick = []  # Holds finished trick for a short delay display
         self.trickLog = []  # Overall hand log
-        self.gameNotes = []  # All events persist during the game
+        self.gameNotes = []  # Persist all events during the game
         self.handScores = []  # Record of each hand's scoring summary
         self.currentTurn = None
         self.bidder = None
@@ -266,21 +266,28 @@ class Game:
             self.players["player"]["hand"].append(self.deck.deal(1)[0])
         for card in self.players["player"]["hand"]:
             card.selected = False
-        # Log computer draw info: if player is bidder then computer does not draw;
-        # if computer is bidder, log the number of cards drawn.
+
+        # --- Computer Draw Phase Logic ---
         if self.bidder != "player":
-            comp = self.bidder
-            draw_count = 5 - len(self.players[comp]["hand"])
-            for i in range(draw_count):
-                if len(self.deck.cards) > 0:
-                    self.players[comp]["hand"].append(self.deck.deal(1)[0])
-            timestamp = time.strftime("%H:%M:%S")
-            self.gameNotes.append(f"{timestamp} - {comp} drew {draw_count} card(s) in draw phase.")
+            # For each computer player, if they have fewer than 3 trump cards,
+            # discard all non-trump cards and draw until they have 5 cards.
+            for p in self.players:
+                if p != "player":
+                    trump_count = sum(1 for card in self.players[p]["hand"] if is_trump(card, self.trump_suit))
+                    if trump_count < 3:
+                        # Keep trump cards only.
+                        self.players[p]["hand"] = [card for card in self.players[p]["hand"] if is_trump(card, self.trump_suit)]
+                        # Draw until hand size is 5.
+                        while len(self.players[p]["hand"]) < 5 and len(self.deck.cards) > 0:
+                            self.players[p]["hand"].append(self.deck.deal(1)[0])
+                        timestamp = time.strftime("%H:%M:%S")
+                        self.gameNotes.append(f"{timestamp} - {p} discarded non-trump cards and drew new cards.")
         else:
             # For player bidder, log that computer did not draw.
             comp = self.player_order[1]
             timestamp = time.strftime("%H:%M:%S")
             self.gameNotes.append(f"{timestamp} - {comp} did not draw any cards in draw phase.")
+
         self.biddingMessage = "Draw complete. Proceeding to trick play."
         self.phase = "trick"
         self.currentTurn = self.bidder
@@ -332,13 +339,13 @@ class Game:
         for entry in self.currentTrick:
             if is_trump(entry["card"], self.trump_suit):
                 self.trumpCardsPlayed.append((entry["player"], entry["card"]))
-        # Copy the finished trick into lastTrick so both cards are visible.
+        # Copy the finished trick into lastTrick so both cards (or all cards, for 3p) are visible.
         self.lastTrick = self.currentTrick.copy()
-        # Reduced delay: 2 sec → ~1.3 sec.
+        # Reduced delay: 2 sec → 1.3 sec.
         time.sleep(1.3)
-        # Clear currentTrick so next trick starts with an empty area.
+        # Clear both currentTrick and lastTrick to ensure the trick area is empty.
         self.currentTrick = []
-        # (We leave lastTrick intact so the UI can display the final trick until the next update.)
+        self.lastTrick = []
         self.currentTurn = winner
         if all(len(self.players[p]["hand"]) == 0 for p in self.players):
             self.complete_hand()
@@ -383,8 +390,10 @@ class Game:
             hand_summary_parts.append(f"{name}: {hand_points}/{total}")
             self.players[p]["score"] = total
         summary = "Hand over. " + " | ".join(hand_summary_parts)
+        # Append the summary to both the trickLog and gameNotes for continuous record.
         self.trickLog.append(summary)
         self.handScores.append(summary)
+        self.gameNotes.append(summary)
         if any(self.players[p]["score"] >= 120 for p in self.players):
             self.phase = "finished"
         else:
