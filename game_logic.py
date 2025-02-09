@@ -101,12 +101,13 @@ class Game:
         self.currentTrick = []
         self.lastTrick = []  # Holds finished trick so it remains visible for a short delay
         self.trickLog = []  # Overall hand log
-        # Persist gameNotes throughout the game (do not clear on new hand)
-        self.gameNotes = [] if not hasattr(self, "gameNotes") else self.gameNotes
+        # Persist gameNotes throughout the game.
+        self.gameNotes = []  
+        self.handScores = []  # Hand score summaries for permanent record
         self.currentTurn = None
         self.bidder = None
         self.bid = 0
-        self.trumpCardsPlayed = []  # List of (player, card) tuples for trump cards played this hand
+        self.trumpCardsPlayed = []  # (player, card) tuples for trump cards played this hand
         self.deal_hands()
 
     def deal_hands(self):
@@ -114,7 +115,7 @@ class Game:
         self.trump_suit = None
         for p in self.players:
             self.players[p]["hand"] = self.deck.deal(5)
-            self.players[p]["tricks"] = []  # Reset tricks for each hand
+            self.players[p]["tricks"] = []
         self.kitty = self.deck.deal(3)
         self.phase = "bidding"
         self.biddingMessage = "Place your bid (15, 20, 25, or 30)."
@@ -296,8 +297,9 @@ class Game:
         return
 
     def auto_play(self):
+        # Reduced delay to 65% of previous (0.5 sec -> 0.33 sec)
         while self.currentTurn != "player" and len(self.currentTrick) < len(self.player_order):
-            time.sleep(0.5)
+            time.sleep(0.33)
             available = self.players[self.currentTurn]["hand"]
             if not available:
                 break
@@ -317,15 +319,18 @@ class Game:
             if is_trump(entry["card"], self.trump_suit):
                 self.trumpCardsPlayed.append((entry["player"], entry["card"]))
         self.lastTrick = self.currentTrick.copy()
-        time.sleep(2)  # Wait 2 seconds so the trick area is visible.
+        # Reduced delay: 2 sec -> 1.3 sec
+        time.sleep(1.3)
+        # Clear trick area (both currentTrick and lastTrick) so next trick starts empty.
         self.currentTrick = []
-        self.lastTrick = []  # Clear the trick area.
+        self.lastTrick = []
+        # Reduced post-trick delay: 0.5 sec -> 0.33 sec before auto-play if needed.
         self.currentTurn = winner
         if all(len(self.players[p]["hand"]) == 0 for p in self.players):
             self.complete_hand()
         else:
             if self.currentTurn != "player":
-                time.sleep(0.5)
+                time.sleep(0.33)
                 self.auto_play()
         return
 
@@ -345,6 +350,7 @@ class Game:
         return winner_entry["player"]
 
     def complete_hand(self):
+        # Each trick is 5 points.
         points = {p: len(self.players[p]["tricks"]) * 5 for p in self.players}
         bonus_winner = None
         bonus_value = 5
@@ -356,11 +362,16 @@ class Game:
             points[bonus_winner] += bonus_value
         if self.bidder in points and points[self.bidder] < self.bid:
             points[self.bidder] = -self.bid
+        hand_summary_parts = []
         for p in self.players:
-            self.players[p]["score"] += points[p]
-        summary = "Hand over. " + " | ".join(f"{'Player' if p=='player' else p}: {points[p]}/{self.players[p]['score']}" for p in self.players)
+            hand_points = points[p]
+            total = self.players[p]["score"] + hand_points
+            name = "Player" if p == "player" else p
+            hand_summary_parts.append(f"{name}: {hand_points}/{total}")
+            self.players[p]["score"] = total
+        summary = "Hand over. " + " | ".join(hand_summary_parts)
         self.trickLog.append(summary)
-        # Do not use a separate score tally; the scoreboard is handled separately.
+        self.handScores.append(summary)
         if any(self.players[p]["score"] >= 120 for p in self.players):
             self.phase = "finished"
         else:
@@ -389,6 +400,7 @@ class Game:
             "currentTurn": self.currentTurn,
             "dealer": self.dealer,
             "gameNotes": self.gameNotes,
+            "handScores": self.handScores,
             "mode": self.mode
         }
         if self.phase == "kitty" and self.bidder == "player":
@@ -400,5 +412,5 @@ class Game:
             comp = self.player_order[1]
             state["computerDiscardCount"] = 5 - len(self.players[comp]["hand"])
         if self.phase == "finished":
-            state["scoreSheet"] = "\n".join(self.trickLog)
+            state["scoreSheet"] = "\n".join(self.handScores)
         return state
