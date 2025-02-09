@@ -330,8 +330,8 @@
       "Step 3: If you win the bid, the status message will read, for example, 'Player bids 25 and wins the bid. Please select the trump suit.'",
       "Step 4: In kitty selection, your combined hand is shown below. The top row shows your original 5 cards; the bottom row shows the 3 kitty cards (highlighted in light red). Click the cards you want to keep.",
       "Step 5: In draw phase, your hand is shown. Cards kept from kitty remain selected. Select any additional cards to keep; unselected cards will be replaced from the deck.",
-      "Step 6: In trick play, when you click a card it immediately moves from your hand to the trick area (and is highlighted). After 0.5 seconds the computer plays its card. Both cards remain visible for 2 seconds before the trick area is cleared.",
-      "Step 7: The left side of the Game Notes displays events (most recent at the top) and the right side shows a running score tally (hand score/total score)."
+      "Step 6: In trick play, when you click a card it immediately moves to the trick area (and is highlighted). After 0.5 seconds the computer plays its card; both cards remain visible for 2 seconds before the trick area is cleared.",
+      "Step 7: The left side of the Game Notes displays events (most recent at the top) while the right side shows the running score tally (hand score/total score)."
     ];
     let currentTutorialStep = 0;
 
@@ -433,13 +433,29 @@
       } else {
         document.getElementById("dealer-info").innerHTML = "";
       }
-      // Trick area update: always add visible class.
-      if (state.gamePhase === "trick") {
+      // First, remove "visible" from all phase sections.
+      let sections = ["bidding-section", "trump-section", "kitty-section", "draw-section", "trick-section", "result-section"];
+      sections.forEach(id => document.getElementById(id).classList.remove("visible"));
+      // Then, show the section for the current game phase.
+      if (state.gamePhase === "bidding") {
+        document.getElementById("bidding-section").classList.add("visible");
+      } else if (state.gamePhase === "trump") {
+        document.getElementById("trump-section").classList.add("visible");
+      } else if (state.gamePhase === "kitty") {
+        document.getElementById("kitty-section").classList.add("visible");
+      } else if (state.gamePhase === "draw") {
+        document.getElementById("draw-section").classList.add("visible");
+      } else if (state.gamePhase === "trick") {
         document.getElementById("trick-section").classList.add("visible");
+      } else if (state.gamePhase === "finished") {
+        document.getElementById("result-section").classList.add("visible");
+        document.getElementById("result-message").textContent = "Game Over!";
+        document.getElementById("score-sheet").textContent = state.scoreSheet || "";
+      }
+      // Update trick area if in trick phase.
+      if (state.gamePhase === "trick") {
         let trickArea = document.getElementById("trick-area");
-        // Use currentTrick if not empty; otherwise lastTrick.
         let trickCards = (state.currentTrick.length > 0) ? state.currentTrick : state.lastTrick;
-        // Number of players equals number of cards that should be displayed.
         let numPlayers = state.mode === "2p" ? 2 : (state.mode === "3p" ? 3 : state.playerHand.length);
         if (trickCards.length > numPlayers) {
           trickCards = trickCards.slice(0, numPlayers);
@@ -451,21 +467,6 @@
           div.textContent = entry.card.text;
           trickArea.appendChild(div);
         });
-      }
-      let sections = ["bidding-section", "trump-section", "kitty-section", "draw-section", "trick-section", "result-section"];
-      sections.forEach(id => document.getElementById(id).classList.remove("visible"));
-      if (state.gamePhase === "bidding") {
-        document.getElementById("bidding-section").classList.add("visible");
-      } else if (state.gamePhase === "trump") {
-        document.getElementById("trump-section").classList.add("visible");
-      } else if (state.gamePhase === "kitty") {
-        document.getElementById("kitty-section").classList.add("visible");
-      } else if (state.gamePhase === "draw") {
-        document.getElementById("draw-section").classList.add("visible");
-      } else if (state.gamePhase === "finished") {
-        document.getElementById("result-section").classList.add("visible");
-        document.getElementById("result-message").textContent = "Game Over!";
-        document.getElementById("score-sheet").textContent = state.scoreSheet || "";
       }
       document.getElementById("scoreboard").textContent = state.scoreboard || "";
       let gnDiv = document.getElementById("game-notes");
