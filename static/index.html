@@ -165,7 +165,7 @@
       max-width: 800px;
       font-size: 14px;
     }
-    /* Footer */
+    /* Footer with copyright info */
     footer {
       position: fixed;
       bottom: 0;
@@ -212,13 +212,18 @@
     <p>
       <strong>Trump & Trick Play:</strong><br>
       - The winning bidder selects the trump suit while your cards remain visible in the "Your Cards" area.<br>
-      - In trick play, when you click a card it immediately moves to the trick area and is highlighted. After 0.5 seconds the computer plays its card; both cards remain visible for 2 seconds (reduced to ~1.3 seconds now) before the trick area is cleared.
+      - In trick play, when you click a card it immediately moves to the trick area and is highlighted. After 0.5 seconds the computer plays its card; both cards remain visible for about 1.3 seconds before the trick area is cleared.
     </p>
     <p>
       <strong>Kitty & Draw Phases:</strong><br>
       - If you win the bid, after selecting trump you enter the Kitty phase. Your combined hand (your original 5 cards plus the 3‑card kitty) is displayed. The kitty cards are highlighted in light red. Click the cards you want to keep.<br>
       - After confirming your kitty selection, the Draw phase begins so that unselected cards are replaced until you have 5 cards. (Note: In the Draw Phase, your hand appears above.)<br>
-      - Additionally, during the draw phase, the game notes now record the number of cards the computer discards/draws.
+      - The Game Notes also record the number of cards the computer discards and draws.
+    </p>
+    <p>
+      <strong>Following Suit & Reneging:</strong><br>
+      - When a card is led, you must follow suit if possible. If you cannot, you may only “renege” (play off‑suit) if you hold one of the three major trump cards (the 5 of trump, the Jack of trump, or the Ace of Hearts).<br>
+      - If you attempt to play a card that does not follow suit while you have a card of the lead suit (and the reneging exception does not apply), an error message will be shown.
     </p>
     <p>
       <strong>Game Notes:</strong><br>
@@ -338,8 +343,8 @@
       "Step 3: If you win the bid, the status message will read, for example, 'Player bids 25 and wins the bid. Please select the trump suit.'",
       "Step 4: In kitty selection, your combined hand is shown. The top row shows your original 5 cards; the bottom row shows the 3 kitty cards (highlighted in light red). Click the cards you want to keep.",
       "Step 5: In draw phase, your hand appears above. Cards kept from kitty remain selected. Select any additional cards to keep; unselected cards will be replaced from the deck.",
-      "Step 6: In trick play, when you click a card it immediately moves to the trick area and is highlighted. After 0.5 seconds the computer plays its card; both cards remain visible for 1.3 seconds before the trick area is cleared.",
-      "Step 7: The Game Notes display all events continuously in a fixed, scrollable area, including a summary of each hand and the number of cards the computer drew."
+      "Step 6: In trick play, when you click a card it immediately moves to the trick area and is highlighted. After 0.5 seconds the computer plays its card; both cards remain visible for about 1.3 seconds before the trick area is cleared.",
+      "Step 7: The Game Notes display all events continuously in a fixed, scrollable area, including hand summaries and draw phase details."
     ];
     let currentTutorialStep = 0;
 
@@ -438,7 +443,6 @@
       } else {
         document.getElementById("dealer-info").innerHTML = "";
       }
-      // Hide all phase sections.
       let sections = ["bidding-section", "trump-section", "kitty-section", "draw-section", "trick-section", "result-section"];
       sections.forEach(id => document.getElementById(id).classList.remove("visible"));
       if (state.gamePhase === "bidding") {
@@ -454,7 +458,6 @@
         let trickArea = document.getElementById("trick-area");
         // Use currentTrick if available; otherwise, use lastTrick.
         let trickCards = (state.currentTrick.length > 0) ? state.currentTrick : state.lastTrick;
-        // Force number of cards equals number of players.
         let numPlayers = state.mode === "2p" ? 2 : (state.mode === "3p" ? 3 : state.playerHand.length);
         if (trickCards.length > numPlayers) {
           trickCards = trickCards.slice(0, numPlayers);
@@ -472,7 +475,6 @@
         document.getElementById("score-sheet").textContent = state.scoreSheet || "";
       }
       document.getElementById("scoreboard").textContent = state.scoreboard || "";
-      // Update game notes in a fixed, scrollable area.
       let gnDiv = document.getElementById("game-notes");
       let eventsHTML = "<strong>Game Notes:</strong><br>" + state.gameNotes.slice().reverse().join("<br>");
       gnDiv.innerHTML = eventsHTML;
