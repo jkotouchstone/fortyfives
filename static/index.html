@@ -124,8 +124,7 @@
       margin-bottom: 10px;
     }
     #bid-history {
-      font-size: 14px;
-      margin-top: 5px;
+      display: none; /* Remove "Bids:" text since Game Notes shows computer actions */
     }
     #trick-log {
       margin-top: 10px;
@@ -155,7 +154,7 @@
       padding-top: 10px;
       display: block;
     }
-    /* Game Notes area for computer activity (placed above the scoreboard) */
+    /* Game Notes area (displays computer activity at the top) */
     #game-notes {
       margin-top: 10px;
       text-align: left;
@@ -203,18 +202,19 @@
     </p>
     <p>
       <strong>Bidding:</strong><br>
-      - As the dealer, you’ll see both bids (e.g., "Player: bid 15" and "Bill: bid 20") in the Bid History.<br>
-      - When the computer wins the bid, a notification (e.g., "Bill wins the bid and has selected ♥ as trump.") is displayed at the top.
+      - As the dealer, you will immediately see the computer’s bid (e.g., "Bill: bid 20" or "Bill: Passed") in the Game Notes at the top.<br>
+      - When you bid, if you win the bid the status message will read: "Player bids 15 (or 20/25/30) and wins the bid. Please select the trump suit."  
+      - (The “Bids:” label has been removed since Game Notes shows computer activity.)
     </p>
     <p>
       <strong>Trump & Trick Play:</strong><br>
       - The winning bidder selects the trump suit while your cards remain visible in the “Your Cards” area.<br>
-      - In trick play, each card played is shown in the Trick Area. If no trick is active, the last trick remains visible until the next begins.
+      - In trick play, every card played is shown in the Trick Area. If no trick is in progress, the last trick’s cards remain visible until the next trick begins.
     </p>
     <p>
       <strong>Kitty & Draw Phases:</strong><br>
-      - If you win the bid, you first select trump then enter the Kitty phase, where your combined hand (your hand + the kitty) is displayed for you to choose which cards to keep.<br>
-      - After confirming kitty selection, the Draw phase begins. Here you select which cards to keep, and the game replaces unselected cards until you have 5 cards.
+      - If you win the bid, after selecting trump you enter the Kitty phase where your combined hand (your 5 cards + kitty) is shown for selection.<br>
+      - After confirming kitty selection, the Draw phase begins so that replacement cards are drawn until you have 5 cards.
     </p>
     <p>
       <strong>Card Rankings:</strong><br>
@@ -225,8 +225,7 @@
     <p>
       <strong>Won Tricks & Scoring:</strong><br>
       - Each trick is worth 5 points (bonus trick adds 5 points).<br>
-      - Won tricks are displayed as an "X" for each trick won.<br>
-      - When the game is over (someone reaches 120 points), a detailed score sheet is shown.
+      - Won tricks are displayed as an "X" for each trick won. When someone reaches 120 points, a detailed score sheet is shown.
     </p>
     <button onclick="toggleInstructions()">Hide Detailed Rules</button>
   </div>
@@ -255,7 +254,7 @@
     <!-- Status Message -->
     <div id="status-message"></div>
 
-    <!-- "Your Cards" Area (fixed, single container) -->
+    <!-- "Your Cards" Area (fixed and unique) -->
     <div id="your-hand"></div>
 
     <!-- Phase-Specific Sections -->
@@ -270,7 +269,6 @@
         <button onclick="placeBid(30)">Bid 30</button>
       </div>
       <div id="bidding-message"></div>
-      <div id="bid-history"></div>
     </div>
 
     <!-- Trump Selection Phase -->
@@ -284,7 +282,7 @@
       </div>
     </div>
 
-    <!-- Kitty Phase (only for player bidder) -->
+    <!-- Kitty Phase (for player bidder only) -->
     <div id="kitty-section" class="section">
       <h2>Kitty Phase</h2>
       <div id="kitty-instructions">Select the cards you want to keep from your combined hand.</div>
@@ -328,7 +326,7 @@
       <div id="scoreboard"></div>
     </div>
 
-    <!-- Game Notes (displays computer activity, shown at the top) -->
+    <!-- Game Notes (displays computer activity at the top) -->
     <div id="game-notes"></div>
 
     <!-- Feedback Area -->
@@ -339,12 +337,12 @@
     let gameState = {};
     let tutorialSteps = [
       "Step 1: Cards are dealt. Your 5 cards appear in the 'Your Cards' area and 3 extra cards form the kitty.",
-      "Step 2: During bidding, both bids (e.g., 'Player: bid 15' and 'Bill: bid 20') are displayed in the Bid History.",
-      "Step 3: The winning bidder selects trump. If the computer wins, its bid and trump selection are shown at the top.",
-      "Step 4: In kitty selection (if you win the bid), the 'Your Cards' area updates to show your combined hand. Click the cards you want to keep (they will highlight in soft green).",
-      "Step 5: In draw phase, the 'Your Cards' area shows your draw hand. Select which cards to keep; unselected cards will be replaced.",
-      "Step 6: In trick play, all cards played are shown in the Trick Area. Hover over a card for a hover effect; click a card to play it. The winner of each trick leads the next trick.",
-      "Step 7: Game Notes at the top display all computer activity. Won tricks are shown as an 'X' for each trick won. The game continues until someone reaches 120 points."
+      "Step 2: During bidding, the computer's bid is shown in the Game Notes. (E.g., 'Bill bid 20' or 'Bill Passed')",
+      "Step 3: If you win the bid, the status message will read, for example, 'Player bids 20 and wins the bid. Please select the trump suit.'",
+      "Step 4: In kitty selection, the 'Your Cards' area updates to show your combined hand. Click the cards you want to keep (they turn soft green).",
+      "Step 5: In draw phase, the 'Your Cards' area shows your draw hand. Select the cards you want to keep; unselected cards will be replaced.",
+      "Step 6: In trick play, every card played is shown in the Trick Area. Hover over a card for a hover effect; click a card to play it.",
+      "Step 7: Game Notes at the top display all computer actions. Won tricks are shown as an 'X' for each trick won. The game continues until someone reaches 120 points."
     ];
     let currentTutorialStep = 0;
 
@@ -374,7 +372,7 @@
       document.getElementById("tutorial-modal").style.display = "none";
     }
 
-    // Update the "Your Cards" area (single container used in all phases).
+    // Update the "Your Cards" area (single container).
     function updateYourHand(handArray) {
       let container = document.getElementById("your-hand");
       container.innerHTML = "<strong>Your Cards:</strong> ";
@@ -382,12 +380,12 @@
         let div = document.createElement("div");
         div.className = "card";
         div.textContent = card.text;
-        div.dataset.index = index;  // Used for selection in kitty and draw phases.
+        div.dataset.index = index;
         container.appendChild(div);
       });
     }
 
-    // Update the UI based on the game state.
+    // Update UI based on game state.
     function updateUI(state) {
       gameState = state;
       
@@ -405,7 +403,10 @@
       document.getElementById("bidding-message").textContent = state.biddingMessage || "";
       
       // Update status message.
-      if (state.currentTurn) {
+      if (state.gamePhase === "trump" && state.bidder === "player") {
+        // When you win the bid, show the bidding message rather than "Your turn!"
+        document.getElementById("status-message").textContent = state.biddingMessage;
+      } else if (state.currentTurn) {
         document.getElementById("status-message").textContent = (state.currentTurn === "player") ? "Your turn!" : `Waiting for ${state.currentTurn} to play...`;
       } else {
         document.getElementById("status-message").textContent = "";
@@ -418,19 +419,19 @@
         document.getElementById("dealer-info").innerHTML = "";
       }
       
-      // Update Bid History.
-      let bhDiv = document.getElementById("bid-history");
-      let bids = "";
-      for (let p in state.bidHistory) {
-        bids += `${p}: ${state.bidHistory[p]}<br>`;
+      // (Bid History div is now hidden because computer actions are in Game Notes.)
+      // Update Game Notes.
+      let gnDiv = document.getElementById("game-notes");
+      if (state.gameNotes && state.gameNotes.length > 0) {
+        gnDiv.innerHTML = "<strong>Game Notes:</strong><br>" + state.gameNotes.join("<br>");
+      } else {
+        gnDiv.innerHTML = "<strong>Game Notes:</strong><br>No computer actions yet.";
       }
-      bhDiv.innerHTML = "Bids:<br>" + bids;
       
-      // Hide all phase-specific sections.
+      // Show phase-specific sections.
       let sections = ["bidding-section", "trump-section", "draw-section", "trick-section", "result-section", "won-tricks-section"];
       sections.forEach(id => document.getElementById(id).classList.remove("visible"));
       
-      // Show active phase section.
       if (state.gamePhase === "bidding") {
         document.getElementById("bidding-section").classList.add("visible");
       } else if (state.gamePhase === "trump") {
@@ -485,16 +486,8 @@
         }
       }
       
-      // Always update the scoreboard.
+      // Update the scoreboard.
       document.getElementById("scoreboard").textContent = state.scoreboard || "";
-      
-      // Update Game Notes (display computer actions at the top).
-      let gnDiv = document.getElementById("game-notes");
-      if (state.gameNotes && state.gameNotes.length > 0) {
-        gnDiv.innerHTML = "<strong>Game Notes:</strong><br>" + state.gameNotes.join("<br>");
-      } else {
-        gnDiv.innerHTML = "<strong>Game Notes:</strong><br>No computer actions yet.";
-      }
       
       document.getElementById("feedback").textContent = state.feedback || "";
     }
