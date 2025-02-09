@@ -141,7 +141,7 @@
       padding-top: 10px;
       display: block;
     }
-    /* Game Notes area (chronological log, most recent first) */
+    /* Game Notes area (chronological log, most recent at the top) */
     #game-notes {
       margin-top: 10px;
       text-align: left;
@@ -196,7 +196,7 @@
     <p>
       <strong>Trump & Trick Play:</strong><br>
       - The winning bidder selects the trump suit while your cards remain visible in the “Your Cards” area.<br>
-      - In trick play, when you click a card it immediately moves from your hand to the trick area (and is highlighted), then the computer plays its card. Once all cards are played, they remain visible for 2 seconds before the table is cleared for the next trick.
+      - In trick play, when you click a card it immediately moves from your hand to the trick area (and is highlighted), then the computer plays its card. Both cards remain visible until the trick is complete.
     </p>
     <p>
       <strong>Kitty & Draw Phases:</strong><br>
@@ -205,7 +205,7 @@
     </p>
     <p>
       <strong>Game Notes:</strong><br>
-      A chronological log (with timestamps) of all actions is recorded in the Game Notes below. The most recent event appears at the top.
+      A chronological log (with timestamps) of all actions is recorded below, with the most recent event at the top.
     </p>
     <button onclick="toggleInstructions()">Hide Detailed Rules</button>
   </div>
@@ -300,7 +300,7 @@
       <div id="scoreboard"></div>
     </div>
 
-    <!-- Game Notes (chronological log of actions, most recent at the top) -->
+    <!-- Game Notes (chronological log, most recent at the top) -->
     <div id="game-notes"></div>
 
     <!-- Feedback Area -->
@@ -316,7 +316,7 @@
       "Step 4: In kitty selection, your combined hand is shown below. The top row shows your original 5 cards; the bottom row shows the 3 kitty cards (highlighted in light red). Click the cards you want to keep.",
       "Step 5: In draw phase, your hand is shown. Cards kept from kitty remain selected. Select any additional cards to keep; unselected cards will be replaced from the deck.",
       "Step 6: In trick play, when you click a card it immediately moves from your hand to the trick area (and is highlighted), then the computer plays its card. Both cards remain visible until the trick is complete.",
-      "Step 7: Game Notes at the bottom display a chronological log (with timestamps) of all actions, with the most recent event at the top. The game continues until someone reaches 120 points."
+      "Step 7: Game Notes below display a chronological log (with timestamps) of all actions, with the most recent event at the top. The game continues until someone reaches 120 points."
     ];
     let currentTutorialStep = 0;
 
@@ -455,7 +455,7 @@
       } else if (state.gamePhase === "trick") {
         document.getElementById("trick-section").classList.add("visible");
         let trickArea = document.getElementById("trick-area");
-        // Always show both the current trick (if any) and, if empty, the last trick.
+        // Always show current trick if available; if not, show the last completed trick.
         let trickCards = (state.currentTrick.length > 0) ? state.currentTrick : state.lastTrick;
         trickArea.innerHTML = "";
         trickCards.forEach(entry => {
