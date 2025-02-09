@@ -100,7 +100,7 @@ class Game:
         self.dealer = "player" if random.random() < 0.5 else self.player_order[1]
         self.kitty = []
         self.trump_suit = None
-        self.phase = "bidding"  # bidding, trump, kitty, draw, trick, finished
+        self.phase = "bidding"  # Phases: bidding, trump, kitty, draw, trick, finished
         self.biddingMessage = ""
         self.currentTrick = []
         self.lastTrick = []
@@ -140,7 +140,6 @@ class Game:
         for card in hand:
             suit_counts[card.suit] = suit_counts.get(card.suit, 0) + 1
         best_suit = max(suit_counts, key=suit_counts.get)
-        # For non-dealer cases, show computer action as Passed if appropriate.
         self.gameNotes.append(f"{comp_id} " + ("Passed" if bid == 0 else f"bid {bid}"))
         return bid, best_suit
 
@@ -155,10 +154,10 @@ class Game:
                 comp_bid, comp_trump = self.computer_bid(comp_id)
                 self.bidHistory[comp_id] = "Passed" if comp_bid == 0 else f"bid {comp_bid}"
             if self.dealer == "player":
-                # Allowed options: pass (0) or bid exactly comp_bid+5.
+                # Allowed options: pass (0) or bid exactly comp_bid + 5.
                 if player_bid != 0 and player_bid != comp_bid + 5:
                     self.biddingMessage = f"As dealer, you must either pass or bid {comp_bid + 5}."
-                    return  # Do not advance.
+                    return  # Do not advance phase.
                 if player_bid == 0:
                     self.bidder = comp_id
                     self.bid = comp_bid
@@ -172,7 +171,7 @@ class Game:
                     self.biddingMessage = f"Player bids {player_bid} and wins the bid. Please select the trump suit."
                     self.phase = "trump"
             else:
-                # Non-dealer: if player wins the bid, show computer as Passed.
+                # Non-dealer: if player wins the bid, mark computer as Passed.
                 if player_bid >= comp_bid:
                     self.bidder = "player"
                     self.bid = player_bid
@@ -231,7 +230,7 @@ class Game:
             for i in keptIndices:
                 if i < len(combined):
                     card = combined[i]
-                    card.selected = True  # Mark this card as kept
+                    card.selected = True  # Mark card as kept.
                     new_hand.append(card)
             if len(new_hand) < 1:
                 new_hand = self.players["player"]["hand"][:1]
@@ -250,12 +249,16 @@ class Game:
             for i in keptIndices:
                 if i < len(self.players["player"]["hand"]):
                     card = self.players["player"]["hand"][i]
-                    # Preserve the "selected" flag (if any)
+                    # Preserve selection flag.
                     card.selected = getattr(card, "selected", True)
                     kept_cards.append(card)
             self.players["player"]["hand"] = kept_cards
+        # Replenish hand to 5 cards.
         while len(self.players["player"]["hand"]) < 5 and len(self.deck.cards) > 0:
             self.players["player"]["hand"].append(self.deck.deal(1)[0])
+        # Clear any selected flag once draw is complete.
+        for card in self.players["player"]["hand"]:
+            card.selected = False
         self.biddingMessage = "Draw complete. Proceeding to trick play."
         self.phase = "trick"
         self.currentTurn = self.bidder  # Trick play starts with the winning bidder.
@@ -276,7 +279,7 @@ class Game:
         if player != "player":
             self.gameNotes.append(f"{player} played {card}")
         else:
-            # When the player plays, wait 0.5 seconds so the card is visible.
+            # When the player plays, wait briefly so the card appears on the table.
             time.sleep(0.5)
         self.currentTurn = self.next_player(player)
         self.auto_play()
@@ -300,10 +303,10 @@ class Game:
         trick_summary += f". Winner: {winner}."
         self.trickLog.append(trick_summary)
         self.players[winner]["tricks"].append(self.currentTrick.copy())
-        # Wait 3 seconds so both played cards remain visible.
+        # Keep both cards visible for 3 seconds.
         time.sleep(3)
-        # Clear the trick area for the next trick.
-        self.lastTrick = []   # Clear the last trick (so UI clears the table)
+        # Clear trick area by clearing lastTrick.
+        self.lastTrick = []  
         self.currentTrick = []
         self.currentTurn = winner  # Winner leads next trick.
         if all(len(self.players[p]["hand"]) == 0 for p in self.players):
@@ -350,7 +353,7 @@ class Game:
         return
 
     def new_hand(self):
-        # Reset phase so that no card play can occur until a new hand is fully dealt.
+        # Reset phase so that no card play occurs until a new hand is fully dealt.
         current_idx = self.player_order.index(self.dealer)
         self.dealer = self.player_order[(current_idx + 1) % len(self.player_order)]
         self.deal_hands()
