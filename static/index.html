@@ -455,8 +455,11 @@
       } else if (state.gamePhase === "trick") {
         document.getElementById("trick-section").classList.add("visible");
         let trickArea = document.getElementById("trick-area");
-        // Always show current trick if available; if not, show the last completed trick.
+        // In a 2-player game, only two cards should be shown.
         let trickCards = (state.currentTrick.length > 0) ? state.currentTrick : state.lastTrick;
+        if (state.gamePhase === "trick" && state.playerHand && state.computerHandCount === 1 && trickCards.length > 2) {
+          trickCards = trickCards.slice(0,2);
+        }
         trickArea.innerHTML = "";
         trickCards.forEach(entry => {
           let div = document.createElement("div");
