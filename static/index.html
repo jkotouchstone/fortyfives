@@ -113,7 +113,7 @@
     }
     /* Special styling for kitty cards */
     .kitty {
-      background-color: #f08080;  /* Light red */
+      background-color: #f08080;  /* Light red highlight */
     }
     button {
       padding: 10px 15px;
@@ -211,7 +211,7 @@
     <p>
       <strong>Trump & Trick Play:</strong><br>
       - The winning bidder selects the trump suit while your cards remain visible in the “Your Cards” area.<br>
-      - In trick play, if you lead, your played card is shown alone on the table until the computer reacts; if the computer leads and you respond, both cards remain visible for a brief moment so you can process what happened.
+      - In trick play, if you lead, your card is shown alone on the table until the computer reacts; if the computer leads and you respond, both cards remain visible briefly.
     </p>
     <p>
       <strong>Kitty & Draw Phases:</strong><br>
@@ -287,7 +287,7 @@
     <div id="kitty-section" class="section">
       <h2>Kitty Phase</h2>
       <div id="kitty-instructions">
-        Below is your combined hand: the top row shows your original 5 cards and the bottom row shows the 3 kitty cards (highlighted in light red). Select the cards you want to keep.
+        Below is your combined hand. The top row shows your original 5 cards; the bottom row shows the 3 kitty cards (highlighted in light red). Click the cards you want to keep.
       </div>
       <button onclick="confirmKitty()">Confirm Kitty Selection</button>
     </div>
@@ -296,7 +296,7 @@
     <div id="draw-section" class="section">
       <h2>Draw Phase</h2>
       <div id="draw-phase-instructions">
-        Select the cards you want to keep. Unselected cards will be replaced from the deck.
+        Your hand appears below. Cards kept from the kitty phase remain selected. Select any additional cards you want to keep; unselected cards will be replaced from the deck.
       </div>
       <button onclick="confirmDraw()">Draw Cards</button>
     </div>
@@ -345,8 +345,8 @@
       "Step 2: During bidding, the computer's bid is shown in the Game Notes (e.g., 'Bill bid 20' or 'Bill Passed').",
       "Step 3: If you win the bid, the status message will read, for example, 'Player bids 25 and wins the bid. Please select the trump suit.' (As dealer, you may only pass or bid exactly 5 more than the computer.)",
       "Step 4: In kitty selection, your combined hand is shown below. The top row shows your original 5 cards; the bottom row shows the 3 kitty cards (highlighted in light red). Click the cards you want to keep.",
-      "Step 5: In draw phase, your hand is shown. Select the cards you want to keep; unselected cards will be replaced from the deck.",
-      "Step 6: In trick play, if you play a card, it is shown alone on the table. Then the computer reacts after a brief delay. If the computer leads and you respond, both cards remain visible briefly so you can see the outcome.",
+      "Step 5: In draw phase, your hand is shown. Cards kept from kitty remain selected. Select any additional cards to keep; unselected cards will be replaced from the deck.",
+      "Step 6: In trick play, if you lead, your card is shown alone until the computer reacts, and if the computer leads and you respond, both cards remain visible briefly (3 seconds) before being cleared.",
       "Step 7: Game Notes at the top display all computer actions, including how many cards the computer has discarded. The game continues until someone reaches 120 points."
     ];
     let currentTutorialStep = 0;
@@ -382,7 +382,7 @@
       let container = document.getElementById("your-hand");
       container.innerHTML = "<strong>Your Cards:</strong> ";
       
-      // If in kitty phase and a combined hand exists, split it.
+      // In kitty phase, if combined hand exists (8 cards), split it.
       if (gameState.gamePhase === "kitty" && gameState.combinedHand && gameState.combinedHand.length === 8) {
         let combined = gameState.combinedHand;
         let originalHand = combined.slice(0, 5);
@@ -392,7 +392,7 @@
         origDiv.innerHTML = "<em>Your original hand:</em><br>";
         originalHand.forEach((card, index) => {
           let div = document.createElement("div");
-          div.className = "card";
+          div.className = "card" + (card.selected ? " selected" : "");
           div.textContent = card.text;
           div.dataset.index = index;
           // In kitty phase, clicking toggles selection.
@@ -406,9 +406,9 @@
         kittyDiv.innerHTML = "<em>Kitty Cards:</em><br>";
         kittyCards.forEach((card, index) => {
           let div = document.createElement("div");
-          div.className = "card kitty";  // add 'kitty' class for light red highlight
+          div.className = "card kitty" + (card.selected ? " selected" : "");
           div.textContent = card.text;
-          // Offset index by 5 for the combined hand array.
+          // Offset index by 5 for combined hand.
           div.dataset.index = index + 5;
           div.onclick = function() { this.classList.toggle("selected"); };
           kittyDiv.appendChild(div);
@@ -418,19 +418,20 @@
         // For all other phases, display the hand normally.
         handArray.forEach((card, index) => {
           let div = document.createElement("div");
-          div.className = "card";
+          div.className = "card" + (card.selected ? " selected" : "");
           div.textContent = card.text;
           div.dataset.index = index;
           if (gameState.gamePhase === "kitty" || gameState.gamePhase === "draw") {
             div.onclick = function() { this.classList.toggle("selected"); };
-          } else if (gameState.gamePhase === "trick" && gameState.currentTurn === "player") {
+          }
+          else if (gameState.gamePhase === "trick" && gameState.currentTurn === "player") {
             div.onclick = function() { playCard(parseInt(this.dataset.index)); };
           }
           container.appendChild(div);
         });
       }
     }
-
+    
     // Update UI based on game state.
     function updateUI(state) {
       gameState = state;
@@ -492,6 +493,7 @@
       } else if (state.gamePhase === "trick") {
         document.getElementById("trick-section").classList.add("visible");
         let trickArea = document.getElementById("trick-area");
+        // During trick play, show current trick if available; otherwise show last trick.
         let trickCards = (state.currentTrick.length > 0) ? state.currentTrick : state.lastTrick;
         trickArea.innerHTML = "";
         trickCards.forEach(entry => {
