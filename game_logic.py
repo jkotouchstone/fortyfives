@@ -99,11 +99,10 @@ class Game:
         self.phase = "bidding"  # bidding, trump, kitty, draw, trick, finished
         self.biddingMessage = ""
         self.currentTrick = []
-        self.lastTrick = []  # Holds finished trick so it remains visible for a short delay
+        self.lastTrick = []  # Holds finished trick so it remains visible for a delay
         self.trickLog = []  # Overall hand log
-        # Persist gameNotes throughout the game.
-        self.gameNotes = []  
-        self.handScores = []  # Hand score summaries for permanent record
+        self.gameNotes = []  # All events persist during the game
+        self.handScores = []  # Record of each hand's scoring summary
         self.currentTurn = None
         self.bidder = None
         self.bid = 0
@@ -267,6 +266,21 @@ class Game:
             self.players["player"]["hand"].append(self.deck.deal(1)[0])
         for card in self.players["player"]["hand"]:
             card.selected = False
+        # Log computer draw info: if player is bidder then computer does not draw;
+        # if computer is bidder, log the number of cards drawn.
+        if self.bidder != "player":
+            comp = self.bidder
+            draw_count = 5 - len(self.players[comp]["hand"])
+            for i in range(draw_count):
+                if len(self.deck.cards) > 0:
+                    self.players[comp]["hand"].append(self.deck.deal(1)[0])
+            timestamp = time.strftime("%H:%M:%S")
+            self.gameNotes.append(f"{timestamp} - {comp} drew {draw_count} card(s) in draw phase.")
+        else:
+            # For player bidder, log that computer did not draw.
+            comp = self.player_order[1]
+            timestamp = time.strftime("%H:%M:%S")
+            self.gameNotes.append(f"{timestamp} - {comp} did not draw any cards in draw phase.")
         self.biddingMessage = "Draw complete. Proceeding to trick play."
         self.phase = "trick"
         self.currentTurn = self.bidder
@@ -297,7 +311,7 @@ class Game:
         return
 
     def auto_play(self):
-        # Reduced delay to 65% of previous (0.5 sec -> 0.33 sec)
+        # Reduced delay: 0.5 sec → 0.33 sec.
         while self.currentTurn != "player" and len(self.currentTrick) < len(self.player_order):
             time.sleep(0.33)
             available = self.players[self.currentTurn]["hand"]
@@ -318,13 +332,13 @@ class Game:
         for entry in self.currentTrick:
             if is_trump(entry["card"], self.trump_suit):
                 self.trumpCardsPlayed.append((entry["player"], entry["card"]))
+        # Copy the finished trick into lastTrick so both cards are visible.
         self.lastTrick = self.currentTrick.copy()
-        # Reduced delay: 2 sec -> 1.3 sec
+        # Reduced delay: 2 sec → ~1.3 sec.
         time.sleep(1.3)
-        # Clear trick area (both currentTrick and lastTrick) so next trick starts empty.
+        # Clear currentTrick so next trick starts with an empty area.
         self.currentTrick = []
-        self.lastTrick = []
-        # Reduced post-trick delay: 0.5 sec -> 0.33 sec before auto-play if needed.
+        # (We leave lastTrick intact so the UI can display the final trick until the next update.)
         self.currentTurn = winner
         if all(len(self.players[p]["hand"]) == 0 for p in self.players):
             self.complete_hand()
@@ -350,7 +364,6 @@ class Game:
         return winner_entry["player"]
 
     def complete_hand(self):
-        # Each trick is 5 points.
         points = {p: len(self.players[p]["tricks"]) * 5 for p in self.players}
         bonus_winner = None
         bonus_value = 5
