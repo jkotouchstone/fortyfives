@@ -117,6 +117,7 @@ class Game:
         self.trump_suit = None
         for p in self.players:
             self.players[p]["hand"] = self.deck.deal(5)
+            # Do not reset score here—scores persist across hands.
             self.players[p]["tricks"] = []
         self.kitty = self.deck.deal(3)
         self.phase = "bidding"
@@ -238,7 +239,7 @@ class Game:
     def select_trump(self, suit):
         if self.phase == "trump":
             self.trump_suit = suit
-            self.biddingMessage = f"Player bids {self.bidHistory['player'].split()[1]} and wins the bid. Trump is set to {suit}."
+            self.biddingMessage = f"Player wins the bid. Trump is set to {suit}."
             if self.bidder == "player":
                 self.phase = "kitty"
             else:
@@ -247,7 +248,11 @@ class Game:
 
     def confirm_kitty(self, keptIndices):
         if self.bidder == "player":
+            # In kitty phase, show combined hand (player hand + kitty)
             combined = self.players["player"]["hand"] + self.kitty
+            # For UI purposes, do not modify the player's hand until selection is confirmed.
+            # The UI should display the combined hand.
+            # When confirmKitty is called, update the player's hand to the selected cards.
             new_hand = []
             for i in keptIndices:
                 if i < len(combined):
@@ -281,11 +286,10 @@ class Game:
 
         for p in self.players:
             if p != "player":
-                if len(self.players[p]["hand"]) < 5:
-                    while len(self.players[p]["hand"]) < 5 and len(self.deck.cards) > 0:
-                        self.players[p]["hand"].append(self.deck.deal(1)[0])
-                    timestamp = time.strftime("%H:%M:%S")
-                    self.gameNotes.append(f"{timestamp} - {p} drew new cards in draw phase.")
+                while len(self.players[p]["hand"]) < 5 and len(self.deck.cards) > 0:
+                    self.players[p]["hand"].append(self.deck.deal(1)[0])
+                timestamp = time.strftime("%H:%M:%S")
+                self.gameNotes.append(f"{timestamp} - {p} drew new cards in draw phase.")
         self.biddingMessage = "Draw complete. Proceeding to trick play."
         self.phase = "trick"
         self.currentTurn = self.bidder
@@ -408,7 +412,6 @@ class Game:
         return winner_entry["player"]
 
     def complete_hand(self):
-        # Calculate points: each trick is worth 5 points.
         points = {p: len(self.players[p]["tricks"]) * 5 for p in self.players}
         bonus_winner = None
         bonus_value = 5
@@ -418,10 +421,8 @@ class Game:
             bonus_winner = self.currentTurn
         if bonus_winner:
             points[bonus_winner] += bonus_value
-        # Enforce bidder's bid if necessary.
         if self.bidder in points and points[self.bidder] < self.bid:
             points[self.bidder] = -self.bid
-        # Update cumulative scores and build a summary string.
         hand_summary_parts = []
         for p in self.players:
             prev_score = self.players[p].get("score", 0)
@@ -434,7 +435,6 @@ class Game:
         self.trickLog.append(summary)
         self.handScores.append(summary)
         self.gameNotes.append(summary)
-        # Clear trick areas.
         self.currentTrick = []
         self.lastTrick = []
         if any(self.players[p]["score"] >= 120 for p in self.players):
@@ -454,7 +454,7 @@ class Game:
             "gamePhase": self.phase,
             "playerHand": [card.to_dict() for card in self.players["player"]["hand"]],
             "computerHandCount": (len(self.players[self.player_order[1]]["hand"]) if self.mode == "2p" else None),
-            "kitty": [card.to_dict() for card in self.kitty] if self.phase in ["bidding", "kitty"] else [],
+            "kitty": [card.to_dict() for card in self.kitty],
             "trumpSuit": self.trump_suit if self.phase not in ["bidding"] else None,
             "biddingMessage": self.biddingMessage,
             "bidHistory": self.bidHistory,
@@ -473,9 +473,4 @@ class Game:
             state["combinedHand"] = [card.to_dict() for card in combined]
         if self.phase == "draw":
             state["drawHand"] = [card.to_dict() for card in self.players["player"]["hand"]]
-        if self.mode == "2p":
-            comp = self.player_order[1]
-            state["computerDiscardCount"] = 5 - len(self.players[comp]["hand"])
-        if self.phase == "finished":
-            state["scoreSheet"] = "\n".join(self.handScores)
         return state
