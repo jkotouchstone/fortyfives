@@ -1,13 +1,13 @@
 import random
-import time  # For delays in computer moves
+import time
 
 # ---------------------------
 # Card and Deck Classes
 # ---------------------------
 class Card:
     def __init__(self, suit, rank):
-        self.suit = suit      # e.g., "♥", "♦", "♣", "♠"
-        self.rank = rank      # e.g., "2", "3", …, "10", "J", "Q", "K", "A"
+        self.suit = suit
+        self.rank = rank
 
     def __str__(self):
         return f"{self.rank}{self.suit}"
@@ -53,7 +53,7 @@ OFFSUIT_RANKINGS = {
 def is_trump(card, trump_suit):
     if card.suit == trump_suit:
         return True
-    if card.suit == "♥" and card.rank == "A":  # Ace of Hearts is always trump.
+    if card.suit == "♥" and card.rank == "A":
         return True
     return False
 
@@ -73,7 +73,6 @@ class Game:
         self.mode = mode
         self.instructional = instructional
         self.deck = None
-        # Fixed rotation of computer names.
         computer_names = ["Jack", "Jennifer", "Patrick", "John", "Liam", "Mary",
                           "Jasper", "Felix", "Holly", "Tom", "Karen", "Stephen",
                           "Leona", "Bill", "Christine", "Chris", "Henry"]
@@ -99,18 +98,17 @@ class Game:
         self.phase = "bidding"  # phases: bidding, trump, kitty, draw, trick, trickComplete, finished
         self.biddingMessage = ""
         self.currentTrick = []
-        self.lastTrick = []  # Holds finished trick for UI display
-        self.trickLog = []  # Overall hand log
-        self.gameNotes = []  # Persist all events during the game
-        self.handScores = []  # Record of each hand's scoring summary
+        self.lastTrick = []
+        self.trickLog = []
+        self.gameNotes = []
+        self.handScores = []
         self.currentTurn = None
         self.bidder = None
         self.bid = 0
-        self.trumpCardsPlayed = []  # (player, card) tuples for trump cards played this hand
+        self.trumpCardsPlayed = []
         self.deal_hands()
 
     def next_player(self, current):
-        """Return the next player in order."""
         idx = self.player_order.index(current)
         return self.player_order[(idx + 1) % len(self.player_order)]
 
@@ -192,7 +190,7 @@ class Game:
                     self.trump_suit = self.computer_bid(comp_id)[1]
                     self.biddingMessage = f"Both passed. {comp_id} wins the bid automatically with 15 and selects trump {self.trump_suit}."
                     timestamp = time.strftime("%H:%M:%S")
-                    self.gameNotes.append(f"{timestamp} - {comp_id} selected {self.trump_suit} as trump.")
+                    self.gameNotes.append(f"{timestamp} - {comp_id} selected {comp_trump} as trump.")
                     self.phase = "draw"
                 elif player_bid != 0 and player_bid >= comp_bid:
                     self.bidder = "player"
@@ -281,12 +279,9 @@ class Game:
         for card in self.players["player"]["hand"]:
             card.selected = False
 
-        # For each computer player, enforce drawing until hand size is 5.
         for p in self.players:
             if p != "player":
-                trump_count = sum(1 for card in self.players[p]["hand"] if is_trump(card, self.trump_suit))
                 if len(self.players[p]["hand"]) < 5:
-                    # Always keep current trump cards, then draw.
                     while len(self.players[p]["hand"]) < 5 and len(self.deck.cards) > 0:
                         self.players[p]["hand"].append(self.deck.deal(1)[0])
                     timestamp = time.strftime("%H:%M:%S")
@@ -385,7 +380,7 @@ class Game:
             if is_trump(entry["card"], self.trump_suit):
                 self.trumpCardsPlayed.append((entry["player"], entry["card"]))
         self.lastTrick = self.currentTrick.copy()
-        self.currentTrick = []  # Do not block by sleeping here!
+        self.currentTrick = []
         self.phase = "trickComplete"
         self.currentTurn = winner
         return
