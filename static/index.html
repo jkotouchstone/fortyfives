@@ -5,7 +5,7 @@
   <title>Card Game - Learn & Play</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    /* Basic CSS for the game UI */
+    /* Basic styling for the game UI */
     body {
       font-family: sans-serif;
       background-color: #4CAF50;
@@ -21,16 +21,14 @@
       padding: 20px;
       border-radius: 8px;
       position: relative;
-      padding-bottom: 60px; /* reserve space for footer */
+      padding-bottom: 60px;
     }
-    /* "Your Cards" area */
     #your-hand {
       margin-bottom: 20px;
       text-align: center;
       padding: 5px;
       border-bottom: 1px solid #fff;
     }
-    /* Sections (bidding, trump, kitty, draw, trick, result) */
     .section {
       margin: 20px 0;
       display: none;
@@ -71,7 +69,6 @@
       max-width: 600px;
       text-align: left;
     }
-    /* Dealer indicator */
     .dealer-indicator {
       display: inline-block;
       background: #fff;
@@ -81,13 +78,11 @@
       margin: 5px;
       font-weight: bold;
     }
-    /* Status message */
     #status-message {
       font-size: 18px;
       margin-bottom: 10px;
       font-weight: bold;
     }
-    /* Card style */
     .card {
       display: inline-block;
       width: 60px;
@@ -120,7 +115,6 @@
       font-size: 16px;
       cursor: pointer;
     }
-    /* Display areas */
     #trump-display {
       font-weight: bold;
       margin-bottom: 10px;
@@ -173,7 +167,7 @@
   </style>
 </head>
 <body>
-  <!-- Game Options Panel -->
+  <!-- Game Options -->
   <div id="game-options">
     <h2>Game Options</h2>
     <label for="mode-select">Select Game Mode:</label>
@@ -189,31 +183,27 @@
     <button onclick="toggleInstructions()">Show Detailed Rules</button>
   </div>
 
-  <!-- Detailed Instructions Panel -->
+  <!-- Detailed Instructions -->
   <div id="instructions">
     <h3>Detailed Rules & Strategies for Forty‑Fives</h3>
     <p><strong>Overview:</strong><br>
       Forty‑Fives is a trick‑taking game. You bid on how many points you can win and then play cards round by round. The winner of each trick leads the next.
     </p>
     <p><strong>Bidding:</strong><br>
-      - As the dealer, the computer’s bid is displayed immediately in the Game Notes.<br>
-      - When you bid and win the bid, the status message will read, for example, "Player bids 25 and wins the bid. Please select the trump suit."<br>
-      - In non‑dealer cases, if you win the bid the computer’s bid is shown as "Passed."
+      - The computer’s bid is shown in the Game Notes.<br>
+      - When you win the bid, you are prompted to select the trump suit.
     </p>
     <p><strong>Trump & Trick Play:</strong><br>
-      - The winning bidder selects the trump suit while your cards remain visible in the "Your Cards" area.<br>
-      - In trick play, when you click a card it immediately moves to the trick area and is highlighted. After 0.5 seconds the computer plays its card; both cards remain visible for about 1.5 seconds before the trick area is cleared.
+      - Cards are played into the trick area. After 0.5 seconds, the computer responds, and both cards are visible for 1.5 seconds.
     </p>
     <p><strong>Kitty & Draw Phases:</strong><br>
-      - If you win the bid, after selecting trump you enter the Kitty phase. Your combined hand (your original 5 cards plus the 3‑card kitty) is displayed. Click the cards you want to keep.<br>
-      - After confirming your kitty selection, the Draw phase begins so that unselected cards are replaced until you have 5 cards.
+      - After trump selection, you enter Kitty and Draw phases to adjust your hand.
     </p>
-    <p><strong>Following Suit & Reneging:</strong><br>
-      - When a card is led, you must follow suit if possible. If you cannot, you may only “renege” if you hold one of the three major trump cards (the 5 of trump, the Jack of trump, or the Ace of Hearts).<br>
-      - If you attempt to play a card that does not follow suit while you hold a card of the lead suit, an error message will be shown.
+    <p><strong>Following Suit:</strong><br>
+      - You must follow suit if possible; otherwise, special trump rules apply.
     </p>
     <p><strong>Game Notes:</strong><br>
-      The Game Notes display all events continuously in a fixed, scrollable area.
+      All game events are logged here.
     </p>
     <button onclick="toggleInstructions()">Hide Detailed Rules</button>
   </div>
@@ -223,7 +213,7 @@
     <div id="tutorial-content">
       <h2>Welcome to Forty‑Fives!</h2>
       <div id="tutorial-step-content">
-        <p>Step 1: Cards are dealt. Your 5 cards appear in the "Your Cards" area and 3 extra cards form the kitty.</p>
+        <p>Step 1: Cards are dealt. Your 5 cards appear and 3 extra cards form the kitty.</p>
       </div>
       <div>
         <button onclick="prevTutorialStep()">Previous</button>
@@ -239,6 +229,7 @@
     <div id="trump-display"></div>
     <div id="status-message"></div>
     <div id="your-hand"></div>
+
     <!-- Bidding Phase -->
     <div id="bidding-section" class="section">
       <h2>Bidding Phase</h2>
@@ -251,6 +242,7 @@
       </div>
       <div id="bidding-message"></div>
     </div>
+
     <!-- Trump Selection Phase -->
     <div id="trump-section" class="section">
       <h2>Trump Selection</h2>
@@ -261,27 +253,31 @@
         <button onclick="selectTrump('♣')">♣</button>
       </div>
     </div>
+
     <!-- Kitty Phase -->
     <div id="kitty-section" class="section">
       <h2>Kitty Phase</h2>
       <div id="kitty-instructions">
-        Below is your combined hand. The top row shows your original 5 cards; the bottom row shows the 3 kitty cards (highlighted in light red). Click the cards you want to keep.
+        Your combined hand is displayed. Click the cards you wish to keep.
       </div>
       <button onclick="confirmKitty()">Confirm Kitty Selection</button>
     </div>
+
     <!-- Draw Phase -->
     <div id="draw-section" class="section">
       <h2>Draw Phase</h2>
       <div id="draw-phase-instructions">
-        Your hand appears above. Cards kept from kitty remain selected. Select any additional cards to keep; unselected cards will be replaced from the deck.
+        Your hand appears above. Select additional cards to keep; unselected cards will be replaced.
       </div>
       <button onclick="confirmDraw()">Draw Cards</button>
     </div>
+
     <!-- Trick Play Phase -->
     <div id="trick-section" class="section">
       <h2>Trick Play</h2>
       <div id="trick-area" class="cards-container"></div>
     </div>
+
     <!-- Result Section -->
     <div id="result-section" class="section">
       <h2>Game Over</h2>
@@ -290,14 +286,16 @@
       <button onclick="resetGame()">Play Again (Same Opponent)</button>
       <button onclick="newOpponent()">Play Again (New Opponent)</button>
     </div>
-    <!-- Scoreboard -->
+
+    <!-- Scoreboard Section -->
     <div id="scoreboard-section">
       <h2>Scoreboard</h2>
       <div id="scoreboard"></div>
     </div>
+
     <!-- Game Notes -->
     <div id="game-notes"></div>
-    <!-- Feedback Area -->
+    <!-- Feedback -->
     <div id="feedback"></div>
   </div>
 
@@ -308,13 +306,13 @@
   <script>
     let gameState = {};
     let tutorialSteps = [
-      "Step 1: Cards are dealt. Your 5 cards appear in the 'Your Cards' area and 3 extra cards form the kitty.",
-      "Step 2: During bidding, the computer's bid is shown in the Game Notes (e.g., 'Bill bid 20' or 'Bill Passed').",
-      "Step 3: If you win the bid, the status message will read, for example, 'Player bids 25 and wins the bid. Please select the trump suit.'",
-      "Step 4: In kitty selection, your combined hand is shown. The top row shows your original 5 cards; the bottom row shows the 3 kitty cards (highlighted in light red). Click the cards you want to keep.",
-      "Step 5: In draw phase, your hand appears above. Cards kept from kitty remain selected. Select any additional cards to keep; unselected cards will be replaced from the deck.",
-      "Step 6: In trick play, when you click a card it immediately moves to the trick area and is highlighted. After 0.5 seconds the computer plays its card; both cards remain visible for about 1.5 seconds before the trick area is cleared.",
-      "Step 7: The Game Notes display all events continuously in a fixed, scrollable area, including hand summaries and draw phase details."
+      "Step 1: Cards are dealt. Your 5 cards appear and 3 extra cards form the kitty.",
+      "Step 2: During bidding, the computer's bid is shown in the Game Notes.",
+      "Step 3: If you win the bid, you are prompted to select the trump suit.",
+      "Step 4: In kitty selection, your combined hand is shown. Click the cards you want to keep.",
+      "Step 5: In draw phase, your hand appears above. Select additional cards to keep; others are replaced.",
+      "Step 6: In trick play, after you play a card, the computer responds and both cards are visible for 1.5 seconds.",
+      "Step 7: All game events are logged in the Game Notes area."
     ];
     let currentTutorialStep = 0;
 
@@ -348,47 +346,18 @@
           return;
       }
       container.innerHTML = "<strong>Your Cards:</strong> ";
-      if (gameState.gamePhase === "kitty" && gameState.combinedHand && gameState.combinedHand.length === 8) {
-        let combined = gameState.combinedHand;
-        let originalHand = combined.slice(0, 5);
-        let kittyCards = combined.slice(5);
-        let origDiv = document.createElement("div");
-        origDiv.innerHTML = "<em>Your original hand:</em><br>";
-        originalHand.forEach((card, index) => {
-          let div = document.createElement("div");
-          div.className = "card" + (card.selected ? " selected" : "");
-          div.textContent = card.text;
-          div.dataset.index = index;
+      handArray.forEach((card, index) => {
+        let div = document.createElement("div");
+        div.className = "card" + (card.selected ? " selected" : "");
+        div.textContent = card.text;
+        div.dataset.index = index;
+        if (gameState.gamePhase === "kitty" || gameState.gamePhase === "draw") {
           div.onclick = function() { this.classList.toggle("selected"); };
-          origDiv.appendChild(div);
-        });
-        container.appendChild(origDiv);
-        let kittyDiv = document.createElement("div");
-        kittyDiv.style.marginTop = "10px";
-        kittyDiv.innerHTML = "<em>Kitty Cards:</em><br>";
-        kittyCards.forEach((card, index) => {
-          let div = document.createElement("div");
-          div.className = "card kitty" + (card.selected ? " selected" : "");
-          div.textContent = card.text;
-          div.dataset.index = index + 5;
-          div.onclick = function() { this.classList.toggle("selected"); };
-          kittyDiv.appendChild(div);
-        });
-        container.appendChild(kittyDiv);
-      } else {
-        handArray.forEach((card, index) => {
-          let div = document.createElement("div");
-          div.className = "card" + (card.selected ? " selected" : "");
-          div.textContent = card.text;
-          div.dataset.index = index;
-          if (gameState.gamePhase === "kitty" || gameState.gamePhase === "draw") {
-            div.onclick = function() { this.classList.toggle("selected"); };
-          } else if (gameState.gamePhase === "trick" && gameState.currentTurn === "player") {
-            div.onclick = function() { playCard(parseInt(this.dataset.index)); };
-          }
-          container.appendChild(div);
-        });
-      }
+        } else if (gameState.gamePhase === "trick" && gameState.currentTurn === "player") {
+          div.onclick = function() { playCard(parseInt(this.dataset.index)); };
+        }
+        container.appendChild(div);
+      });
     }
     function updateUI(state) {
       gameState = state;
@@ -402,13 +371,11 @@
           document.getElementById("kitty-section").classList.add("visible");
       } else if (state.gamePhase === "draw") {
           document.getElementById("draw-section").classList.add("visible");
-      } else if (state.gamePhase === "trick") {
+      } else if (state.gamePhase === "trick" || state.gamePhase === "trickComplete") {
           document.getElementById("trick-section").classList.add("visible");
-      } else if (state.gamePhase === "trickComplete") {
-          document.getElementById("trick-section").classList.add("visible");
-          setTimeout(() => {
-              callAPI("/clear_trick", "POST", {});
-          }, 1500);
+          if (state.gamePhase === "trickComplete") {
+              setTimeout(() => { callAPI("/clear_trick", "POST", {}); }, 1500);
+          }
       } else if (state.gamePhase === "finished") {
           document.getElementById("result-section").classList.add("visible");
       }
