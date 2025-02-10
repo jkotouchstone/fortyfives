@@ -212,7 +212,7 @@ class Game:
                     self.phase = "draw"
             self.currentTurn = self.bidder
         elif self.mode == "3p":
-            # Three-player bidding logic (omitted for brevity)
+            # Three-player bidding logic omitted for brevity.
             pass
         return
 
@@ -222,7 +222,7 @@ class Game:
             self.biddingMessage = f"Player wins the bid. Trump is set to {suit}."
             if self.bidder == "player":
                 self.phase = "kitty"
-                # Build the combined hand: player's hand plus the kitty.
+                # Build the combined hand: player's current hand + kitty.
                 self.combinedHand = self.players["player"]["hand"] + self.kitty
             else:
                 self.phase = "draw"
