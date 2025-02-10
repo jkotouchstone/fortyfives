@@ -116,8 +116,8 @@ class Game:
         self.deck = Deck()
         self.trump_suit = None
         for p in self.players:
+            # Preserve existing scores; reset tricks for a new hand.
             self.players[p]["hand"] = self.deck.deal(5)
-            # Do not reset score here—scores persist across hands.
             self.players[p]["tricks"] = []
         self.kitty = self.deck.deal(3)
         self.phase = "bidding"
@@ -248,11 +248,7 @@ class Game:
 
     def confirm_kitty(self, keptIndices):
         if self.bidder == "player":
-            # In kitty phase, show combined hand (player hand + kitty)
             combined = self.players["player"]["hand"] + self.kitty
-            # For UI purposes, do not modify the player's hand until selection is confirmed.
-            # The UI should display the combined hand.
-            # When confirmKitty is called, update the player's hand to the selected cards.
             new_hand = []
             for i in keptIndices:
                 if i < len(combined):
@@ -394,6 +390,9 @@ class Game:
             return self.complete_hand()
         else:
             self.phase = "trick"
+            # If it's a computer's turn, auto-play immediately.
+            if self.currentTurn != "player":
+                self.auto_play()
             return self.to_dict()
 
     def evaluate_trick(self, trick):
