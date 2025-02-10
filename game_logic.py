@@ -96,10 +96,10 @@ class Game:
         self.dealer = "player" if random.random() < 0.5 else self.player_order[1]
         self.kitty = []
         self.trump_suit = None
-        self.phase = "bidding"  # bidding, trump, kitty, draw, trick, finished
+        self.phase = "bidding"  # phases: bidding, trump, kitty, draw, trick, trickComplete, finished
         self.biddingMessage = ""
         self.currentTrick = []
-        self.lastTrick = []  # Holds finished trick for a short delay display
+        self.lastTrick = []  # Holds finished trick for UI display
         self.trickLog = []  # Overall hand log
         self.gameNotes = []  # Persist all events during the game
         self.handScores = []  # Record of each hand's scoring summary
@@ -281,13 +281,12 @@ class Game:
         for card in self.players["player"]["hand"]:
             card.selected = False
 
-        # For all computer players, always enforce drawing logic:
+        # For each computer player, enforce drawing until hand size is 5.
         for p in self.players:
             if p != "player":
                 trump_count = sum(1 for card in self.players[p]["hand"] if is_trump(card, self.trump_suit))
-                if trump_count < 3:
-                    # Keep only trump cards, then draw until hand size is 5.
-                    self.players[p]["hand"] = [card for card in self.players[p]["hand"] if is_trump(card, self.trump_suit)]
+                if len(self.players[p]["hand"]) < 5:
+                    # Always keep current trump cards, then draw.
                     while len(self.players[p]["hand"]) < 5 and len(self.deck.cards) > 0:
                         self.players[p]["hand"].append(self.deck.deal(1)[0])
                     timestamp = time.strftime("%H:%M:%S")
@@ -299,13 +298,11 @@ class Game:
         return
 
     def validate_move(self, player, card):
-        # If this is the first card of the trick, any move is valid.
         if not self.currentTrick:
             return True, ""
         lead_card = self.currentTrick[0]["card"]
         lead_suit = lead_card.suit
 
-        # --- If the lead card is trump, enforce trump rules with reneging exception ---
         if is_trump(lead_card, self.trump_suit):
             if not is_trump(card, self.trump_suit):
                 if any(is_trump(c, self.trump_suit) for c in self.players[player]["hand"]):
@@ -319,13 +316,10 @@ class Game:
                     if not any(card.rank == tc.rank and card.suit == tc.suit for tc in top_three):
                         return False, "Invalid move: You must play one of your top 3 trump cards."
                 return True, ""
-        # --- For a non-trump lead ---
         if card.suit == lead_suit:
             return True, ""
-        # Allow playing a trump card even if it doesn't match the lead suit.
         if is_trump(card, self.trump_suit):
             return True, ""
-        # Otherwise, if the player holds any card in the lead suit, they must follow suit.
         if any(c.suit == lead_suit for c in self.players[player]["hand"]):
             return False, "Invalid move: You must follow suit or play a valid trump card."
         return True, ""
@@ -360,7 +354,6 @@ class Game:
         return
 
     def auto_play(self):
-        # Use a shorter delay (0.1 sec) for faster UI response.
         while self.currentTurn != "player" and len(self.currentTrick) < len(self.player_order):
             time.sleep(0.1)
             available = self.players[self.currentTurn]["hand"]
@@ -392,18 +385,18 @@ class Game:
             if is_trump(entry["card"], self.trump_suit):
                 self.trumpCardsPlayed.append((entry["player"], entry["card"]))
         self.lastTrick = self.currentTrick.copy()
-        # Delay exactly 1.5 seconds for proper trick display.
-        time.sleep(1.5)
-        self.currentTrick = []
-        self.lastTrick = []
+        self.currentTrick = []  # Do not block by sleeping here!
+        self.phase = "trickComplete"
         self.currentTurn = winner
-        if all(len(self.players[p]["hand"]) == 0 for p in self.players):
-            self.complete_hand()
-        else:
-            if self.currentTurn != "player":
-                time.sleep(0.1)
-                self.auto_play()
         return
+
+    def clear_trick(self):
+        self.lastTrick = []
+        if all(len(self.players[p]["hand"]) == 0 for p in self.players):
+            return self.complete_hand()
+        else:
+            self.phase = "trick"
+            return self.to_dict()
 
     def evaluate_trick(self, trick):
         if not trick:
