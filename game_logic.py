@@ -109,6 +109,11 @@ class Game:
         self.trumpCardsPlayed = []  # (player, card) tuples for trump cards played this hand
         self.deal_hands()
 
+    def next_player(self, current):
+        """Return the next player in order."""
+        idx = self.player_order.index(current)
+        return self.player_order[(idx + 1) % len(self.player_order)]
+
     def deal_hands(self):
         self.deck = Deck()
         self.trump_suit = None
@@ -179,7 +184,18 @@ class Game:
                         self.biddingMessage = f"Player bids {player_bid} and wins the bid. Please select the trump suit."
                         self.phase = "trump"
             else:
-                if player_bid >= comp_bid:
+                # Non-dealer case: if the human player passes, they cannot win.
+                if player_bid == 0 and comp_bid == 0:
+                    self.bidder = comp_id
+                    self.bid = 15  # automatic minimum bid for computer
+                    self.bidHistory["player"] = "Passed"
+                    self.bidHistory[comp_id] = "Passed"
+                    self.trump_suit = self.computer_bid(comp_id)[1]
+                    self.biddingMessage = f"Both passed. {comp_id} wins the bid automatically with 15 and selects trump {self.trump_suit}."
+                    timestamp = time.strftime("%H:%M:%S")
+                    self.gameNotes.append(f"{timestamp} - {comp_id} selected {self.trump_suit} as trump.")
+                    self.phase = "draw"
+                elif player_bid != 0 and player_bid >= comp_bid:
                     self.bidder = "player"
                     self.bid = player_bid
                     self.bidHistory[comp_id] = "Passed"
@@ -258,7 +274,7 @@ class Game:
             for i in keptIndices:
                 if i < len(self.players["player"]["hand"]):
                     card = self.players["player"]["hand"][i]
-                    card.selected = getattr(card, "selected", True)
+                    card.selected = True  # simply mark as selected
                     kept_cards.append(card)
             self.players["player"]["hand"] = kept_cards
         while len(self.players["player"]["hand"]) < 5 and len(self.deck.cards) > 0:
