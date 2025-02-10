@@ -310,27 +310,34 @@ class Game:
         lead_card = self.currentTrick[0]["card"]
         lead_suit = lead_card.suit
 
-        # (1) If the played card matches the lead suit, allow it.
+        # --- If the lead card is trump, enforce trump rules with reneging exception ---
+        if is_trump(lead_card, self.trump_suit):
+            # The opponent must play a trump card if available.
+            if not is_trump(card, self.trump_suit):
+                if any(is_trump(c, self.trump_suit) for c in self.players[player]["hand"]):
+                    return False, "Invalid move: When the lead is trump, you must play a trump card."
+                return True, ""
+            else:
+                # The played card is trump; check that it is among the top 3 trump cards in hand.
+                trump_cards_in_hand = [c for c in self.players[player]["hand"] if is_trump(c, self.trump_suit)]
+                if trump_cards_in_hand:
+                    # Sort by trump value (highest first)
+                    trump_cards_in_hand.sort(key=lambda c: get_trump_value(c, self.trump_suit), reverse=True)
+                    top_three = trump_cards_in_hand[:3]
+                    # Allow the move only if the played card is one of the top three.
+                    if not any(card.rank == tc.rank and card.suit == tc.suit for tc in top_three):
+                        return False, "Invalid move: You must play one of your top 3 trump cards."
+                return True, ""
+
+        # --- For a non-trump lead ---
         if card.suit == lead_suit:
             return True, ""
-
-        # (2) Trump Exception: If the lead card is non-trump, allow playing a trump card.
-        if not is_trump(lead_card, self.trump_suit) and is_trump(card, self.trump_suit):
+        # Allow playing a trump card even if it doesn't match the lead suit.
+        if is_trump(card, self.trump_suit):
             return True, ""
-
-        # (3) Otherwise, if the player holds any card in the lead suit, they must follow suit.
+        # Otherwise, if the player holds any card in the lead suit, they must follow suit.
         if any(c.suit == lead_suit for c in self.players[player]["hand"]):
-            # Preserve the reneging logic if the lead card is trump.
-            if self.trump_suit is not None and lead_suit == self.trump_suit:
-                if (card.rank == "5" and card.suit == self.trump_suit) or \
-                   (card.rank == "J" and card.suit == self.trump_suit) or \
-                   (card.rank == "A" and card.suit == "♥"):
-                    if lead_card.rank == "5" and lead_card.suit == self.trump_suit:
-                        trump_cards = [c for c in self.players[player]["hand"] if c.suit == self.trump_suit]
-                        if any(c.rank not in ["5", "J"] and not (c.rank == "A" and c.suit == "♥") for c in trump_cards):
-                            return False, "Invalid move: You must follow suit when holding a higher trump card."
-                    return True, ""
-            return False, "Invalid move: You must follow suit or play a trump card on a non-trump lead."
+            return False, "Invalid move: You must follow suit or play a valid trump card."
         return True, ""
 
     def play_card(self, player, cardIndex):
@@ -387,7 +394,7 @@ class Game:
         self.lastTrick = self.currentTrick.copy()
         # Delay to allow the computer's card to be visible.
         time.sleep(1.3)
-        # Clear currentTrick; leave lastTrick intact for the UI.
+        # Clear currentTrick now; lastTrick remains in the state for UI rendering.
         self.currentTrick = []
         self.currentTurn = winner
         if all(len(self.players[p]["hand"]) == 0 for p in self.players):
@@ -436,6 +443,9 @@ class Game:
         self.trickLog.append(summary)
         self.handScores.append(summary)
         self.gameNotes.append(summary)
+        # Clear the trick/trump area so that no cards remain displayed.
+        self.currentTrick = []
+        self.lastTrick = []
         if any(self.players[p]["score"] >= 120 for p in self.players):
             self.phase = "finished"
         else:
