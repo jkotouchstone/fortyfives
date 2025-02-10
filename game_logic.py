@@ -117,7 +117,7 @@ class Game:
         self.deck = Deck()
         self.trump_suit = None
         for p in self.players:
-            # Preserve cumulative scores; reset tricks for new hand.
+            # Preserve cumulative scores; reset tricks for the new hand.
             self.players[p]["hand"] = self.deck.deal(5)
             self.players[p]["tricks"] = []
         self.kitty = self.deck.deal(3)
@@ -212,7 +212,7 @@ class Game:
                     self.phase = "draw"
             self.currentTurn = self.bidder
         elif self.mode == "3p":
-            # (Three-player bidding logic omitted for brevity)
+            # Three-player bidding logic (omitted for brevity)
             pass
         return
 
@@ -222,7 +222,7 @@ class Game:
             self.biddingMessage = f"Player wins the bid. Trump is set to {suit}."
             if self.bidder == "player":
                 self.phase = "kitty"
-                # Build the combined hand (player's 5 cards + 3-card kitty)
+                # Build the combined hand: player's hand plus the kitty.
                 self.combinedHand = self.players["player"]["hand"] + self.kitty
             else:
                 self.phase = "draw"
@@ -244,7 +244,7 @@ class Game:
             self.players["player"]["hand"] = new_hand
             self.biddingMessage = "Kitty selection confirmed. Proceeding to draw phase."
             self.phase = "draw"
-            self.combinedHand = []
+            self.combinedHand = []  # Clear the combined hand.
         else:
             self.phase = "draw"
         return
@@ -331,7 +331,7 @@ class Game:
         return
 
     def auto_play(self):
-        // Use 0.1 sec delay in 2-player mode and 0.3 sec in 3-player mode.
+        # Use 0.1 sec delay in 2-player mode and 0.3 sec in 3-player mode.
         let_delay = 0.1 if self.mode == "2p" else 0.3
         while self.currentTurn != "player" and len(self.currentTrick) < len(self.player_order):
             time.sleep(let_delay)
@@ -451,6 +451,7 @@ class Game:
             "mode": self.mode
         }
         if self.phase == "kitty" and self.bidder == "player":
+            # Ensure the combined hand (player's hand + kitty) is built for display.
             self.combinedHand = self.players["player"]["hand"] + self.kitty
             state["combinedHand"] = [card.to_dict() for card in self.combinedHand]
         if self.phase == "draw":
