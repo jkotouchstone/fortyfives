@@ -106,6 +106,7 @@ class Game:
         self.bidder = None
         self.bid = 0
         self.trumpCardsPlayed = []
+        self.combinedHand = []  # For kitty phase when player wins bid.
         self.deal_hands()
 
     def next_player(self, current):
@@ -116,7 +117,7 @@ class Game:
         self.deck = Deck()
         self.trump_suit = None
         for p in self.players:
-            # Preserve existing cumulative scores
+            # Preserve existing cumulative scores; reset tricks for new hand.
             self.players[p]["hand"] = self.deck.deal(5)
             self.players[p]["tricks"] = []
         self.kitty = self.deck.deal(3)
@@ -127,6 +128,7 @@ class Game:
         self.trickLog = []
         self.bidHistory = {}
         self.trumpCardsPlayed = []
+        self.combinedHand = []
         if self.mode == "2p" and self.dealer == "player":
             comp_id = self.player_order[1]
             comp_bid, comp_trump = self.computer_bid(comp_id)
@@ -242,13 +244,16 @@ class Game:
             self.biddingMessage = f"Player wins the bid. Trump is set to {suit}."
             if self.bidder == "player":
                 self.phase = "kitty"
+                # Store the combined hand (player hand plus kitty) so the UI can display it.
+                self.combinedHand = self.players["player"]["hand"] + self.kitty
             else:
                 self.phase = "draw"
         return
 
     def confirm_kitty(self, keptIndices):
         if self.bidder == "player":
-            combined = self.players["player"]["hand"] + self.kitty
+            # Use the combined hand for kitty selection.
+            combined = self.combinedHand if hasattr(self, "combinedHand") else (self.players["player"]["hand"] + self.kitty)
             new_hand = []
             for i in keptIndices:
                 if i < len(combined):
@@ -262,6 +267,8 @@ class Game:
             self.players["player"]["hand"] = new_hand
             self.biddingMessage = "Kitty selection confirmed. Proceeding to draw phase."
             self.phase = "draw"
+            if hasattr(self, "combinedHand"):
+                del self.combinedHand
         else:
             self.phase = "draw"
         return
@@ -410,7 +417,6 @@ class Game:
         return winner_entry["player"]
 
     def complete_hand(self):
-        # Calculate points: each trick is worth 5 points.
         points = {p: len(self.players[p]["tricks"]) * 5 for p in self.players}
         bonus_winner = None
         bonus_value = 5
@@ -420,10 +426,8 @@ class Game:
             bonus_winner = self.currentTurn
         if bonus_winner:
             points[bonus_winner] += bonus_value
-        # Enforce bidder's bid if necessary.
         if self.bidder in points and points[self.bidder] < self.bid:
             points[self.bidder] = -self.bid
-        # Update cumulative scores.
         hand_summary_parts = []
         for p in self.players:
             prev_score = self.players[p].get("score", 0)
@@ -441,15 +445,13 @@ class Game:
         if any(self.players[p]["score"] >= 120 for p in self.players):
             self.phase = "finished"
         else:
-            # Deal a new hand and return the updated state.
             return self.new_hand()
         return self.to_dict()
 
     def new_hand(self):
         current_idx = self.player_order.index(self.dealer)
         self.dealer = self.player_order[(current_idx + 1) % len(self.player_order)]
-        self.deal_hands()
-        return self.to_dict()
+        return self.deal_hands() or self.to_dict()
 
     def to_dict(self):
         state = {
@@ -471,8 +473,8 @@ class Game:
             "mode": self.mode
         }
         if self.phase == "kitty" and self.bidder == "player":
-            combined = self.players["player"]["hand"] + self.kitty
-            state["combinedHand"] = [card.to_dict() for card in combined]
+            # Include the combined hand (player's hand plus kitty)
+            state["combinedHand"] = [card.to_dict() for card in (self.combinedHand if self.combinedHand else (self.players["player"]["hand"] + self.kitty))]
         if self.phase == "draw":
             state["drawHand"] = [card.to_dict() for card in self.players["player"]["hand"]]
         return state
