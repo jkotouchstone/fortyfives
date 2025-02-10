@@ -212,7 +212,7 @@
     <p>
       <strong>Trump & Trick Play:</strong><br>
       - The winning bidder selects the trump suit while your cards remain visible in the "Your Cards" area.<br>
-      - In trick play, when you click a card it immediately moves to the trick area and is highlighted. After 0.5 seconds the computer plays its card; both cards remain visible for about 1.3 seconds before the trick area is cleared.
+      - In trick play, when you click a card it immediately moves to the trick area and is highlighted. After 0.5 seconds the computer plays its card; both cards remain visible for about 1.5 seconds before the trick area is cleared.
     </p>
     <p>
       <strong>Kitty & Draw Phases:</strong><br>
@@ -343,7 +343,7 @@
       "Step 3: If you win the bid, the status message will read, for example, 'Player bids 25 and wins the bid. Please select the trump suit.'",
       "Step 4: In kitty selection, your combined hand is shown. The top row shows your original 5 cards; the bottom row shows the 3 kitty cards (highlighted in light red). Click the cards you want to keep.",
       "Step 5: In draw phase, your hand appears above. Cards kept from kitty remain selected. Select any additional cards to keep; unselected cards will be replaced from the deck.",
-      "Step 6: In trick play, when you click a card it immediately moves to the trick area and is highlighted. After 0.5 seconds the computer plays its card; both cards remain visible for about 1.3 seconds before the trick area is cleared.",
+      "Step 6: In trick play, when you click a card it immediately moves to the trick area and is highlighted. After 0.5 seconds the computer plays its card; both cards remain visible for about 1.5 seconds before the trick area is cleared.",
       "Step 7: The Game Notes display all events continuously in a fixed, scrollable area, including hand summaries and draw phase details."
     ];
     let currentTutorialStep = 0;
@@ -375,6 +375,10 @@
 
     function updateYourHand(handArray) {
       let container = document.getElementById("your-hand");
+      if (handArray.length === 0) {
+          container.innerHTML = "<strong>Your Cards:</strong> (No cards available)";
+          return;
+      }
       container.innerHTML = "<strong>Your Cards:</strong> ";
       if (gameState.gamePhase === "kitty" && gameState.combinedHand && gameState.combinedHand.length === 8) {
         let combined = gameState.combinedHand;
@@ -425,17 +429,17 @@
       // Toggle section visibility based on game phase.
       let sections = ["bidding-section", "trump-section", "kitty-section", "draw-section", "trick-section", "result-section"];
       sections.forEach(id => document.getElementById(id).classList.remove("visible"));
-      if(state.gamePhase === "bidding"){
+      if (state.gamePhase === "bidding") {
           document.getElementById("bidding-section").classList.add("visible");
-      } else if(state.gamePhase === "trump"){
+      } else if (state.gamePhase === "trump") {
           document.getElementById("trump-section").classList.add("visible");
-      } else if(state.gamePhase === "kitty"){
+      } else if (state.gamePhase === "kitty") {
           document.getElementById("kitty-section").classList.add("visible");
-      } else if(state.gamePhase === "draw"){
+      } else if (state.gamePhase === "draw") {
           document.getElementById("draw-section").classList.add("visible");
-      } else if(state.gamePhase === "trick"){
+      } else if (state.gamePhase === "trick") {
           document.getElementById("trick-section").classList.add("visible");
-      } else if(state.gamePhase === "finished"){
+      } else if (state.gamePhase === "finished") {
           document.getElementById("result-section").classList.add("visible");
       }
 
