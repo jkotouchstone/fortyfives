@@ -443,25 +443,13 @@
       } else {
         document.getElementById("dealer-info").innerHTML = "";
       }
-      let sections = ["bidding-section", "trump-section", "kitty-section", "draw-section", "trick-section", "result-section"];
-      sections.forEach(id => document.getElementById(id).classList.remove("visible"));
-      if (state.gamePhase === "bidding") {
-        document.getElementById("bidding-section").classList.add("visible");
-      } else if (state.gamePhase === "trump") {
-        document.getElementById("trump-section").classList.add("visible");
-      } else if (state.gamePhase === "kitty") {
-        document.getElementById("kitty-section").classList.add("visible");
-      } else if (state.gamePhase === "draw") {
-        document.getElementById("draw-section").classList.add("visible");
-      } else if (state.gamePhase === "trick") {
-        document.getElementById("trick-section").classList.add("visible");
-        let trickArea = document.getElementById("trick-area");
-        // Use currentTrick if available; otherwise, use lastTrick.
+      
+      // Update the trick area.
+      let trickArea = document.getElementById("trick-area");
+      if (state.gamePhase === "finished") {
+        trickArea.innerHTML = "";
+      } else {
         let trickCards = (state.currentTrick.length > 0) ? state.currentTrick : state.lastTrick;
-        let numPlayers = state.mode === "2p" ? 2 : (state.mode === "3p" ? 3 : state.playerHand.length);
-        if (trickCards.length > numPlayers) {
-          trickCards = trickCards.slice(0, numPlayers);
-        }
         trickArea.innerHTML = "";
         trickCards.forEach(entry => {
           let div = document.createElement("div");
@@ -469,11 +457,8 @@
           div.textContent = entry.card.text;
           trickArea.appendChild(div);
         });
-      } else if (state.gamePhase === "finished") {
-        document.getElementById("result-section").classList.add("visible");
-        document.getElementById("result-message").textContent = "Game Over!";
-        document.getElementById("score-sheet").textContent = state.scoreSheet || "";
       }
+      
       document.getElementById("scoreboard").textContent = state.scoreboard || "";
       let gnDiv = document.getElementById("game-notes");
       let eventsHTML = "<strong>Game Notes:</strong><br>" + state.gameNotes.slice().reverse().join("<br>");
