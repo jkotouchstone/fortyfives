@@ -266,7 +266,7 @@
     <div id="kitty-section" class="section">
       <h2>Kitty Phase</h2>
       <div id="kitty-instructions">
-        Below is your combined hand (your 5 cards plus the kitty). The first 5 cards are your original hand, and the last 3 (displayed with a light red background) are the kitty cards. Select the cards you want to keep.
+        Below is your combined hand (your 5 cards plus the kitty). The first 5 cards are your original hand and the last 3 cards are the kitty (displayed with a light red background). Select the cards you want to keep.
       </div>
       <button onclick="confirmKitty()">Confirm Kitty Selection</button>
     </div>
@@ -324,7 +324,7 @@
     ];
     let currentTutorialStep = 0;
 
-    // Updated updateYourHand to split the combined hand when in kitty phase.
+    // Update the updateYourHand function to split the combined hand in kitty phase.
     function updateYourHand(handArray) {
       let container = document.getElementById("your-hand");
       container.innerHTML = "<strong>Your Cards:</strong>";
@@ -348,7 +348,6 @@
         kittyDiv.innerHTML = "<em>Kitty Cards:</em><br>";
         kitty.forEach((card, index) => {
           let div = document.createElement("div");
-          // Add the "kitty" class to display the light red background.
           div.className = "card kitty" + (card.selected ? " selected" : "");
           div.textContent = card.text;
           // Kitty cards have indices 5-7.
@@ -358,7 +357,6 @@
         });
         container.appendChild(kittyDiv);
       } else {
-        // Normal rendering for other phases.
         handArray.forEach((card, index) => {
           let div = document.createElement("div");
           div.className = "card" + (card.selected ? " selected" : "");
