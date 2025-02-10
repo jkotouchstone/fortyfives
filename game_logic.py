@@ -281,22 +281,17 @@ class Game:
         for card in self.players["player"]["hand"]:
             card.selected = False
 
-        # --- Computer Draw Phase Logic ---
-        if self.bidder != "player":
-            for p in self.players:
-                if p != "player":
-                    trump_count = sum(1 for card in self.players[p]["hand"] if is_trump(card, self.trump_suit))
-                    if trump_count < 3:
-                        self.players[p]["hand"] = [card for card in self.players[p]["hand"] if is_trump(card, self.trump_suit)]
-                        while len(self.players[p]["hand"]) < 5 and len(self.deck.cards) > 0:
-                            self.players[p]["hand"].append(self.deck.deal(1)[0])
-                        timestamp = time.strftime("%H:%M:%S")
-                        self.gameNotes.append(f"{timestamp} - {p} discarded non-trump cards and drew new cards.")
-        else:
-            comp = self.player_order[1]
-            timestamp = time.strftime("%H:%M:%S")
-            self.gameNotes.append(f"{timestamp} - {comp} did not draw any cards in draw phase.")
-
+        # For all computer players, always enforce drawing logic:
+        for p in self.players:
+            if p != "player":
+                trump_count = sum(1 for card in self.players[p]["hand"] if is_trump(card, self.trump_suit))
+                if trump_count < 3:
+                    # Keep only trump cards, then draw until hand size is 5.
+                    self.players[p]["hand"] = [card for card in self.players[p]["hand"] if is_trump(card, self.trump_suit)]
+                    while len(self.players[p]["hand"]) < 5 and len(self.deck.cards) > 0:
+                        self.players[p]["hand"].append(self.deck.deal(1)[0])
+                    timestamp = time.strftime("%H:%M:%S")
+                    self.gameNotes.append(f"{timestamp} - {p} drew new cards in draw phase.")
         self.biddingMessage = "Draw complete. Proceeding to trick play."
         self.phase = "trick"
         self.currentTurn = self.bidder
@@ -312,23 +307,18 @@ class Game:
 
         # --- If the lead card is trump, enforce trump rules with reneging exception ---
         if is_trump(lead_card, self.trump_suit):
-            # The opponent must play a trump card if available.
             if not is_trump(card, self.trump_suit):
                 if any(is_trump(c, self.trump_suit) for c in self.players[player]["hand"]):
                     return False, "Invalid move: When the lead is trump, you must play a trump card."
                 return True, ""
             else:
-                # The played card is trump; check that it is among the top 3 trump cards in hand.
                 trump_cards_in_hand = [c for c in self.players[player]["hand"] if is_trump(c, self.trump_suit)]
                 if trump_cards_in_hand:
-                    # Sort by trump value (highest first)
                     trump_cards_in_hand.sort(key=lambda c: get_trump_value(c, self.trump_suit), reverse=True)
                     top_three = trump_cards_in_hand[:3]
-                    # Allow the move only if the played card is one of the top three.
                     if not any(card.rank == tc.rank and card.suit == tc.suit for tc in top_three):
                         return False, "Invalid move: You must play one of your top 3 trump cards."
                 return True, ""
-
         # --- For a non-trump lead ---
         if card.suit == lead_suit:
             return True, ""
@@ -341,7 +331,6 @@ class Game:
         return True, ""
 
     def play_card(self, player, cardIndex):
-        # Safeguard: If the player's hand is empty, do nothing.
         if len(self.players[player]["hand"]) == 0:
             return
         if self.currentTurn != player:
@@ -349,7 +338,6 @@ class Game:
         if cardIndex < 0 or cardIndex >= len(self.players[player]["hand"]):
             return
         card = self.players[player]["hand"][cardIndex]
-        # Only validate the move if it's the human player.
         if player == "player":
             valid, message = self.validate_move(player, card)
             if not valid:
@@ -372,19 +360,22 @@ class Game:
         return
 
     def auto_play(self):
-        # Reduced delay: 0.33 sec between computer moves.
+        # Use a shorter delay (0.1 sec) for faster UI response.
         while self.currentTurn != "player" and len(self.currentTrick) < len(self.player_order):
-            time.sleep(0.33)
+            time.sleep(0.1)
             available = self.players[self.currentTurn]["hand"]
             if not available:
                 break
-            # If a lead card exists and is trump, force selection of a trump card if available.
             if self.currentTrick:
                 lead_card = self.currentTrick[0]["card"]
                 if is_trump(lead_card, self.trump_suit):
                     trump_cards = [card for card in available if is_trump(card, self.trump_suit)]
                     if trump_cards:
                         available = trump_cards
+                else:
+                    suit_cards = [card for card in available if card.suit == lead_card.suit]
+                    if suit_cards:
+                        available = suit_cards
             idx = random.randrange(len(available))
             self.play_card(self.currentTurn, idx)
         return
@@ -400,11 +391,9 @@ class Game:
         for entry in self.currentTrick:
             if is_trump(entry["card"], self.trump_suit):
                 self.trumpCardsPlayed.append((entry["player"], entry["card"]))
-        # Preserve the finished trick so the UI can display both cards.
         self.lastTrick = self.currentTrick.copy()
-        # Delay exactly 1.5 seconds so that cards remain visible only for that time.
+        # Delay exactly 1.5 seconds for proper trick display.
         time.sleep(1.5)
-        # Clear the trick area.
         self.currentTrick = []
         self.lastTrick = []
         self.currentTurn = winner
@@ -412,7 +401,7 @@ class Game:
             self.complete_hand()
         else:
             if self.currentTurn != "player":
-                time.sleep(0.33)
+                time.sleep(0.1)
                 self.auto_play()
         return
 
@@ -454,7 +443,6 @@ class Game:
         self.trickLog.append(summary)
         self.handScores.append(summary)
         self.gameNotes.append(summary)
-        # Clear the trick/trump area so that no cards remain displayed.
         self.currentTrick = []
         self.lastTrick = []
         if any(self.players[p]["score"] >= 120 for p in self.players):
