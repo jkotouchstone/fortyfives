@@ -222,7 +222,7 @@ class Game:
             self.biddingMessage = f"Player wins the bid. Trump is set to {suit}."
             if self.bidder == "player":
                 self.phase = "kitty"
-                # Build the combined hand: player's hand + kitty.
+                # Build the combined hand: player's current hand (5 cards) plus the kitty (3 cards)
                 self.combinedHand = self.players["player"]["hand"] + self.kitty
             else:
                 self.phase = "draw"
@@ -244,7 +244,7 @@ class Game:
             self.players["player"]["hand"] = new_hand
             self.biddingMessage = "Kitty selection confirmed. Proceeding to draw phase."
             self.phase = "draw"
-            self.combinedHand = []
+            self.combinedHand = []  # Clear the combined hand.
         else:
             self.phase = "draw"
         return
@@ -451,7 +451,6 @@ class Game:
             "mode": self.mode
         }
         if self.phase == "kitty" and self.bidder == "player":
-            # Ensure the combined hand (player's hand + kitty) is built for display.
             self.combinedHand = self.players["player"]["hand"] + self.kitty
             state["combinedHand"] = [card.to_dict() for card in self.combinedHand]
         if self.phase == "draw":
