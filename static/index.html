@@ -111,6 +111,7 @@
       border: 2px solid #000;
       transform: scale(1.1);
     }
+    /* Kitty cards get a light red background */
     .kitty {
       background-color: #f08080;
     }
@@ -265,7 +266,7 @@
     <div id="kitty-section" class="section">
       <h2>Kitty Phase</h2>
       <div id="kitty-instructions">
-        Below is your combined hand (your 5 cards plus the kitty). Select the cards you want to keep.
+        Below is your combined hand (your 5 cards plus the kitty). The first 5 cards are your original hand, and the last 3 (displayed with a light red background) are the kitty cards. Select the cards you want to keep.
       </div>
       <button onclick="confirmKitty()">Confirm Kitty Selection</button>
     </div>
@@ -316,56 +317,63 @@
       "Step 1: Cards are dealt. Your 5 cards appear and 3 extra cards form the kitty.",
       "Step 2: During bidding, the computer's bid is shown in the Game Notes.",
       "Step 3: If you win the bid, you are prompted to select the trump suit.",
-      "Step 4: In kitty selection, your combined hand (your 5 cards plus the kitty) is shown. Select the cards you want to keep.",
+      "Step 4: In kitty selection, your combined hand is shown. The first 5 cards are your original hand and the last 3 (highlighted in light red) are kitty cards. Select the cards you want to keep.",
       "Step 5: In draw phase, your hand appears above. Select additional cards to keep; others are replaced.",
       "Step 6: In trick play, after you play a card, the computer responds and both cards are visible for 1.5 seconds.",
       "Step 7: All game events are logged in the Game Notes area."
     ];
     let currentTutorialStep = 0;
 
-    function showTutorialStep() {
-      document.getElementById("tutorial-step-content").innerHTML = `<p>${tutorialSteps[currentTutorialStep]}</p>`;
-    }
-    function nextTutorialStep() {
-      if (currentTutorialStep < tutorialSteps.length - 1) {
-        currentTutorialStep++;
-        showTutorialStep();
-      }
-    }
-    function prevTutorialStep() {
-      if (currentTutorialStep > 0) {
-        currentTutorialStep--;
-        showTutorialStep();
-      }
-    }
-    function openTutorial() {
-      currentTutorialStep = 0;
-      showTutorialStep();
-      document.getElementById("tutorial-modal").style.display = "flex";
-    }
-    function closeTutorial() {
-      document.getElementById("tutorial-modal").style.display = "none";
-    }
+    // Updated updateYourHand to split the combined hand when in kitty phase.
     function updateYourHand(handArray) {
       let container = document.getElementById("your-hand");
-      if (handArray.length === 0) {
-          container.innerHTML = "<strong>Your Cards:</strong> (No cards available)";
-          return;
-      }
-      container.innerHTML = "<strong>Your Cards:</strong> ";
-      handArray.forEach((card, index) => {
-        let div = document.createElement("div");
-        div.className = "card" + (card.selected ? " selected" : "");
-        div.textContent = card.text;
-        div.dataset.index = index;
-        if (gameState.gamePhase === "kitty" || gameState.gamePhase === "draw") {
+      container.innerHTML = "<strong>Your Cards:</strong>";
+      // If in kitty phase and we have 8 cards, split into original hand (first 5) and kitty (last 3)
+      if (gameState.gamePhase === "kitty" && handArray.length === 8) {
+        let orig = handArray.slice(0, 5);
+        let kitty = handArray.slice(5);
+        let origDiv = document.createElement("div");
+        origDiv.innerHTML = "<em>Your original hand:</em><br>";
+        orig.forEach((card, index) => {
+          let div = document.createElement("div");
+          div.className = "card" + (card.selected ? " selected" : "");
+          div.textContent = card.text;
+          div.dataset.index = index;
           div.onclick = function() { this.classList.toggle("selected"); };
-        } else if (gameState.gamePhase === "trick" && gameState.currentTurn === "player") {
-          div.onclick = function() { playCard(parseInt(this.dataset.index)); };
-        }
-        container.appendChild(div);
-      });
+          origDiv.appendChild(div);
+        });
+        container.appendChild(origDiv);
+        let kittyDiv = document.createElement("div");
+        kittyDiv.style.marginTop = "10px";
+        kittyDiv.innerHTML = "<em>Kitty Cards:</em><br>";
+        kitty.forEach((card, index) => {
+          let div = document.createElement("div");
+          // Add the "kitty" class to display the light red background.
+          div.className = "card kitty" + (card.selected ? " selected" : "");
+          div.textContent = card.text;
+          // Kitty cards have indices 5-7.
+          div.dataset.index = index + 5;
+          div.onclick = function() { this.classList.toggle("selected"); };
+          kittyDiv.appendChild(div);
+        });
+        container.appendChild(kittyDiv);
+      } else {
+        // Normal rendering for other phases.
+        handArray.forEach((card, index) => {
+          let div = document.createElement("div");
+          div.className = "card" + (card.selected ? " selected" : "");
+          div.textContent = card.text;
+          div.dataset.index = index;
+          if (gameState.gamePhase === "kitty" || gameState.gamePhase === "draw") {
+            div.onclick = function() { this.classList.toggle("selected"); };
+          } else if (gameState.gamePhase === "trick" && gameState.currentTurn === "player") {
+            div.onclick = function() { playCard(parseInt(this.dataset.index)); };
+          }
+          container.appendChild(div);
+        });
+      }
     }
+
     function updateUI(state) {
       gameState = state;
       let sections = ["bidding-section", "trump-section", "kitty-section", "draw-section", "trick-section", "result-section"];
