@@ -324,11 +324,10 @@
     ];
     let currentTutorialStep = 0;
 
-    // Update the updateYourHand function to split the combined hand in kitty phase.
+    // When in kitty phase, if there are exactly 8 cards, split into the player's hand and the kitty.
     function updateYourHand(handArray) {
       let container = document.getElementById("your-hand");
       container.innerHTML = "<strong>Your Cards:</strong>";
-      // If in kitty phase and we have 8 cards, split into original hand (first 5) and kitty (last 3)
       if (gameState.gamePhase === "kitty" && handArray.length === 8) {
         let orig = handArray.slice(0, 5);
         let kitty = handArray.slice(5);
@@ -350,8 +349,7 @@
           let div = document.createElement("div");
           div.className = "card kitty" + (card.selected ? " selected" : "");
           div.textContent = card.text;
-          // Kitty cards have indices 5-7.
-          div.dataset.index = index + 5;
+          div.dataset.index = index + 5; // indices 5-7
           div.onclick = function() { this.classList.toggle("selected"); };
           kittyDiv.appendChild(div);
         });
@@ -433,6 +431,7 @@
       gnDiv.innerHTML = eventsHTML;
       document.getElementById("feedback").textContent = state.feedback || "";
     }
+
     async function callAPI(endpoint, method = "POST", data = {}) {
       try {
         let response = await fetch(endpoint, {
@@ -446,6 +445,7 @@
         console.error("API call error:", err);
       }
     }
+
     function startGame() {
       let mode = document.getElementById("mode-select").value;
       let instructional = document.getElementById("instruction-mode").checked;
@@ -453,12 +453,15 @@
       document.getElementById("game-container").style.display = "block";
       callAPI("/start_game", "POST", { mode: mode, instructional: instructional });
     }
+
     function placeBid(bid) {
       callAPI("/bid", "POST", { bid: bid });
     }
+
     function selectTrump(suit) {
       callAPI("/select_trump", "POST", { trump: suit });
     }
+
     function confirmKitty() {
       let container = document.getElementById("your-hand");
       let selectedDivs = container.querySelectorAll(".selected");
@@ -466,6 +469,7 @@
       selectedDivs.forEach(div => indices.push(parseInt(div.dataset.index)));
       callAPI("/confirm_kitty", "POST", { keptIndices: indices });
     }
+
     function confirmDraw() {
       let container = document.getElementById("your-hand");
       let selectedDivs = container.querySelectorAll(".selected");
@@ -473,6 +477,7 @@
       selectedDivs.forEach(div => indices.push(parseInt(div.dataset.index)));
       callAPI("/confirm_draw", "POST", { keptIndices: indices });
     }
+
     function playCard(cardIndex) {
       let yourHand = document.getElementById("your-hand");
       let cardElements = yourHand.getElementsByClassName("card");
@@ -488,18 +493,45 @@
       }
       callAPI("/play_trick", "POST", { cardIndex: cardIndex });
     }
+
     function resetGame() {
       callAPI("/reset_game", "POST", {});
     }
+
     function newOpponent() {
       callAPI("/reset_game", "POST", {}).then(() => {
         document.getElementById("game-container").style.display = "none";
         document.getElementById("game-options").style.display = "block";
       });
     }
+
     function toggleInstructions() {
       let instrDiv = document.getElementById("instructions");
       instrDiv.style.display = (instrDiv.style.display === "none" || instrDiv.style.display === "") ? "block" : "none";
+    }
+
+    function nextTutorialStep() {
+      if (currentTutorialStep < tutorialSteps.length - 1) {
+        currentTutorialStep++;
+        showTutorialStep();
+      }
+    }
+
+    function prevTutorialStep() {
+      if (currentTutorialStep > 0) {
+        currentTutorialStep--;
+        showTutorialStep();
+      }
+    }
+
+    function openTutorial() {
+      currentTutorialStep = 0;
+      showTutorialStep();
+      document.getElementById("tutorial-modal").style.display = "flex";
+    }
+
+    function closeTutorial() {
+      document.getElementById("tutorial-modal").style.display = "none";
     }
   </script>
 </body>
