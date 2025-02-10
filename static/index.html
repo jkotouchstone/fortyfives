@@ -421,6 +421,25 @@
 
     function updateUI(state) {
       gameState = state;
+
+      // Toggle section visibility based on game phase.
+      let sections = ["bidding-section", "trump-section", "kitty-section", "draw-section", "trick-section", "result-section"];
+      sections.forEach(id => document.getElementById(id).classList.remove("visible"));
+      if(state.gamePhase === "bidding"){
+          document.getElementById("bidding-section").classList.add("visible");
+      } else if(state.gamePhase === "trump"){
+          document.getElementById("trump-section").classList.add("visible");
+      } else if(state.gamePhase === "kitty"){
+          document.getElementById("kitty-section").classList.add("visible");
+      } else if(state.gamePhase === "draw"){
+          document.getElementById("draw-section").classList.add("visible");
+      } else if(state.gamePhase === "trick"){
+          document.getElementById("trick-section").classList.add("visible");
+      } else if(state.gamePhase === "finished"){
+          document.getElementById("result-section").classList.add("visible");
+      }
+
+      // Update hand display.
       if (state.gamePhase === "kitty" && state.bidder === "player" && state.combinedHand) {
         updateYourHand(state.combinedHand);
       } else if (state.gamePhase === "draw" && state.drawHand) {
