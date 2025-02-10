@@ -203,7 +203,7 @@
       - Cards are played into the trick area. After 0.5 seconds the computer responds, and both cards remain visible for 1.5 seconds.
     </p>
     <p><strong>Kitty & Draw Phases:</strong><br>
-      - After trump selection, you enter the Kitty phase where your combined hand (your original 5 cards plus the 3‑card kitty) is displayed for selection.<br>
+      - After trump selection, you enter the Kitty phase where your combined hand (your 5 cards plus the kitty) is shown for selection.<br>
       - After confirming your selection, the Draw phase begins so that unselected cards are replaced.
     </p>
     <p><strong>Following Suit:</strong><br>
@@ -386,7 +386,6 @@
       } else if (state.gamePhase === "finished") {
           document.getElementById("result-section").classList.add("visible");
       }
-      // For kitty phase, use combined hand if available.
       if (state.gamePhase === "kitty" && state.bidder === "player" && state.combinedHand) {
         updateYourHand(state.combinedHand);
       } else if (state.gamePhase === "draw" && state.drawHand) {
