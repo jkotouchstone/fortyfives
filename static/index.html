@@ -200,10 +200,11 @@
       - When you win the bid, you are prompted to select the trump suit.
     </p>
     <p><strong>Trump & Trick Play:</strong><br>
-      - Cards are played into the trick area. After 0.5 seconds, the computer responds, and both cards are visible for 1.5 seconds.
+      - Cards are played into the trick area. After 0.5 seconds the computer responds, and both cards remain visible for 1.5 seconds.
     </p>
     <p><strong>Kitty & Draw Phases:</strong><br>
-      - After trump selection, you enter Kitty and Draw phases to adjust your hand.
+      - After trump selection, you enter the Kitty phase where your combined hand (your original 5 cards plus the 3‑card kitty) is displayed for selection.<br>
+      - After confirming your selection, the Draw phase begins so that unselected cards are replaced.
     </p>
     <p><strong>Following Suit:</strong><br>
       - You must follow suit if possible; otherwise, special trump rules apply.
@@ -264,7 +265,7 @@
     <div id="kitty-section" class="section">
       <h2>Kitty Phase</h2>
       <div id="kitty-instructions">
-        Your combined hand is displayed. Click the cards you wish to keep.
+        Below is your combined hand (your 5 cards plus the kitty). Select the cards you want to keep.
       </div>
       <button onclick="confirmKitty()">Confirm Kitty Selection</button>
     </div>
@@ -315,7 +316,7 @@
       "Step 1: Cards are dealt. Your 5 cards appear and 3 extra cards form the kitty.",
       "Step 2: During bidding, the computer's bid is shown in the Game Notes.",
       "Step 3: If you win the bid, you are prompted to select the trump suit.",
-      "Step 4: In kitty selection, your combined hand is shown. Click the cards you want to keep.",
+      "Step 4: In kitty selection, your combined hand (your 5 cards plus the kitty) is shown. Select the cards you want to keep.",
       "Step 5: In draw phase, your hand appears above. Select additional cards to keep; others are replaced.",
       "Step 6: In trick play, after you play a card, the computer responds and both cards are visible for 1.5 seconds.",
       "Step 7: All game events are logged in the Game Notes area."
@@ -385,6 +386,7 @@
       } else if (state.gamePhase === "finished") {
           document.getElementById("result-section").classList.add("visible");
       }
+      // For kitty phase, use combined hand if available.
       if (state.gamePhase === "kitty" && state.bidder === "player" && state.combinedHand) {
         updateYourHand(state.combinedHand);
       } else if (state.gamePhase === "draw" && state.drawHand) {
