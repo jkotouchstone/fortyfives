@@ -184,10 +184,9 @@ class Game:
                         self.biddingMessage = f"Player bids {player_bid} and wins the bid. Please select the trump suit."
                         self.phase = "trump"
             else:
-                # Non-dealer case: if the human player passes, they cannot win.
                 if player_bid == 0 and comp_bid == 0:
                     self.bidder = comp_id
-                    self.bid = 15  # automatic minimum bid for computer
+                    self.bid = 15
                     self.bidHistory["player"] = "Passed"
                     self.bidHistory[comp_id] = "Passed"
                     self.trump_suit = self.computer_bid(comp_id)[1]
@@ -274,7 +273,7 @@ class Game:
             for i in keptIndices:
                 if i < len(self.players["player"]["hand"]):
                     card = self.players["player"]["hand"][i]
-                    card.selected = True  # simply mark as selected
+                    card.selected = True
                     kept_cards.append(card)
             self.players["player"]["hand"] = kept_cards
         while len(self.players["player"]["hand"]) < 5 and len(self.deck.cards) > 0:
@@ -308,27 +307,30 @@ class Game:
         # If this is the first card of the trick, any move is valid.
         if not self.currentTrick:
             return True, ""
-        lead_suit = self.currentTrick[0]["card"].suit
-        # If the played card follows suit, it is allowed.
+        lead_card = self.currentTrick[0]["card"]
+        lead_suit = lead_card.suit
+
+        # (1) If the played card matches the lead suit, allow it.
         if card.suit == lead_suit:
             return True, ""
-        # Otherwise, check if the player holds any card of the lead suit.
+
+        # (2) Trump Exception: If the lead card is non-trump, allow playing a trump card.
+        if not is_trump(lead_card, self.trump_suit) and is_trump(card, self.trump_suit):
+            return True, ""
+
+        # (3) Otherwise, if the player holds any card in the lead suit, they must follow suit.
         if any(c.suit == lead_suit for c in self.players[player]["hand"]):
-            # The move is normally illegal.
-            # Reneging is allowed only when the played card is one of the three major cards
-            # (the 5 of trump, the Jack of trump, or the Ace of Hearts) and only when the led suit is trump.
+            # Preserve the reneging logic if the lead card is trump.
             if self.trump_suit is not None and lead_suit == self.trump_suit:
                 if (card.rank == "5" and card.suit == self.trump_suit) or \
                    (card.rank == "J" and card.suit == self.trump_suit) or \
                    (card.rank == "A" and card.suit == "♥"):
-                    # Additional condition: if the led card is a 5 of trump, and the player has any trump card
-                    # that is not an allowed reneging card, they must follow suit.
-                    if self.currentTrick[0]["card"].rank == "5" and self.currentTrick[0]["card"].suit == self.trump_suit:
+                    if lead_card.rank == "5" and lead_card.suit == self.trump_suit:
                         trump_cards = [c for c in self.players[player]["hand"] if c.suit == self.trump_suit]
-                        if any(c.rank not in ["5", "J"] and not (c.rank=="A" and c.suit=="♥") for c in trump_cards):
-                            return False, "You must follow suit when holding a higher trump card."
+                        if any(c.rank not in ["5", "J"] and not (c.rank == "A" and c.suit == "♥") for c in trump_cards):
+                            return False, "Invalid move: You must follow suit when holding a higher trump card."
                     return True, ""
-            return False, "You must follow suit if possible."
+            return False, "Invalid move: You must follow suit or play a trump card on a non-trump lead."
         return True, ""
 
     def play_card(self, player, cardIndex):
@@ -381,13 +383,12 @@ class Game:
         for entry in self.currentTrick:
             if is_trump(entry["card"], self.trump_suit):
                 self.trumpCardsPlayed.append((entry["player"], entry["card"]))
-        # Copy the finished trick into lastTrick so all played cards are visible.
+        # Preserve the finished trick so the UI can display both cards.
         self.lastTrick = self.currentTrick.copy()
-        # Reduced delay: 2 sec → 1.3 sec.
+        # Delay to allow the computer's card to be visible.
         time.sleep(1.3)
-        # Clear the trick area so that only the next trick’s cards are displayed.
+        # Clear currentTrick; leave lastTrick intact for the UI.
         self.currentTrick = []
-        self.lastTrick = []
         self.currentTurn = winner
         if all(len(self.players[p]["hand"]) == 0 for p in self.players):
             self.complete_hand()
