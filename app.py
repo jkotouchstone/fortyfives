@@ -87,16 +87,6 @@ def play_trick():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route("/reset_game", methods=["POST"])
-def reset_game():
-    global current_game
-    try:
-        current_game = None
-        return jsonify({"message": "Game reset. Please start a new game."})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-# New endpoint to clear the trick area after a trick is complete.
 @app.route("/clear_trick", methods=["POST"])
 def clear_trick():
     global current_game
@@ -105,6 +95,15 @@ def clear_trick():
             return jsonify({"error": "No game started."}), 500
         state = current_game.clear_trick()
         return jsonify(state)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/reset_game", methods=["POST"])
+def reset_game():
+    global current_game
+    try:
+        current_game = None
+        return jsonify({"message": "Game reset. Please start a new game."})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
