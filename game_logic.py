@@ -116,7 +116,7 @@ class Game:
         self.deck = Deck()
         self.trump_suit = None
         for p in self.players:
-            # Preserve existing scores; reset tricks for a new hand.
+            # Preserve existing cumulative scores
             self.players[p]["hand"] = self.deck.deal(5)
             self.players[p]["tricks"] = []
         self.kitty = self.deck.deal(3)
@@ -390,7 +390,6 @@ class Game:
             return self.complete_hand()
         else:
             self.phase = "trick"
-            # If it's a computer's turn, auto-play immediately.
             if self.currentTurn != "player":
                 self.auto_play()
             return self.to_dict()
@@ -411,6 +410,7 @@ class Game:
         return winner_entry["player"]
 
     def complete_hand(self):
+        # Calculate points: each trick is worth 5 points.
         points = {p: len(self.players[p]["tricks"]) * 5 for p in self.players}
         bonus_winner = None
         bonus_value = 5
@@ -420,8 +420,10 @@ class Game:
             bonus_winner = self.currentTurn
         if bonus_winner:
             points[bonus_winner] += bonus_value
+        # Enforce bidder's bid if necessary.
         if self.bidder in points and points[self.bidder] < self.bid:
             points[self.bidder] = -self.bid
+        # Update cumulative scores.
         hand_summary_parts = []
         for p in self.players:
             prev_score = self.players[p].get("score", 0)
@@ -439,14 +441,15 @@ class Game:
         if any(self.players[p]["score"] >= 120 for p in self.players):
             self.phase = "finished"
         else:
-            self.new_hand()
-        return
+            # Deal a new hand and return the updated state.
+            return self.new_hand()
+        return self.to_dict()
 
     def new_hand(self):
         current_idx = self.player_order.index(self.dealer)
         self.dealer = self.player_order[(current_idx + 1) % len(self.player_order)]
         self.deal_hands()
-        return
+        return self.to_dict()
 
     def to_dict(self):
         state = {
