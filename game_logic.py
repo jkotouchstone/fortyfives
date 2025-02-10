@@ -341,6 +341,9 @@ class Game:
         return True, ""
 
     def play_card(self, player, cardIndex):
+        # Safeguard: If the player's hand is empty, do nothing.
+        if len(self.players[player]["hand"]) == 0:
+            return
         if self.currentTurn != player:
             return
         if cardIndex < 0 or cardIndex >= len(self.players[player]["hand"]):
@@ -369,12 +372,19 @@ class Game:
         return
 
     def auto_play(self):
-        # Reduced delay: 0.5 sec → 0.33 sec.
+        # Reduced delay: 0.33 sec between computer moves.
         while self.currentTurn != "player" and len(self.currentTrick) < len(self.player_order):
             time.sleep(0.33)
             available = self.players[self.currentTurn]["hand"]
             if not available:
                 break
+            # If a lead card exists and is trump, force selection of a trump card if available.
+            if self.currentTrick:
+                lead_card = self.currentTrick[0]["card"]
+                if is_trump(lead_card, self.trump_suit):
+                    trump_cards = [card for card in available if is_trump(card, self.trump_suit)]
+                    if trump_cards:
+                        available = trump_cards
             idx = random.randrange(len(available))
             self.play_card(self.currentTurn, idx)
         return
@@ -392,10 +402,11 @@ class Game:
                 self.trumpCardsPlayed.append((entry["player"], entry["card"]))
         # Preserve the finished trick so the UI can display both cards.
         self.lastTrick = self.currentTrick.copy()
-        # Delay to allow the computer's card to be visible.
-        time.sleep(1.3)
-        # Clear currentTrick now; lastTrick remains in the state for UI rendering.
+        # Delay exactly 1.5 seconds so that cards remain visible only for that time.
+        time.sleep(1.5)
+        # Clear the trick area.
         self.currentTrick = []
+        self.lastTrick = []
         self.currentTurn = winner
         if all(len(self.players[p]["hand"]) == 0 for p in self.players):
             self.complete_hand()
