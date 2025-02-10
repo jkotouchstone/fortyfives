@@ -324,7 +324,7 @@
     ];
     let currentTutorialStep = 0;
 
-    // When in kitty phase, if there are exactly 8 cards, split into the player's hand and the kitty.
+    // When in kitty phase, if we have exactly 8 cards, split into the player's hand and kitty.
     function updateYourHand(handArray) {
       let container = document.getElementById("your-hand");
       container.innerHTML = "<strong>Your Cards:</strong>";
@@ -349,7 +349,8 @@
           let div = document.createElement("div");
           div.className = "card kitty" + (card.selected ? " selected" : "");
           div.textContent = card.text;
-          div.dataset.index = index + 5; // indices 5-7
+          // Kitty cards have indices 5-7.
+          div.dataset.index = index + 5;
           div.onclick = function() { this.classList.toggle("selected"); };
           kittyDiv.appendChild(div);
         });
@@ -390,8 +391,13 @@
       } else if (state.gamePhase === "finished") {
           document.getElementById("result-section").classList.add("visible");
       }
-      if (state.gamePhase === "kitty" && state.bidder === "player" && state.combinedHand) {
-        updateYourHand(state.combinedHand);
+      // If kitty phase, use combinedHand if available; otherwise, try to combine playerHand and kitty.
+      if (state.gamePhase === "kitty" && state.bidder === "player") {
+        let combined = state.combinedHand;
+        if (!combined) {
+          combined = state.playerHand.concat(state.kitty);
+        }
+        updateYourHand(combined);
       } else if (state.gamePhase === "draw" && state.drawHand) {
         updateYourHand(state.drawHand);
       } else {
