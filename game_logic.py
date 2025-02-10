@@ -277,52 +277,47 @@ class Game:
         return
 
     def validate_move(self, player, card):
-    # If no card has been led, any move is valid.
-    if not self.currentTrick:
-        return True, ""
-    
-    lead_card = self.currentTrick[0]["card"]
-    lead_suit = lead_card.suit
-    
-    # If the lead card is trump, normally you must play a trump card.
-    if is_trump(lead_card, self.trump_suit):
-        # If the player is NOT playing a trump card:
-        if not is_trump(card, self.trump_suit):
-            # Gather all trump cards in the player's hand.
-            trump_in_hand = [c for c in self.players[player]["hand"] if is_trump(c, self.trump_suit)]
-            
-            # Define the eligible reneging ranks.
-            eligible = ['5', 'J']
-            if self.trump_suit == "♥":
-                eligible.append("A")
-            
-            # If the player holds trump cards...
-            if trump_in_hand:
-                # Check if all trump cards are reneging-eligible.
-                all_eligible = all(c.rank in eligible for c in trump_in_hand)
-                if not all_eligible:
-                    # If the player has any trump that is not eligible for renegging, the move is invalid.
-                    return False, "Invalid move: You must follow trump if you have non-reneging cards."
-                else:
-                    # Otherwise, the move is allowed.
-                    return True, ""
-            # If no trump cards remain, the move is allowed.
+        # If no card has been led, any move is valid.
+        if not self.currentTrick:
             return True, ""
-        else:
-            # If the player is playing a trump card, you might check further conditions
-            # to enforce that they play a high enough trump unless renegging is allowed.
-            # (For now, we assume any trump card is valid.)
+        
+        lead_card = self.currentTrick[0]["card"]
+        lead_suit = lead_card.suit
+        
+        # If the lead card is trump, normally you must play a trump card.
+        if is_trump(lead_card, self.trump_suit):
+            # If the player is NOT playing a trump card:
+            if not is_trump(card, self.trump_suit):
+                # Gather all trump cards in the player's hand.
+                trump_in_hand = [c for c in self.players[player]["hand"] if is_trump(c, self.trump_suit)]
+                
+                # Define the eligible reneging ranks.
+                eligible = ['5', 'J']
+                if self.trump_suit == "♥":
+                    eligible.append("A")
+                
+                # If the player holds trump cards...
+                if trump_in_hand:
+                    # Check if all trump cards are reneging-eligible.
+                    all_eligible = all(c.rank in eligible for c in trump_in_hand)
+                    if not all_eligible:
+                        return False, "Invalid move: You must follow trump if you have non-reneging cards."
+                    else:
+                        return True, ""
+                return True, ""
+            else:
+                # If playing a trump card, for now assume any trump card is valid.
+                return True, ""
+        
+        # If the lead card is not trump, follow standard rules.
+        if card.suit == lead_suit:
             return True, ""
-    
-    # If the lead card is not trump, follow normal rules.
-    if card.suit == lead_suit:
+        
+        # If the player has a card in the led suit, they must follow suit.
+        if any(c.suit == lead_suit for c in self.players[player]["hand"]):
+            return False, "Invalid move: You must follow suit or play a valid trump card."
+        
         return True, ""
-    
-    # Allow non-trump if the card is not trump and the player has no card of the led suit.
-    if any(c.suit == lead_suit for c in self.players[player]["hand"]):
-        return False, "Invalid move: You must follow suit or play a valid trump card."
-    
-    return True, ""
 
     def play_card(self, player, cardIndex):
         if len(self.players[player]["hand"]) == 0:
