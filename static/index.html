@@ -324,11 +324,11 @@
     ];
     let currentTutorialStep = 0;
 
-    // When in kitty phase, if we have exactly 8 cards, split into the player's hand and kitty.
+    // Updated updateYourHand: if in kitty phase and more than 5 cards exist, split into original hand and kitty.
     function updateYourHand(handArray) {
       let container = document.getElementById("your-hand");
       container.innerHTML = "<strong>Your Cards:</strong>";
-      if (gameState.gamePhase === "kitty" && handArray.length === 8) {
+      if (gameState.gamePhase === "kitty" && handArray.length > 5) {
         let orig = handArray.slice(0, 5);
         let kitty = handArray.slice(5);
         let origDiv = document.createElement("div");
@@ -349,7 +349,7 @@
           let div = document.createElement("div");
           div.className = "card kitty" + (card.selected ? " selected" : "");
           div.textContent = card.text;
-          // Kitty cards have indices 5-7.
+          // Kitty card indices start after the first 5.
           div.dataset.index = index + 5;
           div.onclick = function() { this.classList.toggle("selected"); };
           kittyDiv.appendChild(div);
@@ -376,27 +376,24 @@
       let sections = ["bidding-section", "trump-section", "kitty-section", "draw-section", "trick-section", "result-section"];
       sections.forEach(id => document.getElementById(id).classList.remove("visible"));
       if (state.gamePhase === "bidding") {
-          document.getElementById("bidding-section").classList.add("visible");
+        document.getElementById("bidding-section").classList.add("visible");
       } else if (state.gamePhase === "trump") {
-          document.getElementById("trump-section").classList.add("visible");
+        document.getElementById("trump-section").classList.add("visible");
       } else if (state.gamePhase === "kitty") {
-          document.getElementById("kitty-section").classList.add("visible");
+        document.getElementById("kitty-section").classList.add("visible");
       } else if (state.gamePhase === "draw") {
-          document.getElementById("draw-section").classList.add("visible");
+        document.getElementById("draw-section").classList.add("visible");
       } else if (state.gamePhase === "trick" || state.gamePhase === "trickComplete") {
-          document.getElementById("trick-section").classList.add("visible");
-          if (state.gamePhase === "trickComplete") {
-              setTimeout(() => { callAPI("/clear_trick", "POST", {}); }, 1500);
-          }
-      } else if (state.gamePhase === "finished") {
-          document.getElementById("result-section").classList.add("visible");
-      }
-      // If kitty phase, use combinedHand if available; otherwise, try to combine playerHand and kitty.
-      if (state.gamePhase === "kitty" && state.bidder === "player") {
-        let combined = state.combinedHand;
-        if (!combined) {
-          combined = state.playerHand.concat(state.kitty);
+        document.getElementById("trick-section").classList.add("visible");
+        if (state.gamePhase === "trickComplete") {
+          setTimeout(() => { callAPI("/clear_trick", "POST", {}); }, 1500);
         }
+      } else if (state.gamePhase === "finished") {
+        document.getElementById("result-section").classList.add("visible");
+      }
+      // For kitty phase, use combinedHand if available; otherwise combine playerHand and kitty.
+      if (state.gamePhase === "kitty" && state.bidder === "player") {
+        let combined = state.combinedHand || state.playerHand.concat(state.kitty);
         updateYourHand(combined);
       } else if (state.gamePhase === "draw" && state.drawHand) {
         updateYourHand(state.drawHand);
