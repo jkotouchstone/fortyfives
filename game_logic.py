@@ -413,44 +413,45 @@ class Game:
         return winner_entry["player"]
     
     def complete_hand(self):
-        points = {p: len(self.players[p]["tricks"]) * 5 for p in self.players}
-        bonus_winner = None
-        bonus_value = 5
-        # Use the trump cards played in this hand.
-        trump_played = self.trumpCardsPlayed.copy()
-        if not trump_played:
-            for p in self.players:
-                for trick in self.players[p]["tricks"]:
-                    for entry in trick:
-                        card = entry["card"]
-                        if is_trump(card, self.trump_suit):
-                            trump_played.append((p, card))
-        if trump_played:
-            bonus_winner, bonus_card = max(trump_played, key=lambda x: get_trump_value(x[1], self.trump_suit))
-        elif self.currentTurn:
-            bonus_winner = self.currentTurn
-        if bonus_winner:
-            points[bonus_winner] += bonus_value
-        if self.bidder in points and points[self.bidder] < self.bid:
-            points[self.bidder] = -self.bid
-        hand_summary_parts = []
+    points = {p: len(self.players[p]["tricks"]) * 5 for p in self.players}
+    bonus_winner = None
+    bonus_value = 5
+    # Use the trump cards played in this hand.
+    trump_played = self.trumpCardsPlayed.copy()
+    if not trump_played:
         for p in self.players:
-            hand_points = points[p]
-            total = self.players[p]["score"] + hand_points
-            name = "Player" if p == "player" else p
-            hand_summary_parts.append(f"{name}: {hand_points} (Total: {total})")
-            self.players[p]["score"] = total
-        summary = "Hand over. " + " | ".join(hand_summary_parts)
-        self.trickLog.append(summary)
-        self.handScores.append(summary)
-        self.gameNotes.append(summary)
-        self.currentTrick = []
-        self.lastTrick = []
-        if any(len(self.players[p]["hand"]) == 0 for p in self.players):
-            self.phase = "finished"
-        else:
-            return self.new_hand()
-        return self.to_dict()
+            for trick in self.players[p]["tricks"]:
+                for entry in trick:
+                    card = entry["card"]
+                    if is_trump(card, self.trump_suit):
+                        trump_played.append((p, card))
+    if trump_played:
+        bonus_winner, bonus_card = max(trump_played, key=lambda x: get_trump_value(x[1], self.trump_suit))
+    elif self.currentTurn:
+        bonus_winner = self.currentTurn
+    if bonus_winner:
+        points[bonus_winner] += bonus_value
+    if self.bidder in points and points[self.bidder] < self.bid:
+        points[self.bidder] = -self.bid
+    hand_summary_parts = []
+    for p in self.players:
+        hand_points = points[p]
+        total = self.players[p]["score"] + hand_points
+        name = "Player" if p == "player" else p
+        hand_summary_parts.append(f"{name}: {hand_points} (Total: {total})")
+        self.players[p]["score"] = total
+    summary = "Hand over. " + " | ".join(hand_summary_parts)
+    self.trickLog.append(summary)
+    self.handScores.append(summary)
+    self.gameNotes.append(summary)
+    self.currentTrick = []
+    self.lastTrick = []
+    # Only finish the game if a player's score is 120 or more.
+    if any(self.players[p]["score"] >= 120 for p in self.players):
+        self.phase = "finished"
+    else:
+        return self.new_hand()
+    return self.to_dict()
     
     def new_hand(self):
         current_idx = self.player_order.index(self.dealer)
