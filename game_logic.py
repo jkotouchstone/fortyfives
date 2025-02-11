@@ -454,27 +454,29 @@ class Game:
         return self.deal_hands() or self.to_dict()
 
     def to_dict(self):
-        state = {
-            "gamePhase": self.phase,
-            "playerHand": [card.to_dict() for card in self.players["player"]["hand"]],
-            "computerHandCount": (len(self.players[self.player_order[1]]["hand"]) if self.mode == "2p" else None),
-            "kitty": [card.to_dict() for card in self.kitty],
-            "trumpSuit": self.trump_suit if self.phase not in ["bidding"] else None,
-            "biddingMessage": self.biddingMessage,
-            "bidHistory": self.bidHistory,
-            "currentTrick": [{"player": entry["player"], "card": entry["card"].to_dict()} for entry in self.currentTrick],
-            "lastTrick": [{"player": entry["player"], "card": entry["card"].to_dict()} for entry in self.lastTrick],
-            "trickLog": self.trickLog,
-            "scoreboard": " | ".join(f"{'Player' if p=='player' else p}: {self.players[p]['score']}" for p in self.players),
-            "currentTurn": self.currentTurn,
-            "dealer": self.dealer,
-            "gameNotes": self.gameNotes,
-            "handScores": self.handScores,
-            "mode": self.mode
-        }
-        if self.phase == "kitty" and self.bidder == "player":
-            self.combinedHand = self.players["player"]["hand"] + self.kitty
-            state["combinedHand"] = [card.to_dict() for card in self.combinedHand]
-        if self.phase == "draw":
-            state["drawHand"] = [card.to_dict() for card in self.players["player"]["hand"]]
-        return state
+    state = {
+        "gamePhase": self.phase,
+        "playerHand": [card.to_dict() for card in self.players["player"]["hand"]],
+        "computerHandCount": (len(self.players[self.player_order[1]]["hand"]) if self.mode == "2p" else None),
+        "kitty": [card.to_dict() for card in self.kitty],
+        "trumpSuit": self.trump_suit if self.phase not in ["bidding"] else None,
+        "biddingMessage": self.biddingMessage,
+        "bidHistory": self.bidHistory,
+        "currentTrick": [{"player": entry["player"], "card": entry["card"].to_dict()} for entry in self.currentTrick],
+        "lastTrick": [{"player": entry["player"], "card": entry["card"].to_dict()} for entry in self.lastTrick],
+        "trickLog": self.trickLog,
+        "scoreboard": " | ".join(f"{'Player' if p=='player' else p}: {self.players[p]['score']}" for p in self.players),
+        "currentTurn": self.currentTurn,
+        "dealer": self.dealer,
+        "gameNotes": self.gameNotes,
+        "handScores": self.handScores,
+        "mode": self.mode,
+        "bidder": self.bidder   # *** Added this line ***
+    }
+    if self.phase == "kitty" and self.bidder == "player":
+        self.combinedHand = self.players["player"]["hand"] + self.kitty
+        state["combinedHand"] = [card.to_dict() for card in self.combinedHand]
+    if self.phase == "draw":
+        state["drawHand"] = [card.to_dict() for card in self.players["player"]["hand"]]
+    return state
+
