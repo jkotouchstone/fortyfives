@@ -37,6 +37,8 @@ class Deck:
 # ---------------------------
 # Ranking Definitions
 # ---------------------------
+# For diamonds and hearts, use the same trump ranking:
+# Highest trump is "5", then "J", then "A", then "K", "Q", "10", etc.
 TRUMP_RANKINGS = {
     "♦": ["5", "J", "A", "K", "Q", "10", "9", "8", "7", "6", "4", "3", "2"],
     "♥": ["5", "J", "A", "K", "Q", "10", "9", "8", "7", "6", "4", "3", "2"],
@@ -283,19 +285,17 @@ class Game:
         lead_card = self.currentTrick[0]["card"]
         lead_suit = lead_card.suit
         
-        # When the lead card is trump, the player (or computer) must play a trump if they have one.
+        # When the lead card is trump, the player must play a trump if they have one.
         if is_trump(lead_card, self.trump_suit):
             if not is_trump(card, self.trump_suit):
                 # Check if the player has any trump cards.
                 trump_in_hand = [c for c in self.players[player]["hand"] if is_trump(c, self.trump_suit)]
                 if trump_in_hand:
-                    # The player has a trump; they must play a trump.
                     return False, "Invalid move: When a trump is led, you must play a trump card if you have one."
                 else:
-                    # No trump in hand, so off-suit play is allowed.
                     return True, ""
             else:
-                # If a trump card is played, optionally enforce additional rules (e.g., play one of the top 3 trump cards).
+                # If a trump is played, optionally enforce that it is among your top 3 trump cards.
                 trump_in_hand = [c for c in self.players[player]["hand"] if is_trump(c, self.trump_suit)]
                 if trump_in_hand:
                     trump_in_hand.sort(key=lambda c: get_trump_value(c, self.trump_suit), reverse=True)
@@ -304,7 +304,7 @@ class Game:
                         return False, "Invalid move: You must play one of your top 3 trump cards."
                 return True, ""
         
-        # If the lead card is not trump, the player may follow suit or cut by playing a trump.
+        # If the lead card is not trump, allow playing a card in the led suit or a trump (to cut).
         if card.suit == lead_suit or is_trump(card, self.trump_suit):
             return True, ""
         
@@ -348,7 +348,6 @@ class Game:
                 break
             if self.currentTrick:
                 lead_card = self.currentTrick[0]["card"]
-                # If lead is trump, force selection from trump cards if available.
                 if is_trump(lead_card, self.trump_suit):
                     trump_cards = [card for card in available if is_trump(card, self.trump_suit)]
                     if trump_cards:
@@ -357,7 +356,6 @@ class Game:
                     suit_cards = [card for card in available if card.suit == lead_card.suit]
                     if suit_cards:
                         available = suit_cards
-            # Filter available cards by valid moves.
             valid_moves = []
             for card in available:
                 valid, _ = self.validate_move(self.currentTurn, card)
@@ -367,7 +365,6 @@ class Game:
                 available = valid_moves
             idx = random.randrange(len(available))
             card_to_play = available[idx]
-            # Find the index of this card in the full hand.
             full_hand = self.players[self.currentTurn]["hand"]
             actual_index = full_hand.index(card_to_play)
             self.play_card(self.currentTurn, actual_index)
@@ -419,8 +416,17 @@ class Game:
         points = {p: len(self.players[p]["tricks"]) * 5 for p in self.players}
         bonus_winner = None
         bonus_value = 5
-        if self.trumpCardsPlayed:
-            bonus_winner, bonus_card = max(self.trumpCardsPlayed, key=lambda x: get_trump_value(x[1], self.trump_suit))
+        # Use the trump cards played in this hand.
+        trump_played = self.trumpCardsPlayed.copy()
+        if not trump_played:
+            for p in self.players:
+                for trick in self.players[p]["tricks"]:
+                    for entry in trick:
+                        card = entry["card"]
+                        if is_trump(card, self.trump_suit):
+                            trump_played.append((p, card))
+        if trump_played:
+            bonus_winner, bonus_card = max(trump_played, key=lambda x: get_trump_value(x[1], self.trump_suit))
         elif self.currentTurn:
             bonus_winner = self.currentTurn
         if bonus_winner:
@@ -429,19 +435,18 @@ class Game:
             points[self.bidder] = -self.bid
         hand_summary_parts = []
         for p in self.players:
-            prev_score = self.players[p].get("score", 0)
             hand_points = points[p]
-            new_score = prev_score + hand_points
-            self.players[p]["score"] = new_score
+            total = self.players[p]["score"] + hand_points
             name = "Player" if p == "player" else p
-            hand_summary_parts.append(f"{name}: {hand_points} (Total: {new_score})")
+            hand_summary_parts.append(f"{name}: {hand_points} (Total: {total})")
+            self.players[p]["score"] = total
         summary = "Hand over. " + " | ".join(hand_summary_parts)
         self.trickLog.append(summary)
         self.handScores.append(summary)
         self.gameNotes.append(summary)
         self.currentTrick = []
         self.lastTrick = []
-        if any(self.players[p]["score"] >= 120 for p in self.players):
+        if any(len(self.players[p]["hand"]) == 0 for p in self.players):
             self.phase = "finished"
         else:
             return self.new_hand()
