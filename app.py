@@ -1,7 +1,8 @@
 from flask import Flask, request, jsonify, send_from_directory
 from game_logic import Game
 
-app = Flask(__name__, static_folder="static")
+# Set static_url_path="" so that files in the static folder are served from the root URL.
+app = Flask(__name__, static_folder="static", static_url_path="")
 current_game = None
 
 @app.route("/")
