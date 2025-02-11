@@ -283,31 +283,19 @@ class Game:
         lead_card = self.currentTrick[0]["card"]
         lead_suit = lead_card.suit
         
-        # If the lead card is trump, the player must play a trump if they have one,
-        # unless all trump cards in their hand are renegable.
+        # When the lead card is trump, the player (or computer) must play a trump if they have one.
         if is_trump(lead_card, self.trump_suit):
             if not is_trump(card, self.trump_suit):
-                # Check if the player has any trump cards left in their hand.
+                # Check if the player has any trump cards.
                 trump_in_hand = [c for c in self.players[player]["hand"] if is_trump(c, self.trump_suit)]
                 if trump_in_hand:
-                    # Determine which trump cards are considered renegable.
-                    renegable = ['5', 'J']
-                    if self.trump_suit == "♥":
-                        renegable.append("A")
-                    # Filter out non-renegable trump cards.
-                    non_renegable = [c for c in trump_in_hand if c.rank not in renegable]
-                    if non_renegable:
-                        # The player has a non-renegable trump card; they must play trump.
-                        return False, "Invalid move: When the lead is trump, you must play a trump card."
-                    else:
-                        # All trump cards in hand are renegable; allow non-trump play.
-                        return True, ""
+                    # The player has a trump; they must play a trump.
+                    return False, "Invalid move: When a trump is led, you must play a trump card if you have one."
                 else:
-                    # The player has no trump cards left; allow any play.
+                    # No trump in hand, so off-suit play is allowed.
                     return True, ""
             else:
-                # The card played is trump.
-                # (Optional) You can enforce additional rules such as requiring the played trump be among the top 3 trump cards.
+                # If a trump card is played, optionally enforce additional rules (e.g., play one of the top 3 trump cards).
                 trump_in_hand = [c for c in self.players[player]["hand"] if is_trump(c, self.trump_suit)]
                 if trump_in_hand:
                     trump_in_hand.sort(key=lambda c: get_trump_value(c, self.trump_suit), reverse=True)
@@ -316,11 +304,11 @@ class Game:
                         return False, "Invalid move: You must play one of your top 3 trump cards."
                 return True, ""
         
-        # If the lead card is not trump, allow playing a card in the led suit or a trump (to cut).
+        # If the lead card is not trump, the player may follow suit or cut by playing a trump.
         if card.suit == lead_suit or is_trump(card, self.trump_suit):
             return True, ""
         
-        # If the player has a card in the led suit, they must follow suit.
+        # If the player has any card in the led suit, they must follow suit.
         if any(c.suit == lead_suit for c in self.players[player]["hand"]):
             return False, "Invalid move: You must follow suit or play a valid trump card."
         
@@ -334,21 +322,17 @@ class Game:
         if cardIndex < 0 or cardIndex >= len(self.players[player]["hand"]):
             return
         card = self.players[player]["hand"][cardIndex]
-        if player == "player":
-            valid, message = self.validate_move(player, card)
-            if not valid:
-                self.biddingMessage = message
-                timestamp = time.strftime("%H:%M:%S")
-                self.gameNotes.append(f"{timestamp} - Illegal move attempted: {message}")
-                return
+        valid, message = self.validate_move(player, card)
+        if not valid:
+            self.biddingMessage = message
+            timestamp = time.strftime("%H:%M:%S")
+            self.gameNotes.append(f"{timestamp} - Illegal move attempted by {player}: {message}")
+            return
         card = self.players[player]["hand"].pop(cardIndex)
         card.selected = True
         self.currentTrick.append({"player": player, "card": card})
         timestamp = time.strftime("%H:%M:%S")
-        if player != "player":
-            self.gameNotes.append(f"{timestamp} - {player} played {card}")
-        else:
-            self.gameNotes.append(f"{timestamp} - Player played {card}")
+        self.gameNotes.append(f"{timestamp} - {player} played {card}")
         self.currentTurn = self.next_player(player)
         self.auto_play()
         if len(self.currentTrick) == len(self.player_order):
@@ -364,6 +348,7 @@ class Game:
                 break
             if self.currentTrick:
                 lead_card = self.currentTrick[0]["card"]
+                # If lead is trump, force selection from trump cards if available.
                 if is_trump(lead_card, self.trump_suit):
                     trump_cards = [card for card in available if is_trump(card, self.trump_suit)]
                     if trump_cards:
@@ -372,8 +357,20 @@ class Game:
                     suit_cards = [card for card in available if card.suit == lead_card.suit]
                     if suit_cards:
                         available = suit_cards
+            # Filter available cards by valid moves.
+            valid_moves = []
+            for card in available:
+                valid, _ = self.validate_move(self.currentTurn, card)
+                if valid:
+                    valid_moves.append(card)
+            if valid_moves:
+                available = valid_moves
             idx = random.randrange(len(available))
-            self.play_card(self.currentTurn, idx)
+            card_to_play = available[idx]
+            # Find the index of this card in the full hand.
+            full_hand = self.players[self.currentTurn]["hand"]
+            actual_index = full_hand.index(card_to_play)
+            self.play_card(self.currentTurn, actual_index)
         return
     
     def finish_trick(self):
