@@ -314,7 +314,6 @@
     ];
     let currentTutorialStep = 0;
 
-    // Updated updateYourHand: if in kitty phase and more than 5 cards exist, split into original hand and kitty.
     function updateYourHand(handArray) {
       let container = document.getElementById("your-hand");
       container.innerHTML = "<strong>Your Cards:</strong>";
@@ -339,7 +338,6 @@
           let div = document.createElement("div");
           div.className = "card kitty" + (card.selected ? " selected" : "");
           div.textContent = card.text;
-          // Kitty card indices start after the original 5.
           div.dataset.index = index + 5;
           div.onclick = function() { this.classList.toggle("selected"); };
           kittyDiv.appendChild(div);
