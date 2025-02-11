@@ -37,7 +37,7 @@ class Deck:
 # ---------------------------
 # Ranking Definitions
 # ---------------------------
-# For diamonds and hearts, use the same trump ranking:
+# Both hearts and diamonds use the same trump ranking order:
 # Highest trump is "5", then "J", then "A", then "K", "Q", "10", etc.
 TRUMP_RANKINGS = {
     "♦": ["5", "J", "A", "K", "Q", "10", "9", "8", "7", "6", "4", "3", "2"],
@@ -56,6 +56,7 @@ OFFSUIT_RANKINGS = {
 def is_trump(card, trump_suit):
     if card.suit == trump_suit:
         return True
+    # Ace of hearts is always trump.
     if card.suit == "♥" and card.rank == "A":
         return True
     return False
@@ -288,14 +289,13 @@ class Game:
         # When the lead card is trump, the player must play a trump if they have one.
         if is_trump(lead_card, self.trump_suit):
             if not is_trump(card, self.trump_suit):
-                # Check if the player has any trump cards.
                 trump_in_hand = [c for c in self.players[player]["hand"] if is_trump(c, self.trump_suit)]
                 if trump_in_hand:
                     return False, "Invalid move: When a trump is led, you must play a trump card if you have one."
                 else:
                     return True, ""
             else:
-                # If a trump is played, optionally enforce that it is among your top 3 trump cards.
+                # Optionally enforce that the played trump is among the top 3 trump cards.
                 trump_in_hand = [c for c in self.players[player]["hand"] if is_trump(c, self.trump_suit)]
                 if trump_in_hand:
                     trump_in_hand.sort(key=lambda c: get_trump_value(c, self.trump_suit), reverse=True)
@@ -389,13 +389,10 @@ class Game:
     
     def clear_trick(self):
         self.lastTrick = []
-        if all(len(self.players[p]["hand"]) == 0 for p in self.players):
-            return self.complete_hand()
-        else:
-            self.phase = "trick"
-            if self.currentTurn != "player":
-                self.auto_play()
-            return self.to_dict()
+        self.phase = "trick"
+        if self.currentTurn != "player":
+            self.auto_play()
+        return self.to_dict()
     
     def evaluate_trick(self, trick):
         if not trick:
@@ -413,50 +410,54 @@ class Game:
         return winner_entry["player"]
     
     def complete_hand(self):
-    points = {p: len(self.players[p]["tricks"]) * 5 for p in self.players}
-    bonus_winner = None
-    bonus_value = 5
-    # Use the trump cards played in this hand.
-    trump_played = self.trumpCardsPlayed.copy()
-    if not trump_played:
+        # Calculate points: each trick is worth 5 points.
+        points = {p: len(self.players[p]["tricks"]) * 5 for p in self.players}
+        bonus_winner = None
+        bonus_value = 5
+        # Use the trump cards played during this hand.
+        trump_played = self.trumpCardsPlayed.copy()
+        # Fallback: scan through all tricks if needed.
+        if not trump_played:
+            for p in self.players:
+                for trick in self.players[p]["tricks"]:
+                    for entry in trick:
+                        card = entry["card"]
+                        if is_trump(card, self.trump_suit):
+                            trump_played.append((p, card))
+        if trump_played:
+            bonus_winner, bonus_card = max(trump_played, key=lambda x: get_trump_value(x[1], self.trump_suit))
+        elif self.currentTurn:
+            bonus_winner = self.currentTurn
+        if bonus_winner:
+            points[bonus_winner] += bonus_value
+        # Enforce that if the winning bidder's bid wasn't met, set their points accordingly.
+        if self.bidder in points and points[self.bidder] < self.bid:
+            points[self.bidder] = -self.bid
+        # Update cumulative scores and build summary.
+        hand_summary_parts = []
         for p in self.players:
-            for trick in self.players[p]["tricks"]:
-                for entry in trick:
-                    card = entry["card"]
-                    if is_trump(card, self.trump_suit):
-                        trump_played.append((p, card))
-    if trump_played:
-        bonus_winner, bonus_card = max(trump_played, key=lambda x: get_trump_value(x[1], self.trump_suit))
-    elif self.currentTurn:
-        bonus_winner = self.currentTurn
-    if bonus_winner:
-        points[bonus_winner] += bonus_value
-    if self.bidder in points and points[self.bidder] < self.bid:
-        points[self.bidder] = -self.bid
-    hand_summary_parts = []
-    for p in self.players:
-        hand_points = points[p]
-        total = self.players[p]["score"] + hand_points
-        name = "Player" if p == "player" else p
-        hand_summary_parts.append(f"{name}: {hand_points} (Total: {total})")
-        self.players[p]["score"] = total
-    summary = "Hand over. " + " | ".join(hand_summary_parts)
-    self.trickLog.append(summary)
-    self.handScores.append(summary)
-    self.gameNotes.append(summary)
-    self.currentTrick = []
-    self.lastTrick = []
-    # Only finish the game if a player's score is 120 or more.
-    if any(self.players[p]["score"] >= 120 for p in self.players):
-        self.phase = "finished"
-    else:
-        return self.new_hand()
-    return self.to_dict()
+            hand_points = points[p]
+            total = self.players[p]["score"] + hand_points
+            hand_summary_parts.append(f"{'Player' if p=='player' else p}: {hand_points} (Total: {total})")
+            self.players[p]["score"] = total
+        summary = "Hand over. " + " | ".join(hand_summary_parts)
+        self.trickLog.append(summary)
+        self.handScores.append(summary)
+        self.gameNotes.append(summary)
+        self.currentTrick = []
+        self.lastTrick = []
+        # Continue playing hands until a player's score is at least 120.
+        if any(self.players[p]["score"] >= 120 for p in self.players):
+            self.phase = "finished"
+        else:
+            self.new_hand()
+        return self.to_dict()
     
     def new_hand(self):
         current_idx = self.player_order.index(self.dealer)
         self.dealer = self.player_order[(current_idx + 1) % len(self.player_order)]
-        return self.deal_hands() or self.to_dict()
+        self.deal_hands()
+        return self.to_dict()
     
     def to_dict(self):
         state = {
