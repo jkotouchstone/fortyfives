@@ -43,7 +43,6 @@ TRUMP_RANKINGS = {
     "♣": ["5", "J", "A", "K", "Q", "2", "3", "4", "6", "7", "8", "9", "10"],
     "♠": ["5", "J", "A", "K", "Q", "2", "3", "4", "6", "7", "8", "9", "10"]
 }
-
 OFFSUIT_RANKINGS = {
     "♦": ["K", "Q", "J", "10", "9", "8", "7", "6", "5", "4", "3", "2", "A"],
     "♥": ["K", "Q", "J", "10", "9", "8", "7", "6", "5", "4", "3", "2", "A"],
@@ -225,6 +224,7 @@ class Game:
                 self.phase = "kitty"
                 # Build the combined hand: player's hand (5 cards) + kitty (3 cards)
                 self.combinedHand = self.players["player"]["hand"] + self.kitty
+                print("DEBUG: Entering kitty phase. Combined hand:", [card.to_dict() for card in self.combinedHand])
             else:
                 self.phase = "draw"
         return
@@ -287,11 +287,16 @@ class Game:
         # If the lead card is trump, enforce trump follow rules with reneging exceptions.
         if is_trump(lead_card, self.trump_suit):
             if not is_trump(card, self.trump_suit):
+                # Gather all trump cards in the player's hand.
                 trump_in_hand = [c for c in self.players[player]["hand"] if is_trump(c, self.trump_suit)]
+                
+                # Define eligible reneging ranks.
                 eligible = ['5', 'J']
                 if self.trump_suit == "♥":
                     eligible.append("A")
+                
                 if trump_in_hand:
+                    # If any trump in hand is not eligible, the player must follow trump.
                     all_eligible = all(c.rank in eligible for c in trump_in_hand)
                     if not all_eligible:
                         return False, "Invalid move: When the lead is trump, you must play a trump card."
@@ -299,7 +304,7 @@ class Game:
                         return True, ""
                 return True, ""
             else:
-                # When playing trump, enforce reneging rules: you must play one of your top 3 trump cards.
+                # When playing a trump card, enforce reneging rules: you must play one of your top 3 trump cards.
                 trump_in_hand = [c for c in self.players[player]["hand"] if is_trump(c, self.trump_suit)]
                 if trump_in_hand:
                     trump_in_hand.sort(key=lambda c: get_trump_value(c, self.trump_suit), reverse=True)
@@ -308,11 +313,11 @@ class Game:
                         return False, "Invalid move: You must play one of your top 3 trump cards."
                 return True, ""
         
-        # If the lead card is not trump, a player is allowed to follow suit or play a trump (which cuts).
+        # If the lead card is not trump, allow playing a card in the led suit or a trump (to cut).
         if card.suit == lead_suit or is_trump(card, self.trump_suit):
             return True, ""
         
-        # If the player has any card in the led suit, they must follow suit.
+        # If the player has a card in the led suit, they must follow suit.
         if any(c.suit == lead_suit for c in self.players[player]["hand"]):
             return False, "Invalid move: You must follow suit or play a valid trump card."
         
