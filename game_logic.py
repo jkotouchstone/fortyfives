@@ -263,7 +263,6 @@ class Game:
             self.players["player"]["hand"].append(self.deck.deal(1)[0])
         for card in self.players["player"]["hand"]:
             card.selected = False
-
         for p in self.players:
             if p != "player":
                 while len(self.players[p]["hand"]) < 5 and len(self.deck.cards) > 0:
@@ -284,21 +283,12 @@ class Game:
         lead_card = self.currentTrick[0]["card"]
         lead_suit = lead_card.suit
         
-        # If the lead card is trump, enforce trump follow rules with reneging exceptions.
+        # If the lead card is trump, then the played card MUST be trump.
         if is_trump(lead_card, self.trump_suit):
             if not is_trump(card, self.trump_suit):
-                trump_in_hand = [c for c in self.players[player]["hand"] if is_trump(c, self.trump_suit)]
-                eligible = ['5', 'J']
-                if self.trump_suit == "♥":
-                    eligible.append("A")
-                if trump_in_hand:
-                    all_eligible = all(c.rank in eligible for c in trump_in_hand)
-                    if not all_eligible:
-                        return False, "Invalid move: When the lead is trump, you must play a trump card."
-                    else:
-                        return True, ""
-                return True, ""
+                return False, "Invalid move: When the lead is trump, you must play a trump card."
             else:
+                # Optionally, you can enforce that the played trump must be among your top 3 trump cards.
                 trump_in_hand = [c for c in self.players[player]["hand"] if is_trump(c, self.trump_suit)]
                 if trump_in_hand:
                     trump_in_hand.sort(key=lambda c: get_trump_value(c, self.trump_suit), reverse=True)
