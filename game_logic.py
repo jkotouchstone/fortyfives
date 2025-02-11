@@ -283,12 +283,31 @@ class Game:
         lead_card = self.currentTrick[0]["card"]
         lead_suit = lead_card.suit
         
-        # If the lead card is trump, then the played card MUST be trump.
+        # If the lead card is trump, the player must play a trump if they have one,
+        # unless all trump cards in their hand are renegable.
         if is_trump(lead_card, self.trump_suit):
             if not is_trump(card, self.trump_suit):
-                return False, "Invalid move: When the lead is trump, you must play a trump card."
+                # Check if the player has any trump cards left in their hand.
+                trump_in_hand = [c for c in self.players[player]["hand"] if is_trump(c, self.trump_suit)]
+                if trump_in_hand:
+                    # Determine which trump cards are considered renegable.
+                    renegable = ['5', 'J']
+                    if self.trump_suit == "♥":
+                        renegable.append("A")
+                    # Filter out non-renegable trump cards.
+                    non_renegable = [c for c in trump_in_hand if c.rank not in renegable]
+                    if non_renegable:
+                        # The player has a non-renegable trump card; they must play trump.
+                        return False, "Invalid move: When the lead is trump, you must play a trump card."
+                    else:
+                        # All trump cards in hand are renegable; allow non-trump play.
+                        return True, ""
+                else:
+                    # The player has no trump cards left; allow any play.
+                    return True, ""
             else:
-                # Optionally, you can enforce that the played trump must be among your top 3 trump cards.
+                # The card played is trump.
+                # (Optional) You can enforce additional rules such as requiring the played trump be among the top 3 trump cards.
                 trump_in_hand = [c for c in self.players[player]["hand"] if is_trump(c, self.trump_suit)]
                 if trump_in_hand:
                     trump_in_hand.sort(key=lambda c: get_trump_value(c, self.trump_suit), reverse=True)
