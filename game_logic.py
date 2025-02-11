@@ -118,7 +118,6 @@ class Game:
         self.deck = Deck()
         self.trump_suit = None
         for p in self.players:
-            # Preserve cumulative scores; reset tricks for the new hand.
             self.players[p]["hand"] = self.deck.deal(5)
             self.players[p]["tricks"] = []
         self.kitty = self.deck.deal(3)
