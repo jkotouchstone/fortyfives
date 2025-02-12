@@ -215,10 +215,9 @@ class Game:
                     self.phase = "draw"
             self.currentTurn = self.bidder
         elif self.mode == "3p":
-            # Three-player bidding logic omitted for brevity.
             pass
         return
-    
+
     def select_trump(self, suit):
         if self.phase == "trump":
             self.trump_suit = suit
@@ -230,7 +229,7 @@ class Game:
             else:
                 self.phase = "draw"
         return
-    
+
     def confirm_kitty(self, keptIndices):
         if self.bidder == "player":
             combined = self.combinedHand if self.combinedHand else (self.players["player"]["hand"] + self.kitty)
@@ -251,7 +250,7 @@ class Game:
         else:
             self.phase = "draw"
         return
-    
+
     def confirm_draw(self, keptIndices=None):
         if keptIndices is not None:
             kept_cards = []
@@ -276,7 +275,7 @@ class Game:
         self.currentTurn = self.bidder
         self.auto_play()
         return
-    
+
     def validate_move(self, player, card):
         if not self.currentTrick:
             return True, ""
@@ -399,11 +398,9 @@ class Game:
         return winner_entry["player"]
     
     def complete_hand(self):
-        # Calculate hand points: each trick is worth 5 points.
         points = {p: len(self.players[p]["tricks"]) * 5 for p in self.players}
         bonus_winner = None
         bonus_value = 5
-        # Gather all trump cards played during this hand.
         trump_played = self.trumpCardsPlayed.copy()
         if not trump_played:
             for p in self.players:
@@ -418,15 +415,13 @@ class Game:
             bonus_winner = self.currentTurn
         if bonus_winner:
             points[bonus_winner] += bonus_value
-        # Enforce bidder condition if needed.
         if self.bidder in points and points[self.bidder] < self.bid:
             points[self.bidder] = -self.bid
-        # Update cumulative scores and build a hand summary.
         hand_summary_parts = []
         for p in self.players:
             hand_points = points[p]
             total = self.players[p]["score"] + hand_points
-            hand_summary_parts.append(f"{'Player' if p=='player' else p}: {hand_points} (Total: {total})")
+            hand_summary_parts.append(f"{'Player' if p=='player' else p}: {hand_points}/{total}")
             self.players[p]["score"] = total
         summary = "Hand over. " + " | ".join(hand_summary_parts)
         self.trickLog.append(summary)
@@ -434,7 +429,6 @@ class Game:
         self.gameNotes.append(summary)
         self.currentTrick = []
         self.lastTrick = []
-        # Continue the game until a player reaches at least 120 points.
         if any(self.players[p]["score"] >= 120 for p in self.players):
             self.phase = "finished"
             return self.to_dict()
