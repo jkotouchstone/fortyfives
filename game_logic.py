@@ -38,7 +38,7 @@ class Deck:
 # Ranking Definitions
 # ---------------------------
 # For trump (hearts and diamonds) the ranking order is:
-# Highest trump is "5", then "J", then "A", then "K", "Q", "10", etc.
+# Highest trump is "5", then "J", then "A", then "K", "Q", "10", "9", "8", "7", "6", "4", "3", "2"
 TRUMP_RANKINGS = {
     "♦": ["5", "J", "A", "K", "Q", "10", "9", "8", "7", "6", "4", "3", "2"],
     "♥": ["5", "J", "A", "K", "Q", "10", "9", "8", "7", "6", "4", "3", "2"],
@@ -63,7 +63,6 @@ def is_trump(card, trump_suit):
 
 def get_trump_value(card, trump_suit):
     ranking = TRUMP_RANKINGS[trump_suit]
-    # A lower index gives a higher value.
     return len(ranking) - ranking.index(card.rank)
 
 def get_offsuit_value(card):
@@ -78,7 +77,6 @@ class Game:
         self.mode = mode
         self.instructional = instructional
         self.deck = None
-        # Use a fixed list of computer names.
         computer_names = ["Jack", "Jennifer", "Patrick", "John", "Liam", "Mary",
                           "Jasper", "Felix", "Holly", "Tom", "Karen", "Stephen",
                           "Leona", "Bill", "Christine", "Chris", "Henry"]
@@ -101,7 +99,7 @@ class Game:
         self.dealer = "player" if random.random() < 0.5 else self.player_order[1]
         self.kitty = []
         self.trump_suit = None
-        # Game phases: bidding, trump, kitty, draw, trick, trickComplete, finished
+        # Phases: bidding, trump, kitty, draw, trick, trickComplete, finished
         self.phase = "bidding"
         self.biddingMessage = ""
         self.currentTrick = []
@@ -112,7 +110,7 @@ class Game:
         self.currentTurn = None
         self.bidder = None
         self.bid = 0
-        self.trumpCardsPlayed = []  # List of tuples (player, card) played that are trump
+        self.trumpCardsPlayed = []  # List of tuples (player, card) that are trump
         self.combinedHand = []      # For kitty phase: player's hand + kitty
         self.deal_hands()
 
@@ -121,12 +119,12 @@ class Game:
         return self.player_order[(idx + 1) % len(self.player_order)]
 
     def deal_hands(self):
+        # Create a new deck and deal new hands without resetting cumulative scores.
         self.deck = Deck()
         self.trump_suit = None
-        # Do not reset cumulative scores.
         for p in self.players:
             self.players[p]["hand"] = self.deck.deal(5)
-            self.players[p]["tricks"] = []  # New hand: reset tricks
+            self.players[p]["tricks"] = []  # Reset tricks for this hand.
         self.kitty = self.deck.deal(3)
         self.phase = "bidding"
         self.biddingMessage = "Place your bid (15, 20, 25, or 30)."
@@ -136,7 +134,7 @@ class Game:
         self.bidHistory = {}
         self.trumpCardsPlayed = []
         self.combinedHand = []
-        # If in 2-player mode and dealer is the player, have the computer bid first.
+        # In 2p mode, if the dealer is the player, have the computer bid first.
         if self.mode == "2p" and self.dealer == "player":
             comp_id = self.player_order[1]
             comp_bid, comp_trump = self.computer_bid(comp_id)
@@ -219,7 +217,7 @@ class Game:
                     self.gameNotes.append(f"{timestamp} - {comp_id} selected {comp_trump} as trump.")
                     self.phase = "draw"
             self.currentTurn = self.bidder
-        # (Three-player bidding logic omitted for brevity.)
+        # (Three-player bidding logic omitted.)
         return
 
     def select_trump(self, suit):
@@ -293,7 +291,7 @@ class Game:
                 else:
                     return True, ""
             else:
-                # Optionally, enforce that the trump played is among the top 3.
+                # Optionally enforce that the played trump is among the top 3 trump cards.
                 trump_in_hand = [c for c in self.players[player]["hand"] if is_trump(c, self.trump_suit)]
                 if trump_in_hand:
                     trump_in_hand.sort(key=lambda c: get_trump_value(c, self.trump_suit), reverse=True)
@@ -407,11 +405,11 @@ class Game:
         return winner_entry["player"]
 
     def complete_hand(self):
-        # Calculate hand points: 5 points per trick won.
+        # Calculate points for the hand: 5 points per trick.
         points = {p: len(self.players[p]["tricks"]) * 5 for p in self.players}
         bonus_winner = None
         bonus_value = 5
-        # Gather all trump cards played during the hand.
+        # Gather all trump cards played during this hand.
         trump_played = self.trumpCardsPlayed.copy()
         if not trump_played:
             for p in self.players:
@@ -426,10 +424,10 @@ class Game:
             bonus_winner = self.currentTurn
         if bonus_winner:
             points[bonus_winner] += bonus_value
-        # If the winning bidder’s bid wasn’t met, enforce it.
+        # Enforce the bid condition.
         if self.bidder in points and points[self.bidder] < self.bid:
             points[self.bidder] = -self.bid
-        # Update cumulative scores and build hand summary.
+        # Update cumulative scores and build a hand summary.
         hand_summary_parts = []
         for p in self.players:
             hand_points = points[p]
@@ -442,7 +440,7 @@ class Game:
         self.gameNotes.append(summary)
         self.currentTrick = []
         self.lastTrick = []
-        # Advance to a new hand if no one has reached 120.
+        # Advance to a new hand if no player has reached 120.
         if any(self.players[p]["score"] >= 120 for p in self.players):
             self.phase = "finished"
             return self.to_dict()
@@ -459,14 +457,14 @@ class Game:
     def to_dict(self):
         state = {
             "gamePhase": self.phase,
-            "playerHand": self.players["player"]["hand"],
+            "playerHand": [card.to_dict() for card in self.players["player"]["hand"]],
             "computerHandCount": (len(self.players[self.player_order[1]]["hand"]) if self.mode == "2p" else None),
-            "kitty": self.kitty,
+            "kitty": [card.to_dict() for card in self.kitty],
             "trumpSuit": self.trump_suit if self.phase not in ["bidding"] else None,
             "biddingMessage": self.biddingMessage,
             "bidHistory": self.bidHistory,
-            "currentTrick": self.currentTrick,
-            "lastTrick": self.lastTrick,
+            "currentTrick": [{"player": entry["player"], "card": entry["card"].to_dict()} for entry in self.currentTrick],
+            "lastTrick": [{"player": entry["player"], "card": entry["card"].to_dict()} for entry in self.lastTrick],
             "trickLog": self.trickLog,
             "scoreboard": {p: self.players[p]["score"] for p in self.players},
             "currentTurn": self.currentTurn,
@@ -476,7 +474,9 @@ class Game:
             "mode": self.mode,
             "bidder": self.bidder
         }
-        # Ensure arrays are always provided.
-        state["playerHand"] = state["playerHand"] if state["playerHand"] is not None else []
-        state["kitty"] = state["kitty"] if state["kitty"] is not None else []
+        if self.phase == "kitty" and self.bidder == "player":
+            self.combinedHand = self.players["player"]["hand"] + self.kitty
+            state["combinedHand"] = [card.to_dict() for card in self.combinedHand]
+        if self.phase == "draw":
+            state["drawHand"] = [card.to_dict() for card in self.players["player"]["hand"]]
         return state
