@@ -37,8 +37,8 @@ class Deck:
 # ---------------------------
 # Ranking Definitions
 # ---------------------------
-# For hearts and diamonds (when trump) the ranking order is:
-# "5" (highest), then "J", then "A", then "K", "Q", "10", "9", "8", "7", "6", "4", "3", "2"
+# For trump (hearts and diamonds), the ranking is defined as follows:
+# Highest trump is "5", then "J", then "A", then "K", "Q", "10", "9", "8", "7", "6", "4", "3", "2"
 TRUMP_RANKINGS = {
     "♦": ["5", "J", "A", "K", "Q", "10", "9", "8", "7", "6", "4", "3", "2"],
     "♥": ["5", "J", "A", "K", "Q", "10", "9", "8", "7", "6", "4", "3", "2"],
@@ -63,7 +63,7 @@ def is_trump(card, trump_suit):
 
 def get_trump_value(card, trump_suit):
     ranking = TRUMP_RANKINGS[trump_suit]
-    # Higher value for cards with a lower index.
+    # Higher value for cards with a lower index in the ranking list.
     return len(ranking) - ranking.index(card.rank)
 
 def get_offsuit_value(card):
@@ -121,9 +121,10 @@ class Game:
     def deal_hands(self):
         self.deck = Deck()
         self.trump_suit = None
+        # Do not clear cumulative scores.
         for p in self.players:
             self.players[p]["hand"] = self.deck.deal(5)
-            self.players[p]["tricks"] = []
+            self.players[p]["tricks"] = []  # New hand: reset tricks.
         self.kitty = self.deck.deal(3)
         self.phase = "bidding"
         self.biddingMessage = "Place your bid (15, 20, 25, or 30)."
@@ -216,6 +217,7 @@ class Game:
                     self.phase = "draw"
             self.currentTurn = self.bidder
         elif self.mode == "3p":
+            # Three-player bidding logic omitted for brevity.
             pass
         return
     
@@ -290,6 +292,7 @@ class Game:
                 else:
                     return True, ""
             else:
+                # Optionally enforce that the played trump is among the top 3 trump cards.
                 trump_in_hand = [c for c in self.players[player]["hand"] if is_trump(c, self.trump_suit)]
                 if trump_in_hand:
                     trump_in_hand.sort(key=lambda c: get_trump_value(c, self.trump_suit), reverse=True)
@@ -399,7 +402,7 @@ class Game:
         return winner_entry["player"]
     
     def complete_hand(self):
-        # Calculate hand points: each trick won is worth 5 points.
+        # Calculate points: each trick is worth 5 points.
         points = {p: len(self.players[p]["tricks"]) * 5 for p in self.players}
         bonus_winner = None
         bonus_value = 5
@@ -418,9 +421,10 @@ class Game:
             bonus_winner = self.currentTurn
         if bonus_winner:
             points[bonus_winner] += bonus_value
+        # Enforce the bid condition.
         if self.bidder in points and points[self.bidder] < self.bid:
             points[self.bidder] = -self.bid
-        # Build hand summary and update cumulative scores.
+        # Update cumulative scores and build hand summary.
         hand_summary_parts = []
         for p in self.players:
             hand_points = points[p]
@@ -433,7 +437,7 @@ class Game:
         self.gameNotes.append(summary)
         self.currentTrick = []
         self.lastTrick = []
-        # Continue the game until one player's score reaches 120.
+        # Check if any player's cumulative score is at least 120.
         if any(self.players[p]["score"] >= 120 for p in self.players):
             self.phase = "finished"
             return self.to_dict()
@@ -443,6 +447,7 @@ class Game:
     def new_hand(self):
         current_idx = self.player_order.index(self.dealer)
         self.dealer = self.player_order[(current_idx + 1) % len(self.player_order)]
+        # Deal new hands while preserving cumulative scores.
         self.deal_hands()
         return self.to_dict()
     
