@@ -37,8 +37,8 @@ class Deck:
 # ---------------------------
 # Ranking Definitions
 # ---------------------------
-# Both hearts and diamonds use the same trump ranking order:
-# Highest trump is "5", then "J", then "A", then "K", "Q", "10", etc.
+# For hearts and diamonds (when trump) the ranking order is:
+# "5" (highest), then "J", then "A", then "K", "Q", "10", "9", "8", "7", "6", "4", "3", "2"
 TRUMP_RANKINGS = {
     "♦": ["5", "J", "A", "K", "Q", "10", "9", "8", "7", "6", "4", "3", "2"],
     "♥": ["5", "J", "A", "K", "Q", "10", "9", "8", "7", "6", "4", "3", "2"],
@@ -63,6 +63,7 @@ def is_trump(card, trump_suit):
 
 def get_trump_value(card, trump_suit):
     ranking = TRUMP_RANKINGS[trump_suit]
+    # Higher value for cards with a lower index.
     return len(ranking) - ranking.index(card.rank)
 
 def get_offsuit_value(card):
@@ -217,7 +218,7 @@ class Game:
         elif self.mode == "3p":
             pass
         return
-
+    
     def select_trump(self, suit):
         if self.phase == "trump":
             self.trump_suit = suit
@@ -229,7 +230,7 @@ class Game:
             else:
                 self.phase = "draw"
         return
-
+    
     def confirm_kitty(self, keptIndices):
         if self.bidder == "player":
             combined = self.combinedHand if self.combinedHand else (self.players["player"]["hand"] + self.kitty)
@@ -250,7 +251,7 @@ class Game:
         else:
             self.phase = "draw"
         return
-
+    
     def confirm_draw(self, keptIndices=None):
         if keptIndices is not None:
             kept_cards = []
@@ -275,7 +276,7 @@ class Game:
         self.currentTurn = self.bidder
         self.auto_play()
         return
-
+    
     def validate_move(self, player, card):
         if not self.currentTrick:
             return True, ""
@@ -398,9 +399,11 @@ class Game:
         return winner_entry["player"]
     
     def complete_hand(self):
+        # Calculate hand points: each trick won is worth 5 points.
         points = {p: len(self.players[p]["tricks"]) * 5 for p in self.players}
         bonus_winner = None
         bonus_value = 5
+        # Gather all trump cards played during this hand.
         trump_played = self.trumpCardsPlayed.copy()
         if not trump_played:
             for p in self.players:
@@ -417,11 +420,12 @@ class Game:
             points[bonus_winner] += bonus_value
         if self.bidder in points and points[self.bidder] < self.bid:
             points[self.bidder] = -self.bid
+        # Build hand summary and update cumulative scores.
         hand_summary_parts = []
         for p in self.players:
             hand_points = points[p]
             total = self.players[p]["score"] + hand_points
-            hand_summary_parts.append(f"{'Player' if p=='player' else p}: {hand_points}/{total}")
+            hand_summary_parts.append(f"{'Player' if p=='player' else p}: {hand_points} (Total: {total})")
             self.players[p]["score"] = total
         summary = "Hand over. " + " | ".join(hand_summary_parts)
         self.trickLog.append(summary)
@@ -429,12 +433,12 @@ class Game:
         self.gameNotes.append(summary)
         self.currentTrick = []
         self.lastTrick = []
+        # Continue the game until one player's score reaches 120.
         if any(self.players[p]["score"] >= 120 for p in self.players):
             self.phase = "finished"
             return self.to_dict()
         else:
-            self.new_hand()
-            return self.to_dict()
+            return self.new_hand()
     
     def new_hand(self):
         current_idx = self.player_order.index(self.dealer)
