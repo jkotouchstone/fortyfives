@@ -225,7 +225,6 @@ class Game:
             self.biddingMessage = f"Player wins the bid. Trump is set to {suit}."
             if self.bidder == "player":
                 self.phase = "kitty"
-                # Build the combined hand: player's hand (5 cards) + kitty (3 cards)
                 self.combinedHand = self.players["player"]["hand"] + self.kitty
                 print("DEBUG: Entering kitty phase. Combined hand:", [card.to_dict() for card in self.combinedHand])
             else:
@@ -248,7 +247,7 @@ class Game:
             self.players["player"]["hand"] = new_hand
             self.biddingMessage = "Kitty selection confirmed. Proceeding to draw phase."
             self.phase = "draw"
-            self.combinedHand = []  # Clear the combined hand.
+            self.combinedHand = []
         else:
             self.phase = "draw"
         return
@@ -279,14 +278,10 @@ class Game:
         return
     
     def validate_move(self, player, card):
-        # If no card has been led, any move is valid.
         if not self.currentTrick:
             return True, ""
-        
         lead_card = self.currentTrick[0]["card"]
         lead_suit = lead_card.suit
-        
-        # When the lead card is trump, the player must play a trump if they have one.
         if is_trump(lead_card, self.trump_suit):
             if not is_trump(card, self.trump_suit):
                 trump_in_hand = [c for c in self.players[player]["hand"] if is_trump(c, self.trump_suit)]
@@ -295,7 +290,6 @@ class Game:
                 else:
                     return True, ""
             else:
-                # Optionally enforce that the played trump is among the top 3 trump cards.
                 trump_in_hand = [c for c in self.players[player]["hand"] if is_trump(c, self.trump_suit)]
                 if trump_in_hand:
                     trump_in_hand.sort(key=lambda c: get_trump_value(c, self.trump_suit), reverse=True)
@@ -303,15 +297,10 @@ class Game:
                     if not any(card.rank == tc.rank and card.suit == tc.suit for tc in top_three):
                         return False, "Invalid move: You must play one of your top 3 trump cards."
                 return True, ""
-        
-        # If the lead card is not trump, allow playing a card in the led suit or a trump (to cut).
         if card.suit == lead_suit or is_trump(card, self.trump_suit):
             return True, ""
-        
-        # If the player has any card in the led suit, they must follow suit.
         if any(c.suit == lead_suit for c in self.players[player]["hand"]):
             return False, "Invalid move: You must follow suit or play a valid trump card."
-        
         return True, ""
     
     def play_card(self, player, cardIndex):
@@ -410,13 +399,12 @@ class Game:
         return winner_entry["player"]
     
     def complete_hand(self):
-        # Calculate points: each trick is worth 5 points.
+        # Calculate hand points: each trick is worth 5 points.
         points = {p: len(self.players[p]["tricks"]) * 5 for p in self.players}
         bonus_winner = None
         bonus_value = 5
-        # Use the trump cards played during this hand.
+        # Gather all trump cards played during this hand.
         trump_played = self.trumpCardsPlayed.copy()
-        # Fallback: scan through all tricks if needed.
         if not trump_played:
             for p in self.players:
                 for trick in self.players[p]["tricks"]:
@@ -430,10 +418,10 @@ class Game:
             bonus_winner = self.currentTurn
         if bonus_winner:
             points[bonus_winner] += bonus_value
-        # Enforce that if the winning bidder's bid wasn't met, set their points accordingly.
+        # Enforce bidder condition if needed.
         if self.bidder in points and points[self.bidder] < self.bid:
             points[self.bidder] = -self.bid
-        # Update cumulative scores and build summary.
+        # Update cumulative scores and build a hand summary.
         hand_summary_parts = []
         for p in self.players:
             hand_points = points[p]
@@ -446,12 +434,13 @@ class Game:
         self.gameNotes.append(summary)
         self.currentTrick = []
         self.lastTrick = []
-        # Continue playing hands until a player's score is at least 120.
+        # Continue the game until a player reaches at least 120 points.
         if any(self.players[p]["score"] >= 120 for p in self.players):
             self.phase = "finished"
+            return self.to_dict()
         else:
             self.new_hand()
-        return self.to_dict()
+            return self.to_dict()
     
     def new_hand(self):
         current_idx = self.player_order.index(self.dealer)
