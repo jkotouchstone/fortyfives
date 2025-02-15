@@ -75,6 +75,8 @@ class Game:
         self.mode = mode
         self.instructional = instructional
         self.deck = None
+        # For computer draw info
+        self.computerDrawCounts = {}
         computer_names = ["Jack", "Jennifer", "Patrick", "John", "Liam", "Mary",
                           "Jasper", "Felix", "Holly", "Tom", "Karen", "Stephen",
                           "Leona", "Bill", "Christine", "Chris", "Henry"]
@@ -100,8 +102,7 @@ class Game:
         self.phase = "bidding"
         self.biddingMessage = "Place your bid (15, 20, 25, or 30)."
         self.currentTrick = []
-        # We'll clear lastTrick after each trick to empty the table.
-        self.lastTrick = []
+        self.lastTrick = []  # Clear after each trick
         self.trickLog = []
         self.gameNotes = []
         self.handScores = []
@@ -131,6 +132,7 @@ class Game:
         self.bidHistory = {}
         self.trumpCardsPlayed = []
         self.combinedHand = []
+        self.computerDrawCounts = {}
         # If in 2p and dealer is player, let the computer bid first.
         if self.mode == "2p" and self.dealer == "player":
             comp_id = self.player_order[1]
@@ -168,7 +170,6 @@ class Game:
             else:
                 comp_bid, comp_trump = self.computer_bid(comp_id)
                 self.bidHistory[comp_id] = "Passed" if comp_bid == 0 else f"bid {comp_bid}"
-            # Determine the bidder and set phase accordingly.
             if self.dealer == "player":
                 if comp_bid == 0:
                     self.bidder = "player"
@@ -196,7 +197,6 @@ class Game:
                         self.biddingMessage = f"Player wins the bid with {player_bid}. Please select the trump suit."
                         self.phase = "trump"
             else:
-                # For non-dealer bidding (3p mode logic could go here)
                 if player_bid == 0 and comp_bid == 0:
                     self.bidder = comp_id
                     self.bid = 15
@@ -230,11 +230,9 @@ class Game:
             self.trump_suit = suit
             self.biddingMessage = f"Trump is set to {suit}."
             if self.bidder == "player":
-                # Move to kitty selection phase if player is bidder.
                 self.phase = "kitty"
                 self.combinedHand = self.players["player"]["hand"] + self.kitty
             else:
-                # If computer wins, proceed directly to draw phase.
                 self.phase = "draw"
         return
 
@@ -268,16 +266,21 @@ class Game:
                     card.selected = True
                     kept_cards.append(card)
             self.players["player"]["hand"] = kept_cards
+        // Draw cards for the player to fill up to 5
         while len(self.players["player"]["hand"]) < 5 and len(self.deck.cards) > 0:
             self.players["player"]["hand"].append(self.deck.deal(1)[0])
         for card in self.players["player"]["hand"]:
             card.selected = False
+        // For each computer player, record how many cards they draw
         for p in self.players:
             if p != "player":
+                let oldCount = len(self.players[p]["hand"])
                 while len(self.players[p]["hand"]) < 5 and len(self.deck.cards) > 0:
                     self.players[p]["hand"].append(self.deck.deal(1)[0])
+                drawn = 5 - oldCount
+                self.computerDrawCounts[p] = drawn
                 timestamp = time.strftime("%H:%M:%S")
-                self.gameNotes.append(f"{timestamp} - {p} drew new cards in draw phase.")
+                self.gameNotes.append(f"{timestamp} - {p} drew {drawn} card(s) in draw phase.")
         self.biddingMessage = "Draw complete. Proceeding to trick play."
         self.phase = "trick"
         self.currentTurn = self.bidder
@@ -377,7 +380,7 @@ class Game:
         for entry in self.currentTrick:
             if is_trump(entry["card"], self.trump_suit):
                 self.trumpCardsPlayed.append((entry["player"], entry["card"]))
-        # Clear trick area after completing the trick
+        # Clear trick area after the trick
         self.currentTrick = []
         self.lastTrick = []
         if all(len(self.players[p]["hand"]) == 0 for p in self.players):
@@ -473,9 +476,16 @@ class Game:
             "mode": self.mode,
             "bidder": self.bidder
         }
+        # Include draw hand only during draw phase
+        if self.phase == "draw":
+            state["drawHand"] = [card.to_dict() for card in self.players["player"]["hand"]]
+            if self.mode == "2p":
+                let comp = self.player_order[1]
+                state["computerDrawCount"] = self.computerDrawCounts.get(comp, 0)
+            else:
+                state["computerDrawCounts"] = self.computerDrawCounts
+        # Include combined hand during kitty phase
         if self.phase == "kitty" and self.bidder == "player":
             self.combinedHand = self.players["player"]["hand"] + self.kitty
             state["combinedHand"] = [card.to_dict() for card in self.combinedHand]
-        if self.phase == "draw":
-            state["drawHand"] = [card.to_dict() for card in self.players["player"]["hand"]]
         return state
