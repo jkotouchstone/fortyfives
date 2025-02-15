@@ -416,7 +416,7 @@
         document.getElementById("status-message").textContent = (state.currentTurn === "player") ? "Your Turn!" : `Waiting for ${state.currentTurn}...`;
       }
 
-      // Update hand display (only if not in draw, kitty, or trump phase)
+      // Update hand display (if not in draw, kitty, or trump phase)
       if (state.gamePhase !== "draw" && state.gamePhase !== "kitty" && state.gamePhase !== "trump") {
         updateYourHand(state.playerHand);
       }
