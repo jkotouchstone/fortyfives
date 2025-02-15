@@ -5,7 +5,7 @@
   <title>Card Game - Learn & Play</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    /* General styling for the game UI */
+    /* Basic styling for the game UI */
     body {
       font-family: sans-serif;
       background-color: #4CAF50;
@@ -253,7 +253,14 @@
       gameState = state;
       console.log("DEBUG: Game State", state);
 
-      // Update hand
+      // If in bidding phase, display the bidding cue
+      if (state.gamePhase === "bidding") {
+        document.getElementById("status-message").textContent = state.biddingMessage || "Place your bid!";
+      } else {
+        document.getElementById("status-message").textContent = (state.currentTurn === "player") ? "Your Turn!" : `Waiting for ${state.currentTurn}...`;
+      }
+
+      // Update hand display
       if (state.gamePhase === "kitty" && state.bidder === "player") {
         let combined = state.combinedHand || state.playerHand.concat(state.kitty);
         updateYourHand(combined);
@@ -280,11 +287,7 @@
           .map(([player, score]) => `<strong>${player}:</strong> ${score}`)
           .join("<br>");
 
-      // Update game status
-      document.getElementById("status-message").textContent =
-          (state.currentTurn === "player") ? "Your Turn!" : `Waiting for ${state.currentTurn}...`;
-
-      // Update game log
+      // Update game log (expandable)
       let logDiv = document.getElementById("game-log");
       logDiv.innerHTML = "<strong>Game Log:</strong><br>" + state.gameNotes.slice().reverse().join("<br>");
     }
@@ -319,7 +322,11 @@
     }
 
     function resetGame() {
-      callAPI("/reset_game", "POST", {});
+      callAPI("/reset_game", "POST", {}).then(() => {
+        // After resetting, return to game options screen
+        document.getElementById("game-container").style.display = "none";
+        document.getElementById("game-options").style.display = "block";
+      });
     }
 
     function toggleInstructions() {
@@ -356,7 +363,7 @@
       }
     }
 
-    // Event listeners for buttons
+    // Attach event listeners
     document.addEventListener("DOMContentLoaded", function() {
       document.getElementById("start-game-btn").addEventListener("click", startGame);
       document.getElementById("reset-game-btn").addEventListener("click", resetGame);
