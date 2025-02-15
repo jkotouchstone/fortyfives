@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Card Game - Learn & Play</title>
+  <title>45's - Enhanced Card Game</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     /* Basic styling for the game UI */
@@ -23,7 +23,15 @@
       position: relative;
       padding-bottom: 60px;
     }
-    #your-hand, #draw-hand {
+    #status-message, #trump-display {
+      font-size: 20px;
+      margin-bottom: 10px;
+      font-weight: bold;
+    }
+    #trump-display {
+      color: #FFD700;
+    }
+    #your-hand, #draw-hand, #kitty-hand {
       margin-bottom: 20px;
       text-align: center;
       padding: 5px;
@@ -56,43 +64,41 @@
     }
     /* Bidding Section */
     #bidding-section {
-      margin: 15px 0;
-      padding: 10px;
       background: rgba(0,0,0,0.5);
       border-radius: 8px;
+      padding: 10px;
       display: none;
     }
     #bid-buttons button {
       margin: 5px;
     }
-    /* Draw Phase Section */
-    #draw-section {
-      margin: 15px 0;
-      padding: 10px;
+    /* Trump Selection Section */
+    #trump-section {
       background: rgba(0,0,0,0.5);
       border-radius: 8px;
+      padding: 10px;
       display: none;
     }
-    /* Tutorial Modal */
-    #tutorial-modal {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0,0,0,0.8);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      z-index: 1000;
+    #trump-buttons button {
+      margin: 5px;
+      font-size: 20px;
     }
-    #tutorial-content {
-      background: #fff;
-      color: #000;
-      padding: 20px;
+    /* Kitty Selection Section */
+    #kitty-section {
+      background: rgba(0,0,0,0.5);
       border-radius: 8px;
-      max-width: 600px;
-      text-align: left;
+      padding: 10px;
+      display: none;
+    }
+    #kitty-hand .card {
+      border: 2px dashed #fff;
+    }
+    /* Draw Phase Section */
+    #draw-section {
+      background: rgba(0,0,0,0.5);
+      border-radius: 8px;
+      padding: 10px;
+      display: none;
     }
     /* Card styling */
     .card {
@@ -127,12 +133,7 @@
       cursor: pointer;
       border-radius: 8px;
     }
-    /* Game status and scoreboard */
-    #status-message {
-      font-size: 20px;
-      margin-bottom: 10px;
-      font-weight: bold;
-    }
+    /* Scoreboard & Game Log */
     #scoreboard-section {
       padding-top: 10px;
     }
@@ -140,7 +141,6 @@
       font-size: 18px;
       margin-top: 10px;
     }
-    /* Expandable game log (visible by default) */
     #game-log {
       margin-top: 10px;
       background: rgba(255,255,255,0.1);
@@ -170,7 +170,7 @@
 <body>
   <!-- Game Options -->
   <div id="game-options">
-    <h2>Game Options</h2>
+    <h2>45's Game Options</h2>
     <label for="mode-select">Select Game Mode:</label>
     <select id="mode-select">
       <option value="2p">2-Player (You vs. Computer)</option>
@@ -197,13 +197,13 @@
   <div id="instructions">
     <h3>Detailed Rules & Strategies</h3>
     <p><strong>Overview:</strong><br>
-      This is a trick-taking game where you bid and play cards to win tricks. Follow suit if possible; otherwise, play a trump.
+      45's is a trick-taking game where you bid and play cards to win tricks. Follow suit if possible; otherwise, play a trump.
     </p>
     <p><strong>Bidding:</strong><br>
       Place your bid (15, 20, 25, or 30). The computer bids based on hand strength.
     </p>
     <p><strong>Trick Play:</strong><br>
-      The winner of each trick leads the next round. Review the game log to see all actions.
+      The winner of each trick leads the next round. Review the game log for all actions.
     </p>
     <button id="hide-instructions-btn">Hide Detailed Rules</button>
   </div>
@@ -211,7 +211,7 @@
   <!-- Tutorial Modal -->
   <div id="tutorial-modal">
     <div id="tutorial-content">
-      <h2>Welcome to the Enhanced Card Game!</h2>
+      <h2>Welcome to 45's!</h2>
       <div id="tutorial-step-content">
         <p>Step 1: Cards are dealt. Your hand and the kitty are displayed.</p>
       </div>
@@ -225,7 +225,9 @@
 
   <!-- Main Game Container -->
   <div class="container" id="game-container" style="display:none;">
+    <!-- Game Status and Trump Display -->
     <div id="status-message">Game Status</div>
+    <div id="trump-display"></div>
     
     <!-- Bidding Section -->
     <div id="bidding-section">
@@ -241,10 +243,30 @@
       </div>
     </div>
 
-    <!-- Draw Phase Section (for when the computer wins the bid) -->
+    <!-- Trump Selection Section -->
+    <div id="trump-section" class="section">
+      <h2>Trump Selection</h2>
+      <p>Select the trump suit:</p>
+      <div id="trump-buttons">
+        <button class="trump-btn" data-trump="♠">♠</button>
+        <button class="trump-btn" data-trump="♥">♥</button>
+        <button class="trump-btn" data-trump="♦">♦</button>
+        <button class="trump-btn" data-trump="♣">♣</button>
+      </div>
+    </div>
+
+    <!-- Kitty Selection Section -->
+    <div id="kitty-section" class="section">
+      <h2>Kitty Selection</h2>
+      <p>Select the cards you want to keep from your combined hand (5 cards total):</p>
+      <div id="kitty-hand"></div>
+      <button id="confirm-kitty-btn">Confirm Kitty</button>
+    </div>
+
+    <!-- Draw Phase Section -->
     <div id="draw-section" class="section">
       <h2>Draw Phase</h2>
-      <p>Select the cards you wish to keep; unselected cards will be replaced.</p>
+      <p>Select the cards to keep; unselected cards will be replaced.</p>
       <div id="draw-hand"></div>
       <button id="confirm-draw-btn">Confirm Draw</button>
     </div>
@@ -281,6 +303,11 @@
     ];
     let currentTutorialStep = 0;
 
+    function updateTrumpDisplay(trumpSuit) {
+      let trumpDisplay = document.getElementById("trump-display");
+      trumpDisplay.textContent = trumpSuit ? "Trump: " + trumpSuit : "";
+    }
+
     function updateYourHand(handArray) {
       let container = document.getElementById("your-hand");
       container.innerHTML = "<strong>Your Cards:</strong>";
@@ -314,11 +341,30 @@
       });
     }
 
+    function updateKittyHand(handArray) {
+      let container = document.getElementById("kitty-hand");
+      container.innerHTML = "";
+      handArray.forEach((card, index) => {
+        let div = document.createElement("div");
+        div.className = "card";
+        div.textContent = card.text;
+        div.dataset.index = index;
+        // Toggle selection on click
+        div.onclick = function() {
+          div.classList.toggle("selected");
+        };
+        container.appendChild(div);
+      });
+    }
+
     function updateUI(state) {
       gameState = state;
       console.log("DEBUG: Game State", state);
 
-      // If in bidding phase, show bidding UI
+      // Always update trump display
+      updateTrumpDisplay(state.trumpSuit);
+
+      // Show bidding UI if in bidding phase
       if (state.gamePhase === "bidding") {
         document.getElementById("bidding-section").style.display = "block";
         document.getElementById("bidding-message").textContent = state.biddingMessage || "Place your bid!";
@@ -327,10 +373,26 @@
         document.getElementById("bidding-section").style.display = "none";
       }
 
-      // If in draw phase, show draw UI
+      // Show trump selection UI if in trump phase
+      if (state.gamePhase === "trump") {
+        document.getElementById("trump-section").style.display = "block";
+      } else {
+        document.getElementById("trump-section").style.display = "none";
+      }
+
+      // Show kitty selection UI if in kitty phase
+      if (state.gamePhase === "kitty") {
+        document.getElementById("kitty-section").style.display = "block";
+        // Update kitty-hand with combined hand (player hand + kitty)
+        let combined = state.combinedHand || state.playerHand.concat(state.kitty);
+        updateKittyHand(combined);
+      } else {
+        document.getElementById("kitty-section").style.display = "none";
+      }
+
+      // Show draw phase UI if in draw phase
       if (state.gamePhase === "draw") {
         document.getElementById("draw-section").style.display = "block";
-        // Use state.drawHand if available; otherwise, use player's current hand.
         if (state.drawHand) {
           updateDrawHand(state.drawHand);
         } else {
@@ -340,28 +402,32 @@
         document.getElementById("draw-section").style.display = "none";
       }
 
-      // Update game status message
+      // Update game status message based on phase
       if (state.gamePhase === "bidding") {
         document.getElementById("status-message").textContent = state.biddingMessage;
       } else {
         document.getElementById("status-message").textContent = (state.currentTurn === "player") ? "Your Turn!" : `Waiting for ${state.currentTurn}...`;
       }
 
-      // Update hand display (only if not in draw phase)
-      if (state.gamePhase !== "draw" && state.gamePhase !== "kitty") {
+      // Update hand display (if not in draw or kitty phase)
+      if (state.gamePhase !== "draw" && state.gamePhase !== "kitty" && state.gamePhase !== "trump") {
         updateYourHand(state.playerHand);
       }
 
-      // Update trick area
+      // Update trick area: if game phase is trick play, show current trick; otherwise clear it.
       let trickArea = document.getElementById("trick-area");
-      trickArea.innerHTML = "";
-      let trickCards = (state.currentTrick.length > 0) ? state.currentTrick : state.lastTrick;
-      trickCards.forEach(entry => {
-        let div = document.createElement("div");
-        div.className = "card";
-        div.textContent = entry.card.text;
-        trickArea.appendChild(div);
-      });
+      if (state.gamePhase === "trick" || state.gamePhase === "trickComplete") {
+        trickArea.innerHTML = "";
+        let trickCards = state.currentTrick.length > 0 ? state.currentTrick : state.lastTrick;
+        trickCards.forEach(entry => {
+          let div = document.createElement("div");
+          div.className = "card";
+          div.textContent = entry.card.text;
+          trickArea.appendChild(div);
+        });
+      } else {
+        trickArea.innerHTML = "";
+      }
 
       // Update scoreboard
       let scoreboardDiv = document.getElementById("scoreboard");
@@ -411,6 +477,18 @@
       callAPI("/confirm_draw", "POST", { keptIndices: indices });
     }
 
+    function confirmKitty() {
+      let container = document.getElementById("kitty-hand");
+      let selectedDivs = container.querySelectorAll(".card.selected");
+      let indices = [];
+      selectedDivs.forEach(div => indices.push(parseInt(div.dataset.index)));
+      callAPI("/confirm_kitty", "POST", { keptIndices: indices });
+    }
+
+    function selectTrump(trump) {
+      callAPI("/select_trump", "POST", { trump: trump });
+    }
+
     function resetGame() {
       callAPI("/reset_game", "POST", {}).then(() => {
         document.getElementById("game-container").style.display = "none";
@@ -452,7 +530,7 @@
       }
     }
 
-    // Attach event listeners
+    // Attach event listeners once the DOM is loaded
     document.addEventListener("DOMContentLoaded", function() {
       document.getElementById("start-game-btn").addEventListener("click", startGame);
       document.getElementById("reset-game-btn").addEventListener("click", resetGame);
@@ -470,6 +548,17 @@
           callAPI("/bid", "POST", { bid: bidValue });
         });
       });
+
+      // Trump selection buttons
+      document.querySelectorAll(".trump-btn").forEach(function(button) {
+        button.addEventListener("click", function() {
+          let trump = this.getAttribute("data-trump");
+          selectTrump(trump);
+        });
+      });
+
+      // Confirm Kitty button
+      document.getElementById("confirm-kitty-btn").addEventListener("click", confirmKitty);
 
       // Confirm Draw button
       document.getElementById("confirm-draw-btn").addEventListener("click", confirmDraw);
