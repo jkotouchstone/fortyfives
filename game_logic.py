@@ -54,7 +54,8 @@ OFFSUIT_RANKINGS = {
 def is_trump(card, trump_suit):
     if card.suit == trump_suit:
         return True
-    if card.suit == "♥" and card.rank == "A":  # Ace of hearts always trump.
+    # Ace of hearts is always trump.
+    if card.suit == "♥" and card.rank == "A":
         return True
     return False
 
@@ -97,7 +98,8 @@ class Game:
         self.kitty = []
         self.trump_suit = None
         self.phase = "bidding"
-        self.biddingMessage = ""
+        # Set an initial bidding message to cue the player.
+        self.biddingMessage = "Place your bid (15, 20, 25, or 30)."
         self.currentTrick = []
         self.lastTrick = []
         self.trickLog = []
@@ -129,6 +131,7 @@ class Game:
         self.bidHistory = {}
         self.trumpCardsPlayed = []
         self.combinedHand = []
+        # If in 2p and dealer is player, let the computer bid first.
         if self.mode == "2p" and self.dealer == "player":
             comp_id = self.player_order[1]
             comp_bid, comp_trump = self.computer_bid(comp_id)
@@ -165,24 +168,25 @@ class Game:
             else:
                 comp_bid, comp_trump = self.computer_bid(comp_id)
                 self.bidHistory[comp_id] = "Passed" if comp_bid == 0 else f"bid {comp_bid}"
+            # Ensure bidding phase remains until valid bid interaction.
             if self.dealer == "player":
                 if comp_bid == 0:
                     self.bidder = "player"
                     self.bid = 15
-                    self.biddingMessage = "All passed. As dealer, you are bagged and automatically bid 15. Please select the trump suit."
+                    self.biddingMessage = "All passed. As dealer, you're automatically bid 15. Please select the trump suit."
                     timestamp = time.strftime("%H:%M:%S")
                     self.gameNotes.append(f"{timestamp} - Dealer automatically bid 15.")
                     self.phase = "trump"
                 else:
                     if player_bid != 0 and player_bid != comp_bid + 5:
-                        self.biddingMessage = f"As dealer, you must either pass or bid {comp_bid + 5}."
+                        self.biddingMessage = f"As dealer, you must pass or bid {comp_bid + 5}."
                         return
                     if player_bid == 0:
                         self.bidder = comp_id
                         self.bid = comp_bid
                         _, comp_trump = self.computer_bid(comp_id)
                         self.trump_suit = comp_trump
-                        self.biddingMessage = f"{comp_id} wins the bid with {comp_bid} and has selected {comp_trump} as trump."
+                        self.biddingMessage = f"{comp_id} wins the bid with {comp_bid} and selects {comp_trump} as trump."
                         timestamp = time.strftime("%H:%M:%S")
                         self.gameNotes.append(f"{timestamp} - {comp_id} selected {comp_trump} as trump.")
                         self.phase = "draw"
@@ -213,7 +217,7 @@ class Game:
                     self.bid = comp_bid
                     _, comp_trump = self.computer_bid(comp_id)
                     self.trump_suit = comp_trump
-                    self.biddingMessage = f"{comp_id} wins the bid with {comp_bid} and has selected {comp_trump} as trump."
+                    self.biddingMessage = f"{comp_id} wins the bid with {comp_bid} and selects {comp_trump} as trump."
                     timestamp = time.strftime("%H:%M:%S")
                     self.gameNotes.append(f"{timestamp} - {comp_id} selected {comp_trump} as trump.")
                     self.phase = "draw"
