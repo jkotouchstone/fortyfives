@@ -269,6 +269,7 @@
       <p>Select the cards to keep; unselected cards will be replaced.</p>
       <div id="draw-hand"></div>
       <button id="confirm-draw-btn">Confirm Draw</button>
+      <div id="computer-draw-info"></div>
     </div>
 
     <!-- Normal Play Sections -->
@@ -327,7 +328,7 @@
 
     function updateDrawHand(handArray) {
       let container = document.getElementById("draw-hand");
-      container.innerHTML = "";
+      container.innerHTML = "<strong>Your Hand:</strong>";
       handArray.forEach((card, index) => {
         let div = document.createElement("div");
         div.className = "card";
@@ -343,7 +344,7 @@
 
     function updateKittyHand(handArray) {
       let container = document.getElementById("kitty-hand");
-      container.innerHTML = "";
+      container.innerHTML = "<strong>Combined Hand:</strong>";
       handArray.forEach((card, index) => {
         let div = document.createElement("div");
         div.className = "card";
@@ -383,7 +384,6 @@
       // Show kitty selection UI if in kitty phase
       if (state.gamePhase === "kitty") {
         document.getElementById("kitty-section").style.display = "block";
-        // Update kitty-hand with combined hand (player hand + kitty)
         let combined = state.combinedHand || state.playerHand.concat(state.kitty);
         updateKittyHand(combined);
       } else {
@@ -393,10 +393,17 @@
       // Show draw phase UI if in draw phase
       if (state.gamePhase === "draw") {
         document.getElementById("draw-section").style.display = "block";
-        if (state.drawHand) {
-          updateDrawHand(state.drawHand);
-        } else {
-          updateDrawHand(state.playerHand);
+        updateDrawHand(state.drawHand || state.playerHand);
+        // Display computer draw count if available
+        if(state.computerDrawCount !== undefined){
+          document.getElementById("computer-draw-info").textContent = "Computer drew " + state.computerDrawCount + " card(s).";
+        } else if(state.computerDrawCounts){
+          // For 3p mode, display each computer's draw count
+          let info = "";
+          for (const [name, count] of Object.entries(state.computerDrawCounts)) {
+            info += name + " drew " + count + " card(s). ";
+          }
+          document.getElementById("computer-draw-info").textContent = info;
         }
       } else {
         document.getElementById("draw-section").style.display = "none";
@@ -409,12 +416,12 @@
         document.getElementById("status-message").textContent = (state.currentTurn === "player") ? "Your Turn!" : `Waiting for ${state.currentTurn}...`;
       }
 
-      // Update hand display (if not in draw or kitty phase)
+      // Update hand display (only if not in draw, kitty, or trump phase)
       if (state.gamePhase !== "draw" && state.gamePhase !== "kitty" && state.gamePhase !== "trump") {
         updateYourHand(state.playerHand);
       }
 
-      // Update trick area: if game phase is trick play, show current trick; otherwise clear it.
+      // Update trick area: show current trick during trick play; otherwise clear it.
       let trickArea = document.getElementById("trick-area");
       if (state.gamePhase === "trick" || state.gamePhase === "trickComplete") {
         trickArea.innerHTML = "";
@@ -530,7 +537,7 @@
       }
     }
 
-    // Attach event listeners once the DOM is loaded
+    // Attach event listeners after DOM loads
     document.addEventListener("DOMContentLoaded", function() {
       document.getElementById("start-game-btn").addEventListener("click", startGame);
       document.getElementById("reset-game-btn").addEventListener("click", resetGame);
