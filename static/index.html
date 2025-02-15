@@ -177,9 +177,9 @@
     <label>
       <input type="checkbox" id="instruction-mode"> Enable Tutorial Mode
     </label>
-    <button onclick="startGame()">Start Game</button>
-    <button onclick="openTutorial()">Show Tutorial</button>
-    <button onclick="toggleInstructions()">Show Detailed Rules</button>
+    <button id="start-game-btn">Start Game</button>
+    <button id="show-tutorial-btn">Show Tutorial</button>
+    <button id="show-instructions-btn">Show Detailed Rules</button>
   </div>
 
   <!-- Detailed Instructions -->
@@ -205,7 +205,7 @@
     <p><strong>Game Notes:</strong><br>
       All game events are logged here.
     </p>
-    <button onclick="toggleInstructions()">Hide Detailed Rules</button>
+    <button id="show-instructions-btn">Hide Detailed Rules</button>
   </div>
 
   <!-- Tutorial Modal -->
@@ -218,7 +218,7 @@
       <div>
         <button onclick="prevTutorialStep()">Previous</button>
         <button onclick="nextTutorialStep()">Next</button>
-        <button onclick="closeTutorial()">Close Tutorial</button>
+        <button id="close-tutorial-btn">Close Tutorial</button>
       </div>
     </div>
   </div>
@@ -360,39 +360,6 @@
     }
 
     function updateUI(state) {
-        console.log("DEBUG: Game State", state);
-
-        let handContainer = document.getElementById("your-hand");
-        handContainer.innerHTML = "<strong>Your Cards:</strong>";
-
-        if (state.playerHand && state.playerHand.length > 0) {
-            state.playerHand.forEach((card, index) => {
-                let div = document.createElement("div");
-                div.className = "card";
-                div.textContent = card.text;
-                div.dataset.index = index;
-
-                // Highlight valid moves
-                if (state.validMoves && !state.validMoves.includes(index)) {
-                    div.style.opacity = "0.5"; // Dim invalid moves
-                    div.style.pointerEvents = "none"; // Disable clicking
-                }
-
-                div.onclick = function () { playCard(index); };
-                handContainer.appendChild(div);
-            });
-        } else {
-            handContainer.innerHTML += "<p>No cards in hand.</p>";
-        }
-
-        let scoreboardDiv = document.getElementById("scoreboard");
-        scoreboardDiv.innerHTML = "<h2>Scoreboard</h2>" +
-            Object.entries(state.scoreboard)
-                .map(([player, score]) => `<strong>${player}:</strong> ${score}`)
-                .join("<br>");
-
-        document.getElementById("status-message").textContent = state.currentTurn === "player" ? "Your Turn!" : `Waiting for ${state.currentTurn}...`;
-    }
       gameState = state;
       console.log("DEBUG: Received state:", state);
       let sections = ["bidding-section", "trump-section", "kitty-section", "draw-section", "trick-section", "result-section"];
@@ -558,5 +525,41 @@
       document.getElementById("tutorial-modal").style.display = "none";
     }
   </script>
-</body>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        function startGame() {
+            let mode = document.getElementById("mode-select").value;
+            let instructional = document.getElementById("instruction-mode").checked;
+            document.getElementById("game-options").style.display = "none";
+            document.getElementById("game-container").style.display = "block";
+            fetch("/start_game", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ mode: mode, instructional: instructional })
+            })
+            .then(response => response.json())
+            .then(updateUI)
+            .catch(error => console.error("Error starting game:", error));
+        }
+
+        function toggleInstructions() {
+            let instrDiv = document.getElementById("instructions");
+            instrDiv.style.display = (instrDiv.style.display === "none" || instrDiv.style.display === "") ? "block" : "none";
+        }
+
+        function openTutorial() {
+            document.getElementById("tutorial-modal").style.display = "flex";
+        }
+
+        function closeTutorial() {
+            document.getElementById("tutorial-modal").style.display = "none";
+        }
+
+        document.getElementById("start-game-btn").addEventListener("click", startGame);
+        document.getElementById("show-instructions-btn").addEventListener("click", toggleInstructions);
+        document.getElementById("show-tutorial-btn").addEventListener("click", openTutorial);
+        document.getElementById("close-tutorial-btn").addEventListener("click", closeTutorial);
+    });
+    </script>
+    </body>
 </html>
