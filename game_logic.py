@@ -98,9 +98,9 @@ class Game:
         self.kitty = []
         self.trump_suit = None
         self.phase = "bidding"
-        # Set an initial bidding message to cue the player.
         self.biddingMessage = "Place your bid (15, 20, 25, or 30)."
         self.currentTrick = []
+        # We'll clear lastTrick after each trick to empty the table.
         self.lastTrick = []
         self.trickLog = []
         self.gameNotes = []
@@ -168,7 +168,7 @@ class Game:
             else:
                 comp_bid, comp_trump = self.computer_bid(comp_id)
                 self.bidHistory[comp_id] = "Passed" if comp_bid == 0 else f"bid {comp_bid}"
-            # Ensure bidding phase remains until valid bid interaction.
+            # Determine the bidder and set phase accordingly.
             if self.dealer == "player":
                 if comp_bid == 0:
                     self.bidder = "player"
@@ -193,16 +193,17 @@ class Game:
                     else:
                         self.bidder = "player"
                         self.bid = player_bid
-                        self.biddingMessage = f"Player bids {player_bid} and wins the bid. Please select the trump suit."
+                        self.biddingMessage = f"Player wins the bid with {player_bid}. Please select the trump suit."
                         self.phase = "trump"
             else:
+                # For non-dealer bidding (3p mode logic could go here)
                 if player_bid == 0 and comp_bid == 0:
                     self.bidder = comp_id
                     self.bid = 15
                     self.bidHistory["player"] = "Passed"
                     self.bidHistory[comp_id] = "Passed"
                     self.trump_suit = self.computer_bid(comp_id)[1]
-                    self.biddingMessage = f"Both passed. {comp_id} wins the bid automatically with 15 and selects trump {self.trump_suit}."
+                    self.biddingMessage = f"Both passed. {comp_id} wins the bid with 15 and selects trump {self.trump_suit}."
                     timestamp = time.strftime("%H:%M:%S")
                     self.gameNotes.append(f"{timestamp} - {comp_id} selected {self.trump_suit} as trump.")
                     self.phase = "draw"
@@ -210,14 +211,14 @@ class Game:
                     self.bidder = "player"
                     self.bid = player_bid
                     self.bidHistory[comp_id] = "Passed"
-                    self.biddingMessage = f"Player bids {player_bid} and wins the bid. Please select the trump suit."
+                    self.biddingMessage = f"Player wins the bid with {player_bid}. Please select the trump suit."
                     self.phase = "trump"
                 else:
                     self.bidder = comp_id
                     self.bid = comp_bid
                     _, comp_trump = self.computer_bid(comp_id)
                     self.trump_suit = comp_trump
-                    self.biddingMessage = f"{comp_id} wins the bid with {comp_bid} and selects {comp_trump} as trump."
+                    self.biddingMessage = f"{comp_id} wins the bid with {comp_bid} and selects trump {comp_trump}."
                     timestamp = time.strftime("%H:%M:%S")
                     self.gameNotes.append(f"{timestamp} - {comp_id} selected {comp_trump} as trump.")
                     self.phase = "draw"
@@ -227,11 +228,13 @@ class Game:
     def select_trump(self, suit):
         if self.phase == "trump":
             self.trump_suit = suit
-            self.biddingMessage = f"Player wins the bid. Trump is set to {suit}."
+            self.biddingMessage = f"Trump is set to {suit}."
             if self.bidder == "player":
+                # Move to kitty selection phase if player is bidder.
                 self.phase = "kitty"
                 self.combinedHand = self.players["player"]["hand"] + self.kitty
             else:
+                # If computer wins, proceed directly to draw phase.
                 self.phase = "draw"
         return
 
@@ -374,8 +377,9 @@ class Game:
         for entry in self.currentTrick:
             if is_trump(entry["card"], self.trump_suit):
                 self.trumpCardsPlayed.append((entry["player"], entry["card"]))
-        self.lastTrick = self.currentTrick.copy()
+        # Clear trick area after completing the trick
         self.currentTrick = []
+        self.lastTrick = []
         if all(len(self.players[p]["hand"]) == 0 for p in self.players):
             return self.complete_hand()
         else:
