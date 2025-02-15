@@ -1,7 +1,6 @@
 from flask import Flask, request, jsonify, send_from_directory
 from game_logic import Game
 
-# Ensure the static files are served from the root URL.
 app = Flask(__name__, static_folder="static", static_url_path="")
 current_game = None
 
@@ -29,46 +28,9 @@ def bid():
             return jsonify({"error": "No game started."}), 500
         data = request.get_json()
         player_bid = data.get("bid", 0)
+        if player_bid not in [0, 15, 20, 25, 30]:
+            return jsonify({"error": "Invalid bid."}), 400
         current_game.process_bid(player_bid)
-        return jsonify(current_game.to_dict())
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/select_trump", methods=["POST"])
-def select_trump():
-    global current_game
-    try:
-        if not current_game:
-            return jsonify({"error": "No game started."}), 500
-        data = request.get_json()
-        trump = data.get("trump")
-        current_game.select_trump(trump)
-        return jsonify(current_game.to_dict())
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/confirm_kitty", methods=["POST"])
-def confirm_kitty():
-    global current_game
-    try:
-        if not current_game:
-            return jsonify({"error": "No game started."}), 500
-        data = request.get_json()
-        keptIndices = data.get("keptIndices", [])
-        current_game.confirm_kitty(keptIndices)
-        return jsonify(current_game.to_dict())
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/confirm_draw", methods=["POST"])
-def confirm_draw():
-    global current_game
-    try:
-        if not current_game:
-            return jsonify({"error": "No game started."}), 500
-        data = request.get_json()
-        keptIndices = data.get("keptIndices", None)
-        current_game.confirm_draw(keptIndices)
         return jsonify(current_game.to_dict())
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -85,17 +47,6 @@ def play_trick():
             return jsonify({"error": "cardIndex required."}), 500
         current_game.play_card("player", cardIndex)
         return jsonify(current_game.to_dict())
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/clear_trick", methods=["POST"])
-def clear_trick():
-    global current_game
-    try:
-        if not current_game:
-            return jsonify({"error": "No game started."}), 500
-        state = current_game.clear_trick()
-        return jsonify(state)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
