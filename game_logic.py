@@ -230,9 +230,11 @@ class Game:
             self.trump_suit = suit
             self.biddingMessage = f"Trump is set to {suit}."
             if self.bidder == "player":
+                # Move to kitty selection phase if player is bidder.
                 self.phase = "kitty"
                 self.combinedHand = self.players["player"]["hand"] + self.kitty
             else:
+                # If computer wins, proceed directly to draw phase.
                 self.phase = "draw"
         return
 
@@ -266,15 +268,15 @@ class Game:
                     card.selected = True
                     kept_cards.append(card)
             self.players["player"]["hand"] = kept_cards
-        // Draw cards for the player to fill up to 5
+        # Draw cards for the player to fill up to 5
         while len(self.players["player"]["hand"]) < 5 and len(self.deck.cards) > 0:
             self.players["player"]["hand"].append(self.deck.deal(1)[0])
         for card in self.players["player"]["hand"]:
             card.selected = False
-        // For each computer player, record how many cards they draw
+        # For each computer player, record how many cards they draw
         for p in self.players:
             if p != "player":
-                let oldCount = len(self.players[p]["hand"])
+                oldCount = len(self.players[p]["hand"])
                 while len(self.players[p]["hand"]) < 5 and len(self.deck.cards) > 0:
                     self.players[p]["hand"].append(self.deck.deal(1)[0])
                 drawn = 5 - oldCount
@@ -476,7 +478,9 @@ class Game:
             "mode": self.mode,
             "bidder": self.bidder
         }
-        # Include draw hand only during draw phase
+        if self.phase == "kitty" and self.bidder == "player":
+            self.combinedHand = self.players["player"]["hand"] + self.kitty
+            state["combinedHand"] = [card.to_dict() for card in self.combinedHand]
         if self.phase == "draw":
             state["drawHand"] = [card.to_dict() for card in self.players["player"]["hand"]]
             if self.mode == "2p":
@@ -484,8 +488,4 @@ class Game:
                 state["computerDrawCount"] = self.computerDrawCounts.get(comp, 0)
             else:
                 state["computerDrawCounts"] = self.computerDrawCounts
-        # Include combined hand during kitty phase
-        if self.phase == "kitty" and self.bidder == "player":
-            self.combinedHand = self.players["player"]["hand"] + self.kitty
-            state["combinedHand"] = [card.to_dict() for card in self.combinedHand]
         return state
