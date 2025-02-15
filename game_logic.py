@@ -37,8 +37,6 @@ class Deck:
 # ---------------------------
 # Ranking Definitions
 # ---------------------------
-# For trump (hearts and diamonds) the ranking order is:
-# Highest trump is "5", then "J", then "A", then "K", "Q", "10", "9", "8", "7", "6", "4", "3", "2"
 TRUMP_RANKINGS = {
     "♦": ["5", "J", "A", "K", "Q", "10", "9", "8", "7", "6", "4", "3", "2"],
     "♥": ["5", "J", "A", "K", "Q", "10", "9", "8", "7", "6", "4", "3", "2"],
@@ -56,8 +54,7 @@ OFFSUIT_RANKINGS = {
 def is_trump(card, trump_suit):
     if card.suit == trump_suit:
         return True
-    # Ace of hearts is always trump.
-    if card.suit == "♥" and card.rank == "A":
+    if card.suit == "♥" and card.rank == "A":  # Ace of hearts always trump.
         return True
     return False
 
@@ -99,7 +96,6 @@ class Game:
         self.dealer = "player" if random.random() < 0.5 else self.player_order[1]
         self.kitty = []
         self.trump_suit = None
-        # Phases: bidding, trump, kitty, draw, trick, trickComplete, finished
         self.phase = "bidding"
         self.biddingMessage = ""
         self.currentTrick = []
@@ -110,8 +106,8 @@ class Game:
         self.currentTurn = None
         self.bidder = None
         self.bid = 0
-        self.trumpCardsPlayed = []  # List of tuples (player, card) that are trump
-        self.combinedHand = []      # For kitty phase: player's hand + kitty
+        self.trumpCardsPlayed = []
+        self.combinedHand = []
         self.deal_hands()
 
     def next_player(self, current):
@@ -119,12 +115,11 @@ class Game:
         return self.player_order[(idx + 1) % len(self.player_order)]
 
     def deal_hands(self):
-        # Create a new deck and deal new hands without resetting cumulative scores.
         self.deck = Deck()
         self.trump_suit = None
         for p in self.players:
             self.players[p]["hand"] = self.deck.deal(5)
-            self.players[p]["tricks"] = []  # Reset tricks for this hand.
+            self.players[p]["tricks"] = []
         self.kitty = self.deck.deal(3)
         self.phase = "bidding"
         self.biddingMessage = "Place your bid (15, 20, 25, or 30)."
@@ -134,7 +129,6 @@ class Game:
         self.bidHistory = {}
         self.trumpCardsPlayed = []
         self.combinedHand = []
-        # In 2p mode, if the dealer is the player, have the computer bid first.
         if self.mode == "2p" and self.dealer == "player":
             comp_id = self.player_order[1]
             comp_bid, comp_trump = self.computer_bid(comp_id)
@@ -145,7 +139,14 @@ class Game:
         hand = self.players[comp_id]["hand"]
         has5 = any(card.rank == "5" for card in hand)
         topCount = sum(1 for card in hand if card.rank in ["J", "A", "K"])
-        bid = 20 if has5 or topCount >= 2 else (15 if topCount == 1 else 0)
+        if has5 or topCount >= 2:
+            bid = 20
+        elif topCount == 1:
+            bid = 15
+        else:
+            bid = 0
+        if bid == 20 and random.random() < 0.3:
+            bid = 25  # Occasionally bid higher if conditions are excellent
         suit_counts = {}
         for card in hand:
             suit_counts[card.suit] = suit_counts.get(card.suit, 0) + 1
@@ -217,7 +218,6 @@ class Game:
                     self.gameNotes.append(f"{timestamp} - {comp_id} selected {comp_trump} as trump.")
                     self.phase = "draw"
             self.currentTurn = self.bidder
-        # (Three-player bidding logic omitted.)
         return
 
     def select_trump(self, suit):
@@ -227,7 +227,6 @@ class Game:
             if self.bidder == "player":
                 self.phase = "kitty"
                 self.combinedHand = self.players["player"]["hand"] + self.kitty
-                print("DEBUG: Entering kitty phase. Combined hand:", [card.to_dict() for card in self.combinedHand])
             else:
                 self.phase = "draw"
         return
@@ -291,7 +290,6 @@ class Game:
                 else:
                     return True, ""
             else:
-                # Optionally enforce that the played trump is among the top 3 trump cards.
                 trump_in_hand = [c for c in self.players[player]["hand"] if is_trump(c, self.trump_suit)]
                 if trump_in_hand:
                     trump_in_hand.sort(key=lambda c: get_trump_value(c, self.trump_suit), reverse=True)
@@ -374,7 +372,6 @@ class Game:
                 self.trumpCardsPlayed.append((entry["player"], entry["card"]))
         self.lastTrick = self.currentTrick.copy()
         self.currentTrick = []
-        # If all players' hands are empty, the hand is complete.
         if all(len(self.players[p]["hand"]) == 0 for p in self.players):
             return self.complete_hand()
         else:
@@ -405,11 +402,9 @@ class Game:
         return winner_entry["player"]
 
     def complete_hand(self):
-        # Calculate points for the hand: 5 points per trick.
         points = {p: len(self.players[p]["tricks"]) * 5 for p in self.players}
         bonus_winner = None
         bonus_value = 5
-        # Gather all trump cards played during this hand.
         trump_played = self.trumpCardsPlayed.copy()
         if not trump_played:
             for p in self.players:
@@ -424,10 +419,8 @@ class Game:
             bonus_winner = self.currentTurn
         if bonus_winner:
             points[bonus_winner] += bonus_value
-        # Enforce the bid condition.
         if self.bidder in points and points[self.bidder] < self.bid:
             points[self.bidder] = -self.bid
-        # Update cumulative scores and build a hand summary.
         hand_summary_parts = []
         for p in self.players:
             hand_points = points[p]
@@ -440,7 +433,6 @@ class Game:
         self.gameNotes.append(summary)
         self.currentTrick = []
         self.lastTrick = []
-        # Advance to a new hand if no player has reached 120.
         if any(self.players[p]["score"] >= 120 for p in self.players):
             self.phase = "finished"
             return self.to_dict()
@@ -448,7 +440,6 @@ class Game:
             return self.new_hand()
 
     def new_hand(self):
-        # Rotate the dealer.
         current_idx = self.player_order.index(self.dealer)
         self.dealer = self.player_order[(current_idx + 1) % len(self.player_order)]
         self.deal_hands()
