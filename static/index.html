@@ -23,7 +23,7 @@
       position: relative;
       padding-bottom: 60px;
     }
-    #your-hand {
+    #your-hand, #draw-hand {
       margin-bottom: 20px;
       text-align: center;
       padding: 5px;
@@ -64,6 +64,14 @@
     }
     #bid-buttons button {
       margin: 5px;
+    }
+    /* Draw Phase Section */
+    #draw-section {
+      margin: 15px 0;
+      padding: 10px;
+      background: rgba(0,0,0,0.5);
+      border-radius: 8px;
+      display: none;
     }
     /* Tutorial Modal */
     #tutorial-modal {
@@ -132,7 +140,7 @@
       font-size: 18px;
       margin-top: 10px;
     }
-    /* Expandable game log (now visible by default) */
+    /* Expandable game log (visible by default) */
     #game-log {
       margin-top: 10px;
       background: rgba(255,255,255,0.1);
@@ -219,8 +227,8 @@
   <div class="container" id="game-container" style="display:none;">
     <div id="status-message">Game Status</div>
     
-    <!-- Bidding Section (visible during bidding phase) -->
-    <div id="bidding-section" style="display:none;">
+    <!-- Bidding Section -->
+    <div id="bidding-section">
       <h2>Bidding Phase</h2>
       <p id="bidding-message"></p>
       <p id="dealer-info"></p>
@@ -233,6 +241,15 @@
       </div>
     </div>
 
+    <!-- Draw Phase Section (for when the computer wins the bid) -->
+    <div id="draw-section" class="section">
+      <h2>Draw Phase</h2>
+      <p>Select the cards you wish to keep; unselected cards will be replaced.</p>
+      <div id="draw-hand"></div>
+      <button id="confirm-draw-btn">Confirm Draw</button>
+    </div>
+
+    <!-- Normal Play Sections -->
     <div id="your-hand"></div>
     <div id="trick-area"></div>
     <div id="scoreboard-section">
@@ -281,17 +298,46 @@
       });
     }
 
+    function updateDrawHand(handArray) {
+      let container = document.getElementById("draw-hand");
+      container.innerHTML = "";
+      handArray.forEach((card, index) => {
+        let div = document.createElement("div");
+        div.className = "card";
+        div.textContent = card.text;
+        div.dataset.index = index;
+        // Toggle selection on click
+        div.onclick = function() {
+          div.classList.toggle("selected");
+        };
+        container.appendChild(div);
+      });
+    }
+
     function updateUI(state) {
       gameState = state;
       console.log("DEBUG: Game State", state);
 
-      // Update bidding UI if in bidding phase
+      // If in bidding phase, show bidding UI
       if (state.gamePhase === "bidding") {
         document.getElementById("bidding-section").style.display = "block";
         document.getElementById("bidding-message").textContent = state.biddingMessage || "Place your bid!";
         document.getElementById("dealer-info").textContent = "Dealer: " + state.dealer;
       } else {
         document.getElementById("bidding-section").style.display = "none";
+      }
+
+      // If in draw phase, show draw UI
+      if (state.gamePhase === "draw") {
+        document.getElementById("draw-section").style.display = "block";
+        // Use state.drawHand if available; otherwise, use player's current hand.
+        if (state.drawHand) {
+          updateDrawHand(state.drawHand);
+        } else {
+          updateDrawHand(state.playerHand);
+        }
+      } else {
+        document.getElementById("draw-section").style.display = "none";
       }
 
       // Update game status message
@@ -301,13 +347,8 @@
         document.getElementById("status-message").textContent = (state.currentTurn === "player") ? "Your Turn!" : `Waiting for ${state.currentTurn}...`;
       }
 
-      // Update hand display
-      if (state.gamePhase === "kitty" && state.bidder === "player") {
-        let combined = state.combinedHand || state.playerHand.concat(state.kitty);
-        updateYourHand(combined);
-      } else if (state.gamePhase === "draw" && state.drawHand) {
-        updateYourHand(state.drawHand);
-      } else {
+      // Update hand display (only if not in draw phase)
+      if (state.gamePhase !== "draw" && state.gamePhase !== "kitty") {
         updateYourHand(state.playerHand);
       }
 
@@ -328,7 +369,7 @@
           .map(([player, score]) => `<strong>${player}:</strong> ${score}`)
           .join("<br>");
 
-      // Update game log
+      // Update game log (always visible)
       let logDiv = document.getElementById("game-log");
       logDiv.innerHTML = "<strong>Game Log:</strong><br>" + state.gameNotes.slice().reverse().join("<br>");
     }
@@ -360,6 +401,14 @@
         document.getElementById("card-sound").play();
       }
       callAPI("/play_trick", "POST", { cardIndex: index });
+    }
+
+    function confirmDraw() {
+      let container = document.getElementById("draw-hand");
+      let selectedDivs = container.querySelectorAll(".card.selected");
+      let indices = [];
+      selectedDivs.forEach(div => indices.push(parseInt(div.dataset.index)));
+      callAPI("/confirm_draw", "POST", { keptIndices: indices });
     }
 
     function resetGame() {
@@ -414,13 +463,16 @@
       document.getElementById("prev-tutorial-btn").addEventListener("click", prevTutorialStep);
       document.getElementById("close-tutorial-btn").addEventListener("click", closeTutorial);
 
-      // Attach event listeners for bidding buttons
+      // Bidding buttons
       document.querySelectorAll(".bid-btn").forEach(function(button) {
         button.addEventListener("click", function() {
           let bidValue = parseInt(this.getAttribute("data-bid"));
           callAPI("/bid", "POST", { bid: bidValue });
         });
       });
+
+      // Confirm Draw button
+      document.getElementById("confirm-draw-btn").addEventListener("click", confirmDraw);
     });
   </script>
   <footer>
