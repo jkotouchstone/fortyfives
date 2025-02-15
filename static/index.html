@@ -29,6 +29,12 @@
       padding: 5px;
       border-bottom: 1px solid #fff;
     }
+    #trick-area {
+      margin: 20px 0;
+      min-height: 100px;
+      border: 1px dashed #fff;
+      padding: 10px;
+    }
     .section {
       margin: 20px 0;
       display: none;
@@ -47,6 +53,17 @@
       display: none;
       text-align: left;
       font-size: 14px;
+    }
+    /* Bidding Section */
+    #bidding-section {
+      margin: 15px 0;
+      padding: 10px;
+      background: rgba(0,0,0,0.5);
+      border-radius: 8px;
+      display: none;
+    }
+    #bid-buttons button {
+      margin: 5px;
     }
     /* Tutorial Modal */
     #tutorial-modal {
@@ -115,7 +132,7 @@
       font-size: 18px;
       margin-top: 10px;
     }
-    /* Expandable game log */
+    /* Expandable game log (now visible by default) */
     #game-log {
       margin-top: 10px;
       background: rgba(255,255,255,0.1);
@@ -125,7 +142,7 @@
       max-height: 200px;
       overflow-y: auto;
       text-align: left;
-      display: none;
+      display: block;
     }
     /* Responsive styling */
     @media (max-width: 600px) {
@@ -201,6 +218,21 @@
   <!-- Main Game Container -->
   <div class="container" id="game-container" style="display:none;">
     <div id="status-message">Game Status</div>
+    
+    <!-- Bidding Section (visible during bidding phase) -->
+    <div id="bidding-section" style="display:none;">
+      <h2>Bidding Phase</h2>
+      <p id="bidding-message"></p>
+      <p id="dealer-info"></p>
+      <div id="bid-buttons">
+        <button class="bid-btn" data-bid="0">Pass</button>
+        <button class="bid-btn" data-bid="15">Bid 15</button>
+        <button class="bid-btn" data-bid="20">Bid 20</button>
+        <button class="bid-btn" data-bid="25">Bid 25</button>
+        <button class="bid-btn" data-bid="30">Bid 30</button>
+      </div>
+    </div>
+
     <div id="your-hand"></div>
     <div id="trick-area"></div>
     <div id="scoreboard-section">
@@ -253,9 +285,18 @@
       gameState = state;
       console.log("DEBUG: Game State", state);
 
-      // If in bidding phase, display the bidding cue
+      // Update bidding UI if in bidding phase
       if (state.gamePhase === "bidding") {
-        document.getElementById("status-message").textContent = state.biddingMessage || "Place your bid!";
+        document.getElementById("bidding-section").style.display = "block";
+        document.getElementById("bidding-message").textContent = state.biddingMessage || "Place your bid!";
+        document.getElementById("dealer-info").textContent = "Dealer: " + state.dealer;
+      } else {
+        document.getElementById("bidding-section").style.display = "none";
+      }
+
+      // Update game status message
+      if (state.gamePhase === "bidding") {
+        document.getElementById("status-message").textContent = state.biddingMessage;
       } else {
         document.getElementById("status-message").textContent = (state.currentTurn === "player") ? "Your Turn!" : `Waiting for ${state.currentTurn}...`;
       }
@@ -287,7 +328,7 @@
           .map(([player, score]) => `<strong>${player}:</strong> ${score}`)
           .join("<br>");
 
-      // Update game log (expandable)
+      // Update game log
       let logDiv = document.getElementById("game-log");
       logDiv.innerHTML = "<strong>Game Log:</strong><br>" + state.gameNotes.slice().reverse().join("<br>");
     }
@@ -323,7 +364,6 @@
 
     function resetGame() {
       callAPI("/reset_game", "POST", {}).then(() => {
-        // After resetting, return to game options screen
         document.getElementById("game-container").style.display = "none";
         document.getElementById("game-options").style.display = "block";
       });
@@ -373,6 +413,14 @@
       document.getElementById("next-tutorial-btn").addEventListener("click", nextTutorialStep);
       document.getElementById("prev-tutorial-btn").addEventListener("click", prevTutorialStep);
       document.getElementById("close-tutorial-btn").addEventListener("click", closeTutorial);
+
+      // Attach event listeners for bidding buttons
+      document.querySelectorAll(".bid-btn").forEach(function(button) {
+        button.addEventListener("click", function() {
+          let bidValue = parseInt(this.getAttribute("data-bid"));
+          callAPI("/bid", "POST", { bid: bidValue });
+        });
+      });
     });
   </script>
   <footer>
