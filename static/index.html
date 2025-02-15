@@ -398,7 +398,6 @@
         if(state.computerDrawCount !== undefined){
           document.getElementById("computer-draw-info").textContent = "Computer drew " + state.computerDrawCount + " card(s).";
         } else if(state.computerDrawCounts){
-          // For 3p mode, display each computer's draw count
           let info = "";
           for (const [name, count] of Object.entries(state.computerDrawCounts)) {
             info += name + " drew " + count + " card(s). ";
