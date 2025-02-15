@@ -31,6 +31,7 @@
     #trump-display {
       color: #FFD700;
     }
+    /* Only display one hand section at a time */
     #your-hand, #draw-hand, #kitty-hand {
       margin-bottom: 20px;
       text-align: center;
@@ -266,13 +267,13 @@
     <!-- Draw Phase Section -->
     <div id="draw-section" class="section">
       <h2>Draw Phase</h2>
-      <p>Select the cards to keep; unselected cards will be replaced.</p>
+      <p>Your kept cards remain selected. Unselected cards will be replaced.</p>
       <div id="draw-hand"></div>
       <button id="confirm-draw-btn">Confirm Draw</button>
       <div id="computer-draw-info"></div>
     </div>
 
-    <!-- Normal Play Sections -->
+    <!-- Trick Play Section (Normal Play) -->
     <div id="your-hand"></div>
     <div id="trick-area"></div>
     <div id="scoreboard-section">
@@ -298,7 +299,7 @@
       "Step 2: During bidding, the computer's bid is shown in the Game Log.",
       "Step 3: If you win the bid, select the trump suit.",
       "Step 4: In the kitty phase, select the cards you want to keep.",
-      "Step 5: In the draw phase, unselected cards are replaced.",
+      "Step 5: In the draw phase, your kept cards remain selected and unselected cards will be replaced.",
       "Step 6: In trick play, after you play a card, the computer responds.",
       "Step 7: All game events are logged in the Game Log area."
     ];
@@ -310,6 +311,7 @@
     }
 
     function updateYourHand(handArray) {
+      // Show player's hand only when not in kitty or draw phase
       let container = document.getElementById("your-hand");
       container.innerHTML = "<strong>Your Cards:</strong>";
       handArray.forEach((card, index) => {
@@ -327,16 +329,19 @@
     }
 
     function updateDrawHand(handArray) {
+      // Show draw hand only during draw phase; keep selection if already selected
       let container = document.getElementById("draw-hand");
       container.innerHTML = "<strong>Your Hand:</strong>";
       handArray.forEach((card, index) => {
         let div = document.createElement("div");
-        div.className = "card";
+        div.className = "card" + (card.selected ? " selected" : "");
         div.textContent = card.text;
         div.dataset.index = index;
-        // Toggle selection on click
+        // Allow toggling selection only for unselected cards (if already selected, do not allow changes)
         div.onclick = function() {
-          div.classList.toggle("selected");
+          if (!card.selected) {
+            div.classList.toggle("selected");
+          }
         };
         container.appendChild(div);
       });
@@ -350,7 +355,7 @@
         div.className = "card";
         div.textContent = card.text;
         div.dataset.index = index;
-        // Toggle selection on click
+        // Allow toggling selection
         div.onclick = function() {
           div.classList.toggle("selected");
         };
@@ -365,7 +370,7 @@
       // Always update trump display
       updateTrumpDisplay(state.trumpSuit);
 
-      // Show bidding UI if in bidding phase
+      // Bidding Phase
       if (state.gamePhase === "bidding") {
         document.getElementById("bidding-section").style.display = "block";
         document.getElementById("bidding-message").textContent = state.biddingMessage || "Place your bid!";
@@ -374,30 +379,32 @@
         document.getElementById("bidding-section").style.display = "none";
       }
 
-      // Show trump selection UI if in trump phase
+      // Trump Selection Phase
       if (state.gamePhase === "trump") {
         document.getElementById("trump-section").style.display = "block";
       } else {
         document.getElementById("trump-section").style.display = "none";
       }
 
-      // Show kitty selection UI if in kitty phase
+      // Kitty Selection Phase (only show kitty-hand, hide player's hand)
       if (state.gamePhase === "kitty") {
         document.getElementById("kitty-section").style.display = "block";
-        let combined = state.combinedHand || state.playerHand.concat(state.kitty);
-        updateKittyHand(combined);
+        updateKittyHand(state.combinedHand || state.playerHand.concat(state.kitty));
+        document.getElementById("your-hand").style.display = "none";
       } else {
         document.getElementById("kitty-section").style.display = "none";
+        document.getElementById("your-hand").style.display = "block";
       }
 
-      // Show draw phase UI if in draw phase
+      // Draw Phase (show only draw-hand)
       if (state.gamePhase === "draw") {
         document.getElementById("draw-section").style.display = "block";
         updateDrawHand(state.drawHand || state.playerHand);
+        document.getElementById("your-hand").style.display = "none";
         // Display computer draw count if available
-        if(state.computerDrawCount !== undefined){
+        if (state.computerDrawCount !== undefined) {
           document.getElementById("computer-draw-info").textContent = "Computer drew " + state.computerDrawCount + " card(s).";
-        } else if(state.computerDrawCounts){
+        } else if (state.computerDrawCounts) {
           let info = "";
           for (const [name, count] of Object.entries(state.computerDrawCounts)) {
             info += name + " drew " + count + " card(s). ";
@@ -406,6 +413,7 @@
         }
       } else {
         document.getElementById("draw-section").style.display = "none";
+        document.getElementById("your-hand").style.display = "block";
       }
 
       // Update game status message based on phase
@@ -415,7 +423,7 @@
         document.getElementById("status-message").textContent = (state.currentTurn === "player") ? "Your Turn!" : `Waiting for ${state.currentTurn}...`;
       }
 
-      // Update hand display (if not in draw, kitty, or trump phase)
+      // Update hand display (only when not in kitty, draw, or trump phases)
       if (state.gamePhase !== "draw" && state.gamePhase !== "kitty" && state.gamePhase !== "trump") {
         updateYourHand(state.playerHand);
       }
@@ -438,8 +446,8 @@
       // Update scoreboard
       let scoreboardDiv = document.getElementById("scoreboard");
       scoreboardDiv.innerHTML = Object.entries(state.scoreboard)
-          .map(([player, score]) => `<strong>${player}:</strong> ${score}`)
-          .join("<br>");
+        .map(([player, score]) => `<strong>${player}:</strong> ${score}`)
+        .join("<br>");
 
       // Update game log (always visible)
       let logDiv = document.getElementById("game-log");
