@@ -116,11 +116,14 @@
       background: #fff;
       color: #000;
       box-shadow: 2px 2px 10px rgba(255,255,255,0.3);
-      transition: transform 0.3s ease;
+      transition: opacity 0.5s ease, transform 0.5s ease;
       cursor: pointer;
     }
     .card:hover {
       transform: scale(1.1);
+    }
+    .card.played {
+      opacity: 0;
     }
     .card.selected {
       background: #90ee90;
@@ -184,9 +187,6 @@
     <h3>Game Settings</h3>
     <label>
       <input type="checkbox" id="sound-toggle" checked> Enable Sound Effects
-    </label>
-    <label>
-      <input type="range" id="game-speed" min="0.5" max="2" step="0.1" value="1"> Game Speed
     </label>
     <br>
     <button id="start-game-btn">Start Game</button>
@@ -291,15 +291,14 @@
   <script>
     let gameState = {};
     let gameSettings = {
-      sound: true,
-      speed: 1
+      sound: true
     };
     let tutorialSteps = [
       "Step 1: Cards are dealt. Your hand and the kitty are displayed.",
       "Step 2: During bidding, the computer's bid is shown in the Game Log.",
       "Step 3: If you win the bid, select the trump suit.",
       "Step 4: In the kitty phase, select the cards you want to keep.",
-      "Step 5: In the draw phase, your kept cards remain selected and unselected cards will be replaced.",
+      "Step 5: In the draw phase, your kept cards remain selected and unselected cards are replaced.",
       "Step 6: In trick play, after you play a card, the computer responds.",
       "Step 7: All game events are logged in the Game Log area."
     ];
@@ -310,10 +309,30 @@
       trumpDisplay.textContent = trumpSuit ? "Trump: " + trumpSuit : "";
     }
 
+    function sortPlayerHand(handArray, trumpSuit) {
+      // Sort hand: trump cards first (by descending trump value), then non-trump by descending offsuit value.
+      return handArray.sort((a, b) => {
+        const aTrump = is_trump(a, trumpSuit);
+        const bTrump = is_trump(b, trumpSuit);
+        if (aTrump && bTrump) {
+          return get_trump_value(b, trumpSuit) - get_trump_value(a, trumpSuit);
+        } else if (aTrump) {
+          return -1;
+        } else if (bTrump) {
+          return 1;
+        } else {
+          return get_offsuit_value(b) - get_offsuit_value(a);
+        }
+      });
+    }
+
     function updateYourHand(handArray) {
-      // Show player's hand only when not in kitty or draw phase
       let container = document.getElementById("your-hand");
       container.innerHTML = "<strong>Your Cards:</strong>";
+      // Sort hand according to trump strength if trump is set
+      if (gameState.trumpSuit) {
+        handArray = sortPlayerHand(handArray, gameState.trumpSuit);
+      }
       handArray.forEach((card, index) => {
         let div = document.createElement("div");
         div.className = "card";
@@ -329,7 +348,6 @@
     }
 
     function updateDrawHand(handArray) {
-      // Show draw hand only during draw phase; keep selection if already selected
       let container = document.getElementById("draw-hand");
       container.innerHTML = "<strong>Your Hand:</strong>";
       handArray.forEach((card, index) => {
@@ -337,7 +355,7 @@
         div.className = "card" + (card.selected ? " selected" : "");
         div.textContent = card.text;
         div.dataset.index = index;
-        // Allow toggling selection only for unselected cards (if already selected, do not allow changes)
+        // Toggle selection on click (if not already selected, they remain selected)
         div.onclick = function() {
           if (!card.selected) {
             div.classList.toggle("selected");
@@ -355,7 +373,7 @@
         div.className = "card";
         div.textContent = card.text;
         div.dataset.index = index;
-        // Allow toggling selection
+        // Toggle selection on click
         div.onclick = function() {
           div.classList.toggle("selected");
         };
@@ -367,13 +385,12 @@
       gameState = state;
       console.log("DEBUG: Game State", state);
 
-      // Always update trump display
       updateTrumpDisplay(state.trumpSuit);
 
       // Bidding Phase
       if (state.gamePhase === "bidding") {
         document.getElementById("bidding-section").style.display = "block";
-        document.getElementById("bidding-message").textContent = state.biddingMessage || "Place your bid!";
+        document.getElementById("bidding-message").textContent = state.biddingMessage;
         document.getElementById("dealer-info").textContent = "Dealer: " + state.dealer;
       } else {
         document.getElementById("bidding-section").style.display = "none";
@@ -386,7 +403,7 @@
         document.getElementById("trump-section").style.display = "none";
       }
 
-      // Kitty Selection Phase (only show kitty-hand, hide player's hand)
+      // Kitty Selection Phase (only show kitty-hand; hide your-hand)
       if (state.gamePhase === "kitty") {
         document.getElementById("kitty-section").style.display = "block";
         updateKittyHand(state.combinedHand || state.playerHand.concat(state.kitty));
@@ -396,12 +413,11 @@
         document.getElementById("your-hand").style.display = "block";
       }
 
-      // Draw Phase (show only draw-hand)
+      // Draw Phase (only show draw-hand)
       if (state.gamePhase === "draw") {
         document.getElementById("draw-section").style.display = "block";
         updateDrawHand(state.drawHand || state.playerHand);
         document.getElementById("your-hand").style.display = "none";
-        // Display computer draw count if available
         if (state.computerDrawCount !== undefined) {
           document.getElementById("computer-draw-info").textContent = "Computer drew " + state.computerDrawCount + " card(s).";
         } else if (state.computerDrawCounts) {
@@ -416,26 +432,26 @@
         document.getElementById("your-hand").style.display = "block";
       }
 
-      // Update game status message based on phase
+      // Status Message
       if (state.gamePhase === "bidding") {
         document.getElementById("status-message").textContent = state.biddingMessage;
       } else {
         document.getElementById("status-message").textContent = (state.currentTurn === "player") ? "Your Turn!" : `Waiting for ${state.currentTurn}...`;
       }
 
-      // Update hand display (only when not in kitty, draw, or trump phases)
+      // Normal Play: Update player's hand (if not in draw/kitty/trump phase)
       if (state.gamePhase !== "draw" && state.gamePhase !== "kitty" && state.gamePhase !== "trump") {
         updateYourHand(state.playerHand);
       }
 
-      // Update trick area: show current trick during trick play; otherwise clear it.
+      // Trick Area: show current trick during trick play; otherwise clear it.
       let trickArea = document.getElementById("trick-area");
       if (state.gamePhase === "trick" || state.gamePhase === "trickComplete") {
         trickArea.innerHTML = "";
         let trickCards = state.currentTrick.length > 0 ? state.currentTrick : state.lastTrick;
         trickCards.forEach(entry => {
           let div = document.createElement("div");
-          div.className = "card";
+          div.className = "card played"; // Add a "played" class for animation
           div.textContent = entry.card.text;
           trickArea.appendChild(div);
         });
@@ -443,13 +459,13 @@
         trickArea.innerHTML = "";
       }
 
-      // Update scoreboard
+      // Scoreboard
       let scoreboardDiv = document.getElementById("scoreboard");
       scoreboardDiv.innerHTML = Object.entries(state.scoreboard)
         .map(([player, score]) => `<strong>${player}:</strong> ${score}`)
         .join("<br>");
 
-      // Update game log (always visible)
+      // Game Log
       let logDiv = document.getElementById("game-log");
       logDiv.innerHTML = "<strong>Game Log:</strong><br>" + state.gameNotes.slice().reverse().join("<br>");
     }
@@ -477,6 +493,7 @@
     }
 
     function playCard(index) {
+      // Animate card play: clone card element and add fade-out effect
       if (gameSettings.sound) {
         document.getElementById("card-sound").play();
       }
