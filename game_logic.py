@@ -100,7 +100,7 @@ class Game:
         self.kitty = []
         self.trump_suit = None
         self.phase = "bidding"
-        self.biddingMessage = "Place your bid (15, 20, 25, or 30)."  # Displayed only once
+        self.biddingMessage = "Place your bid (15, 20, 25, or 30)."
         self.currentTrick = []
         self.lastTrick = []  # Clear after each trick
         self.trickLog = []
@@ -133,7 +133,6 @@ class Game:
         self.trumpCardsPlayed = []
         self.combinedHand = []
         self.computerDrawCounts = {}
-        # If in 2p and dealer is player, let the computer bid first.
         if self.mode == "2p" and self.dealer == "player":
             comp_id = self.player_order[1]
             comp_bid, comp_trump = self.computer_bid(comp_id)
@@ -151,7 +150,7 @@ class Game:
         else:
             bid = 0
         if bid == 20 and random.random() < 0.3:
-            bid = 25  # Occasionally bid higher if conditions are excellent
+            bid = 25
         suit_counts = {}
         for card in hand:
             suit_counts[card.suit] = suit_counts.get(card.suit, 0) + 1
@@ -247,7 +246,6 @@ class Game:
                     new_hand.append(card)
             if len(new_hand) < 1:
                 new_hand = self.players["player"]["hand"][:1]
-            # Do not clear the selection so that kept cards remain for draw phase.
             self.players["player"]["hand"] = new_hand
             self.biddingMessage = "Kitty selection confirmed. Proceeding to draw phase."
             self.phase = "draw"
@@ -265,13 +263,12 @@ class Game:
                     card.selected = True
                     kept_cards.append(card)
             self.players["player"]["hand"] = kept_cards
-        # In draw phase, players only draw until their hand has 4 cards.
+        # Draw cards for the player until hand has 4 cards
         while len(self.players["player"]["hand"]) < 4 and len(self.deck.cards) > 0:
             self.players["player"]["hand"].append(self.deck.deal(1)[0])
-        # Do not change selection of kept cards.
         for card in self.players["player"]["hand"]:
             card.selected = True
-        # For each computer player, discard all non-trump cards and draw until hand has 4 cards.
+        # For each computer player, discard non-trump cards and draw until hand has 4 cards
         for p in self.players:
             if p != "player":
                 current_hand = self.players[p]["hand"]
@@ -284,13 +281,13 @@ class Game:
                 self.computerDrawCounts[p] = drawn
                 timestamp = time.strftime("%H:%M:%S")
                 self.gameNotes.append(f"{timestamp} - {p} drew {drawn} card(s) in draw phase.")
+        # Delay to allow drawn cards to be seen
+        time.sleep(2.5)
         self.biddingMessage = "Draw complete. Proceeding to trick play."
         self.phase = "trick"
         self.currentTurn = self.bidder
-        # Increase delay to let the player see the new cards before trick play starts.
-        time.sleep(2.5)
         self.auto_play()
-        return
+        return self.to_dict()
 
     def validate_move(self, player, card):
         if not self.currentTrick:
@@ -332,7 +329,7 @@ class Game:
             timestamp = time.strftime("%H:%M:%S")
             self.gameNotes.append(f"{timestamp} - Illegal move attempted by {player}: {message}")
             return
-        # Simulate card play animation by delaying removal slightly
+        # Simulate card play animation by delaying removal
         time.sleep(0.5)
         card = self.players[player]["hand"].pop(cardIndex)
         card.selected = True
@@ -387,7 +384,7 @@ class Game:
         for entry in self.currentTrick:
             if is_trump(entry["card"], self.trump_suit):
                 self.trumpCardsPlayed.append((entry["player"], entry["card"]))
-        # Delay to allow trick play animation to be visible
+        # Delay to allow trick play to be visible
         time.sleep(2.5)
         self.currentTrick = []
         self.lastTrick = []
