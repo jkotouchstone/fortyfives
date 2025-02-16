@@ -31,7 +31,7 @@
     #trump-display {
       color: #FFD700;
     }
-    /* Only display one hand section at a time */
+    /* Only one hand section displayed at a time */
     #your-hand, #draw-hand, #kitty-hand {
       margin-bottom: 20px;
       text-align: center;
@@ -122,12 +122,12 @@
     .card:hover {
       transform: scale(1.1);
     }
-    .card.played {
-      opacity: 0;
-    }
     .card.selected {
       background: #90ee90;
       border: 2px solid #000;
+    }
+    .card.played {
+      opacity: 0;
     }
     /* Buttons */
     button {
@@ -185,6 +185,7 @@
     </label>
     <br>
     <h3>Game Settings</h3>
+    <!-- Removed game speed option -->
     <label>
       <input type="checkbox" id="sound-toggle" checked> Enable Sound Effects
     </label>
@@ -293,6 +294,7 @@
     let gameSettings = {
       sound: true
     };
+    // Tutorial is off by default
     let tutorialSteps = [
       "Step 1: Cards are dealt. Your hand and the kitty are displayed.",
       "Step 2: During bidding, the computer's bid is shown in the Game Log.",
@@ -310,7 +312,6 @@
     }
 
     function sortPlayerHand(handArray, trumpSuit) {
-      // Sort hand: trump cards first (by descending trump value), then non-trump by descending offsuit value.
       return handArray.sort((a, b) => {
         const aTrump = is_trump(a, trumpSuit);
         const bTrump = is_trump(b, trumpSuit);
@@ -329,7 +330,6 @@
     function updateYourHand(handArray) {
       let container = document.getElementById("your-hand");
       container.innerHTML = "<strong>Your Cards:</strong>";
-      // Sort hand according to trump strength if trump is set
       if (gameState.trumpSuit) {
         handArray = sortPlayerHand(handArray, gameState.trumpSuit);
       }
@@ -355,7 +355,7 @@
         div.className = "card" + (card.selected ? " selected" : "");
         div.textContent = card.text;
         div.dataset.index = index;
-        // Toggle selection on click (if not already selected, they remain selected)
+        // Toggle selection on click if not already selected
         div.onclick = function() {
           if (!card.selected) {
             div.classList.toggle("selected");
@@ -373,7 +373,6 @@
         div.className = "card";
         div.textContent = card.text;
         div.dataset.index = index;
-        // Toggle selection on click
         div.onclick = function() {
           div.classList.toggle("selected");
         };
@@ -384,7 +383,6 @@
     function updateUI(state) {
       gameState = state;
       console.log("DEBUG: Game State", state);
-
       updateTrumpDisplay(state.trumpSuit);
 
       // Bidding Phase
@@ -403,7 +401,7 @@
         document.getElementById("trump-section").style.display = "none";
       }
 
-      // Kitty Selection Phase (only show kitty-hand; hide your-hand)
+      // Kitty Selection Phase: show only kitty-hand
       if (state.gamePhase === "kitty") {
         document.getElementById("kitty-section").style.display = "block";
         updateKittyHand(state.combinedHand || state.playerHand.concat(state.kitty));
@@ -413,7 +411,7 @@
         document.getElementById("your-hand").style.display = "block";
       }
 
-      // Draw Phase (only show draw-hand)
+      // Draw Phase: show only draw-hand
       if (state.gamePhase === "draw") {
         document.getElementById("draw-section").style.display = "block";
         updateDrawHand(state.drawHand || state.playerHand);
@@ -439,19 +437,19 @@
         document.getElementById("status-message").textContent = (state.currentTurn === "player") ? "Your Turn!" : `Waiting for ${state.currentTurn}...`;
       }
 
-      // Normal Play: Update player's hand (if not in draw/kitty/trump phase)
+      // Normal Play: update player's hand if not in draw, kitty, or trump phase
       if (state.gamePhase !== "draw" && state.gamePhase !== "kitty" && state.gamePhase !== "trump") {
         updateYourHand(state.playerHand);
       }
 
-      // Trick Area: show current trick during trick play; otherwise clear it.
+      // Trick Area
       let trickArea = document.getElementById("trick-area");
       if (state.gamePhase === "trick" || state.gamePhase === "trickComplete") {
         trickArea.innerHTML = "";
         let trickCards = state.currentTrick.length > 0 ? state.currentTrick : state.lastTrick;
         trickCards.forEach(entry => {
           let div = document.createElement("div");
-          div.className = "card played"; // Add a "played" class for animation
+          div.className = "card played";
           div.textContent = entry.card.text;
           trickArea.appendChild(div);
         });
@@ -493,7 +491,6 @@
     }
 
     function playCard(index) {
-      // Animate card play: clone card element and add fade-out effect
       if (gameSettings.sound) {
         document.getElementById("card-sound").play();
       }
