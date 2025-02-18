@@ -106,7 +106,7 @@
     .card:hover { transform: scale(1.1); }
     .card.selected { background: #90ee90; border: 2px solid #000; }
     .card.played { opacity: 0; }
-    /* Optional highlight for legal moves */
+    /* Optional: highlight legal moves */
     .card.legal { box-shadow: 0 0 15px 3px #00ff00; }
     /* Buttons */
     button {
@@ -378,7 +378,7 @@
       if (state.gamePhase === "bidding") {
         document.getElementById("bidding-section").style.display = "block";
         document.getElementById("bidding-message").textContent = state.biddingMessage;
-        document.getElementById("dealer-info").textContent = "Dealer: " + state.dealer;
+        document.getElementById("dealer-info").textContent = "";
       } else {
         document.getElementById("bidding-section").style.display = "none";
       }
@@ -420,11 +420,8 @@
         document.getElementById("your-hand").style.display = "block";
       }
 
-      if (state.gamePhase === "bidding") {
-        document.getElementById("status-message").textContent = state.biddingMessage;
-      } else {
-        document.getElementById("status-message").textContent = (state.currentTurn === "player") ? "Your Turn!" : `Waiting for ${state.currentTurn}...`;
-      }
+      // Use a simple status message.
+      document.getElementById("status-message").textContent = (state.currentTurn === "player") ? "Your Turn!" : `Waiting for ${state.currentTurn}...`;
 
       if (state.gamePhase !== "draw" && state.gamePhase !== "kitty" && state.gamePhase !== "trump") {
         updateYourHand(state.playerHand);
