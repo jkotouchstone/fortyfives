@@ -102,7 +102,7 @@ class Game:
         self.phase = "bidding"
         self.biddingMessage = "Place your bid (15, 20, 25, or 30)."
         self.currentTrick = []
-        self.lastTrick = []  # Clear after each trick
+        self.lastTrick = []  # We'll copy the current trick here after completion
         self.trickLog = []
         self.gameNotes = []
         self.handScores = []
@@ -230,15 +230,13 @@ class Game:
             self.biddingMessage = f"Trump is set to {suit}."
             if self.bidder == "player":
                 self.phase = "kitty"
-                # In kitty phase, we now send the original hand and kitty separately.
             else:
                 self.phase = "draw"
         return
 
     def confirm_kitty(self, keptIndices):
         if self.bidder == "player":
-            # For simplicity, assume the UI sends indices separately for original hand and kitty.
-            # Here we assume the combined selection is already done on the front end.
+            # For kitty selection, the UI sends indices from the combined display.
             self.combinedHand = self.players["player"]["hand"] + self.kitty
             selected = []
             for i in keptIndices:
@@ -248,7 +246,6 @@ class Game:
                     selected.append(card)
             if len(selected) < 1:
                 selected = self.players["player"]["hand"][:1]
-            # Update player's hand with the kept cards.
             self.players["player"]["hand"] = selected
             self.biddingMessage = "Kitty selection confirmed. Proceeding to draw phase."
             self.phase = "draw"
@@ -387,13 +384,15 @@ class Game:
         trick_summary += f". Winner: {winner}."
         self.gameNotes.append(trick_summary)
         self.trickLog.append(trick_summary)
+        # Copy current trick to lastTrick so the UI can display played cards
+        self.lastTrick = self.currentTrick.copy()
         self.players[winner]["tricks"].append(self.currentTrick.copy())
         for entry in self.currentTrick:
             if is_trump(entry["card"], self.trump_suit):
                 self.trumpCardsPlayed.append((entry["player"], entry["card"]))
         time.sleep(2.5)  # Delay to show trick results.
         self.currentTrick = []
-        self.lastTrick = []
+        # Do not clear lastTrick immediately so the UI can show computer's card.
         if all(len(self.players[p]["hand"]) == 0 for p in self.players):
             return self.complete_hand()
         else:
@@ -488,7 +487,6 @@ class Game:
             "bidder": self.bidder
         }
         if self.phase == "kitty" and self.bidder == "player":
-            # Send the original hand and kitty separately.
             state["playerHand"] = [card.to_dict() for card in self.players["player"]["hand"]]
             state["kitty"] = [card.to_dict() for card in self.kitty]
         if self.phase == "draw":
