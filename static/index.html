@@ -229,7 +229,7 @@
     <!-- Draw Phase Section -->
     <div id="draw-section" class="section">
       <h2>Draw Phase</h2>
-      <p>Your kept cards remain selected. Unselected cards will be replaced.</p>
+      <p>Your kept cards remain selected. Unselected cards will be replaced to complete your hand to 5 cards.</p>
       <div id="draw-hand"></div>
       <button id="confirm-draw-btn">Confirm Draw</button>
       <div id="computer-draw-info"></div>
@@ -246,7 +246,7 @@
     <button id="reset-game-btn">Reset Game</button>
   </div>
 
-  <!-- Audio Elements for Sound Effects (ensure these files exist in your static folder) -->
+  <!-- Audio Elements for Sound Effects -->
   <audio id="card-sound" src="card-play.mp3" preload="auto"></audio>
   <audio id="win-sound" src="trick-win.mp3" preload="auto"></audio>
 
@@ -259,13 +259,12 @@
       "Step 2: During bidding, the computer's bid is shown in the Game Log.",
       "Step 3: If you win the bid, select the trump suit.",
       "Step 4: In the kitty phase, select the cards you want to keep.",
-      "Step 5: In the draw phase, your kept cards remain selected and unselected cards are replaced.",
+      "Step 5: In the draw phase, your kept cards remain selected and unselected cards are replaced to complete your hand to 5 cards.",
       "Step 6: In trick play, after you play a card, the computer responds.",
       "Step 7: All game events are logged in the Game Log area."
     ];
     let currentTutorialStep = 0;
 
-    // Helper functions for sorting (must match game_logic.py).
     function is_trump(card, trumpSuit) {
       if (card.suit === trumpSuit) return true;
       if (card.suit === "♥" && card.rank === "A") return true;
@@ -325,11 +324,9 @@
       container.innerHTML = "<strong>Your Hand:</strong>";
       handArray.forEach((card, index) => {
         let div = document.createElement("div");
-        // The kept cards remain selected (and will have a CSS class "selected")
         div.className = "card" + (card.selected ? " selected" : "");
         div.textContent = card.text;
         div.dataset.index = index;
-        // Allow toggling selection only for unkept cards
         div.onclick = function() {
           if (!card.selected) {
             div.classList.toggle("selected");
@@ -347,9 +344,7 @@
         div.className = "card";
         div.textContent = card.text;
         div.dataset.index = index;
-        div.onclick = function() {
-          div.classList.toggle("selected");
-        };
+        div.onclick = function() { div.classList.toggle("selected"); };
         container.appendChild(div);
       });
     }
@@ -359,7 +354,6 @@
       console.log("DEBUG: Game State", state);
       updateTrumpDisplay(state.trumpSuit);
 
-      // Bidding Phase
       if (state.gamePhase === "bidding") {
         document.getElementById("bidding-section").style.display = "block";
         document.getElementById("bidding-message").textContent = state.biddingMessage;
@@ -368,14 +362,12 @@
         document.getElementById("bidding-section").style.display = "none";
       }
 
-      // Trump Selection Phase
       if (state.gamePhase === "trump") {
         document.getElementById("trump-section").style.display = "block";
       } else {
         document.getElementById("trump-section").style.display = "none";
       }
 
-      // Kitty Selection Phase: show only kitty-hand
       if (state.gamePhase === "kitty") {
         document.getElementById("kitty-section").style.display = "block";
         updateKittyHand(state.combinedHand || state.playerHand.concat(state.kitty));
@@ -385,7 +377,6 @@
         document.getElementById("your-hand").style.display = "block";
       }
 
-      // Draw Phase: show only draw-hand
       if (state.gamePhase === "draw") {
         document.getElementById("draw-section").style.display = "block";
         updateDrawHand(state.drawHand || state.playerHand);
@@ -404,19 +395,16 @@
         document.getElementById("your-hand").style.display = "block";
       }
 
-      // Status Message
       if (state.gamePhase === "bidding") {
         document.getElementById("status-message").textContent = state.biddingMessage;
       } else {
         document.getElementById("status-message").textContent = (state.currentTurn === "player") ? "Your Turn!" : `Waiting for ${state.currentTurn}...`;
       }
 
-      // Normal Play: update player's hand if not in draw/kitty/trump phase
       if (state.gamePhase !== "draw" && state.gamePhase !== "kitty" && state.gamePhase !== "trump") {
         updateYourHand(state.playerHand);
       }
 
-      // Trick Area: show played cards during trick play
       let trickArea = document.getElementById("trick-area");
       if (state.gamePhase === "trick" || state.gamePhase === "trickComplete") {
         trickArea.innerHTML = "";
@@ -431,13 +419,11 @@
         trickArea.innerHTML = "";
       }
 
-      // Scoreboard
       let scoreboardDiv = document.getElementById("scoreboard");
       scoreboardDiv.innerHTML = Object.entries(state.scoreboard)
         .map(([player, score]) => `<strong>${player}:</strong> ${score}`)
         .join("<br>");
 
-      // Game Log
       let logDiv = document.getElementById("game-log");
       logDiv.innerHTML = "<strong>Game Log:</strong><br>" + state.gameNotes.slice().reverse().join("<br>");
     }
