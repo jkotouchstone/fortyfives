@@ -85,7 +85,7 @@
       padding: 10px;
       display: none;
     }
-    /* Card styling with a flip animation effect */
+    /* Card styling with flip animation effect */
     .card {
       display: inline-block;
       width: 80px;
@@ -106,7 +106,7 @@
     .card:hover { transform: scale(1.1); }
     .card.selected { background: #90ee90; border: 2px solid #000; }
     .card.played { opacity: 0; }
-    /* Additional highlight for legal moves (optional) */
+    /* Optional highlight for legal moves */
     .card.legal { box-shadow: 0 0 15px 3px #00ff00; }
     /* Buttons */
     button {
@@ -151,7 +151,6 @@
     </label>
     <br>
     <h3>Game Settings</h3>
-    <!-- Game speed option removed -->
     <label>
       <input type="checkbox" id="sound-toggle" checked> Enable Sound Effects
     </label>
@@ -258,7 +257,6 @@
   <script>
     let gameState = {};
     let gameSettings = { sound: true };
-
     // Tutorial defaults to off.
     let tutorialSteps = [
       "Step 1: Cards are dealt. Your hand and the kitty are displayed.",
@@ -266,12 +264,11 @@
       "Step 3: If you win the bid, select the trump suit.",
       "Step 4: In the kitty phase, you will see two groups: Your Original Hand and Kitty Cards. Select the cards you wish to keep.",
       "Step 5: In the draw phase, your kept cards remain selected and the rest are drawn so that your hand totals 5 cards.",
-      "Step 6: In trick play, when you click a card, that card flips and moves to the trick area; the computer's card is also shown.",
+      "Step 6: In trick play, when you click a card, that card flips and moves to the trick area; the computer's played card is also shown.",
       "Step 7: All game events are logged in the Game Log area."
     ];
     let currentTutorialStep = 0;
 
-    // Helper functions for sorting (should match game_logic.py)
     function is_trump(card, trumpSuit) {
       if (card.suit === trumpSuit) return true;
       if (card.suit === "♥" && card.rank === "A") return true;
