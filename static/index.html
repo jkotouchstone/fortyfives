@@ -5,7 +5,7 @@
   <title>45's - Enhanced Card Game</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    /* Basic styling */
+    /* Basic styling and responsive design */
     body {
       font-family: sans-serif;
       background-color: #4CAF50;
@@ -36,7 +36,7 @@
       padding: 5px;
       border-bottom: 1px solid #fff;
     }
-    /* For kitty phase, we display two sections */
+    /* In kitty phase, display two groups with headers */
     .kitty-group { margin-bottom: 10px; }
     .kitty-group h4 { margin: 5px 0; }
     #trick-area {
@@ -85,7 +85,7 @@
       padding: 10px;
       display: none;
     }
-    /* Card styling */
+    /* Card styling with a flip animation effect */
     .card {
       display: inline-block;
       width: 80px;
@@ -100,12 +100,14 @@
       background: #fff;
       color: #000;
       box-shadow: 2px 2px 10px rgba(255,255,255,0.3);
-      transition: opacity 0.5s ease, transform 0.5s ease;
+      transition: transform 0.5s ease, opacity 0.5s ease;
       cursor: pointer;
     }
     .card:hover { transform: scale(1.1); }
     .card.selected { background: #90ee90; border: 2px solid #000; }
     .card.played { opacity: 0; }
+    /* Additional highlight for legal moves (optional) */
+    .card.legal { box-shadow: 0 0 15px 3px #00ff00; }
     /* Buttons */
     button {
       padding: 12px 18px;
@@ -128,8 +130,8 @@
       text-align: left;
       display: block;
     }
-    /* Responsive styling */
-    @media (max-width:600px) {
+    /* Responsive adjustments for smaller screens */
+    @media (max-width: 600px) {
       .card { width: 60px; height: 90px; line-height: 90px; font-size: 18px; }
       button { padding: 10px 14px; font-size: 16px; }
     }
@@ -149,7 +151,6 @@
     </label>
     <br>
     <h3>Game Settings</h3>
-    <!-- Game speed option removed -->
     <label>
       <input type="checkbox" id="sound-toggle" checked> Enable Sound Effects
     </label>
@@ -174,7 +175,7 @@
     <button id="hide-instructions-btn">Hide Detailed Rules</button>
   </div>
 
-  <!-- Tutorial Modal -->
+  <!-- Tutorial Modal (Interactive Help) -->
   <div id="tutorial-modal">
     <div id="tutorial-content">
       <h2>Welcome to 45's!</h2>
@@ -224,7 +225,7 @@
     <!-- Kitty Selection Section -->
     <div id="kitty-section" class="section">
       <h2>Kitty Selection</h2>
-      <p>The following cards are from your original hand and from the kitty:</p>
+      <p>The following groups show your original hand and the kitty cards. Select the cards you want to keep (remember, you must keep at least one from your original hand):</p>
       <div id="kitty-hand"></div>
       <button id="confirm-kitty-btn">Confirm Kitty</button>
     </div>
@@ -238,7 +239,7 @@
       <div id="computer-draw-info"></div>
     </div>
 
-    <!-- Trick Play Section (Normal Play) -->
+    <!-- Trick Play Section -->
     <div id="your-hand"></div>
     <div id="trick-area"></div>
     <div id="scoreboard-section">
@@ -261,13 +262,14 @@
       "Step 1: Cards are dealt. Your hand and the kitty are displayed.",
       "Step 2: During bidding, the computer's bid is shown in the Game Log.",
       "Step 3: If you win the bid, select the trump suit.",
-      "Step 4: In the kitty phase, you will see two groups: your original hand and the kitty cards. Select the ones you want to keep (keeping at least one from your hand).",
-      "Step 5: In the draw phase, your kept cards remain selected and the rest are replaced to form a 5‑card hand.",
-      "Step 6: In trick play, after you play a card, the computer responds.",
+      "Step 4: In the kitty phase, you will see two groups: Your Original Hand and Kitty Cards. Select the cards you wish to keep.",
+      "Step 5: In the draw phase, your kept cards remain selected and the remaining cards are drawn so that your hand totals 5 cards.",
+      "Step 6: In trick play, when you play a card, it flips and moves to the trick area, and you can see the computer's play as well.",
       "Step 7: All game events are logged in the Game Log area."
     ];
     let currentTutorialStep = 0;
 
+    // Helper functions for sorting – must match game_logic.py.
     function is_trump(card, trumpSuit) {
       if (card.suit === trumpSuit) return true;
       if (card.suit === "♥" && card.rank === "A") return true;
@@ -339,7 +341,7 @@
       });
     }
 
-    // In kitty phase, display two groups: original hand and kitty cards.
+    // In kitty phase, display two groups: one for original hand and one for kitty cards.
     function updateKittyHand(originalHand, kitty) {
       let container = document.getElementById("kitty-hand");
       container.innerHTML = "";
@@ -350,7 +352,7 @@
         let div = document.createElement("div");
         div.className = "card";
         div.textContent = card.text;
-        div.dataset.index = index; // these indices are for original hand
+        div.dataset.index = index; // indices for original hand
         div.onclick = function() { div.classList.toggle("selected"); };
         origDiv.appendChild(div);
       });
@@ -363,8 +365,7 @@
         div.className = "card";
         div.textContent = card.text;
         div.dataset.index = index; // indices for kitty cards
-        // For clarity, add a different background color.
-        div.style.backgroundColor = "#ffe6e6";
+        div.style.backgroundColor = "#ffe6e6"; // different background to indicate kitty
         div.onclick = function() { div.classList.toggle("selected"); };
         kittyDiv.appendChild(div);
       });
@@ -392,11 +393,9 @@
 
       if (state.gamePhase === "kitty") {
         document.getElementById("kitty-section").style.display = "block";
-        // Expect state to include both "playerHand" and "kitty"
         if (state.playerHand && state.kitty) {
           updateKittyHand(state.playerHand, state.kitty);
         } else {
-          // Fallback: combine and remove duplicates.
           updateKittyHand(state.playerHand || [], state.kitty || []);
         }
         document.getElementById("your-hand").style.display = "none";
@@ -495,8 +494,6 @@
 
     function confirmKitty() {
       let container = document.getElementById("kitty-hand");
-      // For kitty phase, assume that the UI sends two arrays (one for original hand, one for kitty)
-      // For simplicity, we send combined indices from the two groups.
       let selectedDivs = container.querySelectorAll(".card.selected");
       let indices = [];
       selectedDivs.forEach(div => indices.push(parseInt(div.dataset.index)));
