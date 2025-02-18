@@ -102,7 +102,7 @@ class Game:
         self.phase = "bidding"
         self.biddingMessage = "Place your bid (15, 20, 25, or 30)."
         self.currentTrick = []
-        self.lastTrick = []  # We'll copy the current trick here after completion
+        self.lastTrick = []  # Copy of last trick for display
         self.trickLog = []
         self.gameNotes = []
         self.handScores = []
@@ -180,7 +180,7 @@ class Game:
                 else:
                     if player_bid != 0 and player_bid != comp_bid + 5:
                         self.biddingMessage = f"As dealer, you must pass or bid {comp_bid + 5}."
-                        return
+                        return self.to_dict()
                     if player_bid == 0:
                         self.bidder = comp_id
                         self.bid = comp_bid
@@ -222,7 +222,7 @@ class Game:
                     self.gameNotes.append(f"{timestamp} - {comp_id} selected {comp_trump} as trump.")
                     self.phase = "draw"
             self.currentTurn = self.bidder
-        return
+        return self.to_dict()
 
     def select_trump(self, suit):
         if self.phase == "trump":
@@ -236,7 +236,7 @@ class Game:
 
     def confirm_kitty(self, keptIndices):
         if self.bidder == "player":
-            # For kitty selection, the UI sends indices from the combined display.
+            # The UI sends indices from the combined display.
             self.combinedHand = self.players["player"]["hand"] + self.kitty
             selected = []
             for i in keptIndices:
@@ -252,10 +252,9 @@ class Game:
             self.combinedHand = []
         else:
             self.phase = "draw"
-        return
+        return self.to_dict()
 
     def confirm_draw(self, keptIndices=None):
-        # If no indices provided, keep entire hand.
         if keptIndices is None or len(keptIndices) == 0:
             kept_cards = self.players["player"]["hand"]
         else:
@@ -268,12 +267,10 @@ class Game:
         if len(kept_cards) < 1:
             kept_cards = self.players["player"]["hand"][:1]
         self.players["player"]["hand"] = kept_cards
-        # Draw cards until the player's hand has 5 cards.
         while len(self.players["player"]["hand"]) < 5 and len(self.deck.cards) > 0:
             self.players["player"]["hand"].append(self.deck.deal(1)[0])
         for card in self.players["player"]["hand"]:
             card.selected = True
-        # For each computer player, discard non‑trump cards and draw until hand has 5 cards.
         for p in self.players:
             if p != "player":
                 current_hand = self.players[p]["hand"]
@@ -289,7 +286,7 @@ class Game:
         self.biddingMessage = "Draw complete. Proceeding to trick play."
         self.phase = "trick"
         self.currentTurn = self.bidder
-        time.sleep(2.5)  # Delay so new hand is visible before trick play starts.
+        time.sleep(2.5)
         if self.currentTurn != "player":
             self.auto_play()
         return self.to_dict()
@@ -334,7 +331,7 @@ class Game:
             timestamp = time.strftime("%H:%M:%S")
             self.gameNotes.append(f"{timestamp} - Illegal move attempted by {player}: {message}")
             return
-        time.sleep(0.5)  # Simulate card play animation delay.
+        time.sleep(0.5)
         card = self.players[player]["hand"].pop(cardIndex)
         card.selected = True
         self.currentTrick.append({"player": player, "card": card})
@@ -384,15 +381,13 @@ class Game:
         trick_summary += f". Winner: {winner}."
         self.gameNotes.append(trick_summary)
         self.trickLog.append(trick_summary)
-        # Copy current trick to lastTrick so the UI can display played cards
         self.lastTrick = self.currentTrick.copy()
         self.players[winner]["tricks"].append(self.currentTrick.copy())
         for entry in self.currentTrick:
             if is_trump(entry["card"], self.trump_suit):
                 self.trumpCardsPlayed.append((entry["player"], entry["card"]))
-        time.sleep(2.5)  # Delay to show trick results.
+        time.sleep(2.5)
         self.currentTrick = []
-        # Do not clear lastTrick immediately so the UI can show computer's card.
         if all(len(self.players[p]["hand"]) == 0 for p in self.players):
             return self.complete_hand()
         else:
