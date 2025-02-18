@@ -36,6 +36,9 @@
       padding: 5px;
       border-bottom: 1px solid #fff;
     }
+    /* For kitty phase, we display two sections */
+    .kitty-group { margin-bottom: 10px; }
+    .kitty-group h4 { margin: 5px 0; }
     #trick-area {
       margin: 20px 0;
       min-height: 100px;
@@ -221,7 +224,7 @@
     <!-- Kitty Selection Section -->
     <div id="kitty-section" class="section">
       <h2>Kitty Selection</h2>
-      <p>Select the cards you want to keep from your combined hand (5 cards total):</p>
+      <p>The following cards are from your original hand and from the kitty:</p>
       <div id="kitty-hand"></div>
       <button id="confirm-kitty-btn">Confirm Kitty</button>
     </div>
@@ -258,8 +261,8 @@
       "Step 1: Cards are dealt. Your hand and the kitty are displayed.",
       "Step 2: During bidding, the computer's bid is shown in the Game Log.",
       "Step 3: If you win the bid, select the trump suit.",
-      "Step 4: In the kitty phase, select the cards you want to keep.",
-      "Step 5: In the draw phase, your kept cards remain selected and unselected cards are replaced to complete your hand to 5 cards.",
+      "Step 4: In the kitty phase, you will see two groups: your original hand and the kitty cards. Select the ones you want to keep (keeping at least one from your hand).",
+      "Step 5: In the draw phase, your kept cards remain selected and the rest are replaced to form a 5‑card hand.",
       "Step 6: In trick play, after you play a card, the computer responds.",
       "Step 7: All game events are logged in the Game Log area."
     ];
@@ -336,17 +339,36 @@
       });
     }
 
-    function updateKittyHand(handArray) {
+    // In kitty phase, display two groups: original hand and kitty cards.
+    function updateKittyHand(originalHand, kitty) {
       let container = document.getElementById("kitty-hand");
-      container.innerHTML = "<strong>Combined Hand:</strong>";
-      handArray.forEach((card, index) => {
+      container.innerHTML = "";
+      let origDiv = document.createElement("div");
+      origDiv.className = "kitty-group";
+      origDiv.innerHTML = "<h4>Your Original Hand:</h4>";
+      originalHand.forEach((card, index) => {
         let div = document.createElement("div");
         div.className = "card";
         div.textContent = card.text;
-        div.dataset.index = index;
+        div.dataset.index = index; // these indices are for original hand
         div.onclick = function() { div.classList.toggle("selected"); };
-        container.appendChild(div);
+        origDiv.appendChild(div);
       });
+      container.appendChild(origDiv);
+      let kittyDiv = document.createElement("div");
+      kittyDiv.className = "kitty-group";
+      kittyDiv.innerHTML = "<h4>Kitty Cards:</h4>";
+      kitty.forEach((card, index) => {
+        let div = document.createElement("div");
+        div.className = "card";
+        div.textContent = card.text;
+        div.dataset.index = index; // indices for kitty cards
+        // For clarity, add a different background color.
+        div.style.backgroundColor = "#ffe6e6";
+        div.onclick = function() { div.classList.toggle("selected"); };
+        kittyDiv.appendChild(div);
+      });
+      container.appendChild(kittyDiv);
     }
 
     function updateUI(state) {
@@ -370,7 +392,13 @@
 
       if (state.gamePhase === "kitty") {
         document.getElementById("kitty-section").style.display = "block";
-        updateKittyHand(state.combinedHand || state.playerHand.concat(state.kitty));
+        // Expect state to include both "playerHand" and "kitty"
+        if (state.playerHand && state.kitty) {
+          updateKittyHand(state.playerHand, state.kitty);
+        } else {
+          // Fallback: combine and remove duplicates.
+          updateKittyHand(state.playerHand || [], state.kitty || []);
+        }
         document.getElementById("your-hand").style.display = "none";
       } else {
         document.getElementById("kitty-section").style.display = "none";
@@ -467,6 +495,8 @@
 
     function confirmKitty() {
       let container = document.getElementById("kitty-hand");
+      // For kitty phase, assume that the UI sends two arrays (one for original hand, one for kitty)
+      // For simplicity, we send combined indices from the two groups.
       let selectedDivs = container.querySelectorAll(".card.selected");
       let indices = [];
       selectedDivs.forEach(div => indices.push(parseInt(div.dataset.index)));
