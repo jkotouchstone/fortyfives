@@ -230,30 +230,16 @@ class Game:
             self.biddingMessage = f"Trump is set to {suit}."
             if self.bidder == "player":
                 self.phase = "kitty"
-                # Instead of combining, we now leave playerHand and kitty separate
+                # In kitty phase, we now send the original hand and kitty separately.
             else:
                 self.phase = "draw"
         return
 
     def confirm_kitty(self, keptIndices):
         if self.bidder == "player":
-            # In kitty phase, we now keep the player's original hand and kitty separately.
-            new_hand = []
-            for i in keptIndices:
-                # We assume the indices refer to the combined list displayed by the UI.
-                # The UI now displays two groups separately, so the front end will send indices with a prefix.
-                # For simplicity, here we assume the front end sends an object like {source:"original" or "kitty", index: X}
-                # If not provided, we fallback to combining.
-                # For this update, we assume the UI sends indices for original hand and kitty separately.
-                pass
-            # For now, we simply combine (but then in to_dict we send them separately)
-            # We'll store the combined hand in a separate variable
+            # For simplicity, assume the UI sends indices separately for original hand and kitty.
+            # Here we assume the combined selection is already done on the front end.
             self.combinedHand = self.players["player"]["hand"] + self.kitty
-            # In a real update, you’d process the indices separately.
-            # For simplicity, we assume the player has selected the desired cards.
-            # Remove duplicates if any (they are distinct deals, so there shouldn't be duplicates)
-            # We'll simply keep the selected cards by filtering the combined hand by the indices sent.
-            # Here we assume keptIndices refer to the combinedHand.
             selected = []
             for i in keptIndices:
                 if i < len(self.combinedHand):
@@ -262,17 +248,17 @@ class Game:
                     selected.append(card)
             if len(selected) < 1:
                 selected = self.players["player"]["hand"][:1]
-            # Now update the player's hand to be the kept cards.
+            # Update player's hand with the kept cards.
             self.players["player"]["hand"] = selected
             self.biddingMessage = "Kitty selection confirmed. Proceeding to draw phase."
             self.phase = "draw"
-            self.combinedHand = []  # Clear combined hand
+            self.combinedHand = []
         else:
             self.phase = "draw"
         return
 
     def confirm_draw(self, keptIndices=None):
-        # If no indices provided, keep the entire hand.
+        # If no indices provided, keep entire hand.
         if keptIndices is None or len(keptIndices) == 0:
             kept_cards = self.players["player"]["hand"]
         else:
@@ -290,7 +276,7 @@ class Game:
             self.players["player"]["hand"].append(self.deck.deal(1)[0])
         for card in self.players["player"]["hand"]:
             card.selected = True
-        # For each computer player, discard non-trump cards and draw until hand has 5 cards.
+        # For each computer player, discard non‑trump cards and draw until hand has 5 cards.
         for p in self.players:
             if p != "player":
                 current_hand = self.players[p]["hand"]
@@ -501,8 +487,8 @@ class Game:
             "mode": self.mode,
             "bidder": self.bidder
         }
-        # In kitty phase, send the player's original hand and kitty separately.
         if self.phase == "kitty" and self.bidder == "player":
+            # Send the original hand and kitty separately.
             state["playerHand"] = [card.to_dict() for card in self.players["player"]["hand"]]
             state["kitty"] = [card.to_dict() for card in self.kitty]
         if self.phase == "draw":
