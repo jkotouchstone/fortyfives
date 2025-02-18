@@ -255,7 +255,7 @@ class Game:
         return
 
     def confirm_draw(self, keptIndices=None):
-        # If no indices provided, keep the entire hand.
+        # If no indices are provided, keep the entire hand so that it doesn't disappear.
         if keptIndices is None or len(keptIndices) == 0:
             kept_cards = self.players["player"]["hand"]
         else:
@@ -265,18 +265,22 @@ class Game:
                     card = self.players["player"]["hand"][i]
                     card.selected = True
                     kept_cards.append(card)
+        # Enforce that at least one card is kept
+        if len(kept_cards) < 1:
+            kept_cards = self.players["player"]["hand"][:1]
         self.players["player"]["hand"] = kept_cards
-        # Draw cards for the player until hand has 4 cards.
-        while len(self.players["player"]["hand"]) < 4 and len(self.deck.cards) > 0:
+        # Draw cards until the player's hand has 5 cards
+        while len(self.players["player"]["hand"]) < 5 and len(self.deck.cards) > 0:
             self.players["player"]["hand"].append(self.deck.deal(1)[0])
+        # Mark all player's cards as kept (so they remain selected)
         for card in self.players["player"]["hand"]:
             card.selected = True
-        # For each computer player, discard non‑trump cards and draw until hand has 4 cards.
+        # For each computer player, discard non‑trump cards and draw until hand has 5 cards.
         for p in self.players:
             if p != "player":
                 current_hand = self.players[p]["hand"]
                 trump_cards = [card for card in current_hand if is_trump(card, self.trump_suit)]
-                drawn = 4 - len(trump_cards)
+                drawn = 5 - len(trump_cards)
                 for _ in range(drawn):
                     if len(self.deck.cards) > 0:
                         trump_cards.append(self.deck.deal(1)[0])
@@ -287,8 +291,8 @@ class Game:
         self.biddingMessage = "Draw complete. Proceeding to trick play."
         self.phase = "trick"
         self.currentTurn = self.bidder
+        // Delay so that the new hand is visible before trick play starts
         time.sleep(2.5)
-        # Only auto-play if the current turn is not player.
         if self.currentTurn != "player":
             self.auto_play()
         return self.to_dict()
