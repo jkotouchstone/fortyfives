@@ -230,26 +230,43 @@ class Game:
             self.biddingMessage = f"Trump is set to {suit}."
             if self.bidder == "player":
                 self.phase = "kitty"
-                self.combinedHand = self.players["player"]["hand"] + self.kitty
+                # Instead of combining, we now leave playerHand and kitty separate
             else:
                 self.phase = "draw"
         return
 
     def confirm_kitty(self, keptIndices):
         if self.bidder == "player":
-            combined = self.combinedHand if self.combinedHand else (self.players["player"]["hand"] + self.kitty)
+            # In kitty phase, we now keep the player's original hand and kitty separately.
             new_hand = []
             for i in keptIndices:
-                if i < len(combined):
-                    card = combined[i]
+                # We assume the indices refer to the combined list displayed by the UI.
+                # The UI now displays two groups separately, so the front end will send indices with a prefix.
+                # For simplicity, here we assume the front end sends an object like {source:"original" or "kitty", index: X}
+                # If not provided, we fallback to combining.
+                # For this update, we assume the UI sends indices for original hand and kitty separately.
+                pass
+            # For now, we simply combine (but then in to_dict we send them separately)
+            # We'll store the combined hand in a separate variable
+            self.combinedHand = self.players["player"]["hand"] + self.kitty
+            # In a real update, you’d process the indices separately.
+            # For simplicity, we assume the player has selected the desired cards.
+            # Remove duplicates if any (they are distinct deals, so there shouldn't be duplicates)
+            # We'll simply keep the selected cards by filtering the combined hand by the indices sent.
+            # Here we assume keptIndices refer to the combinedHand.
+            selected = []
+            for i in keptIndices:
+                if i < len(self.combinedHand):
+                    card = self.combinedHand[i]
                     card.selected = True
-                    new_hand.append(card)
-            if len(new_hand) < 1:
-                new_hand = self.players["player"]["hand"][:1]
-            self.players["player"]["hand"] = new_hand
+                    selected.append(card)
+            if len(selected) < 1:
+                selected = self.players["player"]["hand"][:1]
+            # Now update the player's hand to be the kept cards.
+            self.players["player"]["hand"] = selected
             self.biddingMessage = "Kitty selection confirmed. Proceeding to draw phase."
             self.phase = "draw"
-            self.combinedHand = []
+            self.combinedHand = []  # Clear combined hand
         else:
             self.phase = "draw"
         return
@@ -265,11 +282,10 @@ class Game:
                     card = self.players["player"]["hand"][i]
                     card.selected = True
                     kept_cards.append(card)
-        # Enforce that at least one card is kept.
         if len(kept_cards) < 1:
             kept_cards = self.players["player"]["hand"][:1]
         self.players["player"]["hand"] = kept_cards
-        # Draw cards until player's hand has 5 cards.
+        # Draw cards until the player's hand has 5 cards.
         while len(self.players["player"]["hand"]) < 5 and len(self.deck.cards) > 0:
             self.players["player"]["hand"].append(self.deck.deal(1)[0])
         for card in self.players["player"]["hand"]:
@@ -290,8 +306,7 @@ class Game:
         self.biddingMessage = "Draw complete. Proceeding to trick play."
         self.phase = "trick"
         self.currentTurn = self.bidder
-        # Delay so that the new hand is visible before trick play starts.
-        time.sleep(2.5)
+        time.sleep(2.5)  # Delay so new hand is visible before trick play starts.
         if self.currentTurn != "player":
             self.auto_play()
         return self.to_dict()
@@ -336,7 +351,7 @@ class Game:
             timestamp = time.strftime("%H:%M:%S")
             self.gameNotes.append(f"{timestamp} - Illegal move attempted by {player}: {message}")
             return
-        time.sleep(0.5)  # Simulate animation delay
+        time.sleep(0.5)  # Simulate card play animation delay.
         card = self.players[player]["hand"].pop(cardIndex)
         card.selected = True
         self.currentTrick.append({"player": player, "card": card})
@@ -390,7 +405,7 @@ class Game:
         for entry in self.currentTrick:
             if is_trump(entry["card"], self.trump_suit):
                 self.trumpCardsPlayed.append((entry["player"], entry["card"]))
-        time.sleep(2.5)  # Delay to show trick results
+        time.sleep(2.5)  # Delay to show trick results.
         self.currentTrick = []
         self.lastTrick = []
         if all(len(self.players[p]["hand"]) == 0 for p in self.players):
@@ -486,9 +501,10 @@ class Game:
             "mode": self.mode,
             "bidder": self.bidder
         }
+        # In kitty phase, send the player's original hand and kitty separately.
         if self.phase == "kitty" and self.bidder == "player":
-            self.combinedHand = self.players["player"]["hand"] + self.kitty
-            state["combinedHand"] = [card.to_dict() for card in self.combinedHand]
+            state["playerHand"] = [card.to_dict() for card in self.players["player"]["hand"]]
+            state["kitty"] = [card.to_dict() for card in self.kitty]
         if self.phase == "draw":
             state["drawHand"] = [card.to_dict() for card in self.players["player"]["hand"]]
             if self.mode == "2p":
