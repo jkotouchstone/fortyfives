@@ -99,7 +99,7 @@ class Game:
         self.kitty = []
         self.trump_suit = None
         self.phase = "bidding"
-        # Set a single bidding prompt
+        # Bidding prompt now appears once
         self.biddingMessage = "Place your bid (15, 20, 25, or 30). Dealer: " + self.dealer
         self.currentTrick = []
         self.lastTrick = []
@@ -115,7 +115,8 @@ class Game:
 
     def next_player(self, current):
         idx = self.player_order.index(current)
-        return self.player_order[(idx + 1) % len(self.player_order)]
+        # Default to "player" if somehow undefined
+        return self.player_order[(idx + 1) % len(self.player_order)] if self.player_order else "player"
 
     def deal_hands(self):
         self.deck = Deck()
@@ -125,7 +126,6 @@ class Game:
             self.players[p]["tricks"] = []
         self.kitty = self.deck.deal(3)
         self.phase = "bidding"
-        # Bidding prompt appears once.
         self.biddingMessage = "Place your bid (15, 20, 25, or 30). Dealer: " + self.dealer
         self.currentTrick = []
         self.lastTrick = []
@@ -174,7 +174,7 @@ class Game:
                 if comp_bid == 0:
                     self.bidder = "player"
                     self.bid = 15
-                    self.biddingMessage = f"Dealer automatically bid 15. Please select the trump suit. Dealer: {self.dealer}"
+                    self.biddingMessage = "Dealer automatically bid 15. Please select the trump suit. Dealer: " + self.dealer
                     self.phase = "trump"
                 else:
                     if player_bid != 0 and player_bid != comp_bid + 5:
@@ -229,7 +229,6 @@ class Game:
 
     def confirm_kitty(self, keptIndices):
         if self.bidder == "player":
-            # Combine player's hand and kitty for display; the UI should send indices from the combined list.
             self.combinedHand = self.players["player"]["hand"] + self.kitty
             selected = []
             for i in keptIndices:
@@ -248,7 +247,6 @@ class Game:
         return self.to_dict()
 
     def confirm_draw(self, keptIndices=None):
-        # Retain selected cards from player's hand
         if keptIndices is None or len(keptIndices) == 0:
             kept_cards = self.players["player"]["hand"]
         else:
@@ -261,12 +259,10 @@ class Game:
         if len(kept_cards) < 1:
             kept_cards = self.players["player"]["hand"][:1]
         self.players["player"]["hand"] = kept_cards
-        # Immediately draw new cards until player's hand has 5 cards
         while len(self.players["player"]["hand"]) < 5 and len(self.deck.cards) > 0:
             self.players["player"]["hand"].append(self.deck.deal(1)[0])
         for card in self.players["player"]["hand"]:
             card.selected = True
-        # For each computer player, discard non-trump cards and draw until hand has 5 cards.
         for p in self.players:
             if p != "player":
                 current_hand = self.players[p]["hand"]
@@ -281,8 +277,7 @@ class Game:
                 self.gameNotes.append(f"{timestamp} - {p} drew {drawn} card(s) in draw phase.")
         self.biddingMessage = "Draw complete. Proceeding to trick play."
         self.phase = "trick"
-        self.currentTurn = self.bidder
-        # No delay now; update state immediately.
+        self.currentTurn = self.bidder  # Whoever won the bid leads the first trick.
         return self.to_dict()
 
     def validate_move(self, player, card):
@@ -325,21 +320,20 @@ class Game:
             timestamp = time.strftime("%H:%M:%S")
             self.gameNotes.append(f"{timestamp} - Illegal move attempted by {player}: {message}")
             return
-        # Remove only the selected card
+        # Remove only the selected card.
         card = self.players[player]["hand"].pop(cardIndex)
         card.selected = True
         self.currentTrick.append({"player": player, "card": card})
         timestamp = time.strftime("%H:%M:%S")
         self.gameNotes.append(f"{timestamp} - {player} played {card}")
         self.currentTurn = self.next_player(player)
-        # For computer turns, auto-play immediately
+        # Immediately trigger auto-play if it's not player's turn.
         self.auto_play()
         if len(self.currentTrick) == len(self.player_order):
             self.finish_trick()
         return
 
     def auto_play(self):
-        # While it's not the player's turn, let computer play its move.
         while self.currentTurn != "player" and len(self.currentTrick) < len(self.player_order):
             available = self.players[self.currentTurn]["hand"]
             if not available:
@@ -375,20 +369,15 @@ class Game:
         trick_summary += f". Winner: {winner}."
         self.gameNotes.append(trick_summary)
         self.trickLog.append(trick_summary)
-        # Copy current trick for display so computer's card is visible
-        self.lastTrick = self.currentTrick.copy()
+        self.lastTrick = self.currentTrick.copy()  # Keep played cards visible.
         self.players[winner]["tricks"].append(self.currentTrick.copy())
         for entry in self.currentTrick:
             if is_trump(entry["card"], self.trump_suit):
                 self.trumpCardsPlayed.append((entry["player"], entry["card"]))
-        # No delay here so that played cards are visible in the trick area.
         self.currentTrick = []
-        if all(len(self.players[p]["hand"]) == 0 for p in self.players):
-            return self.complete_hand()
-        else:
-            self.phase = "trickComplete"
-            self.currentTurn = winner
-            return
+        self.phase = "trickComplete"
+        self.currentTurn = winner if winner is not None else "player"
+        return
 
     def clear_trick(self):
         self.lastTrick = []
@@ -425,7 +414,7 @@ class Game:
                         if is_trump(card, self.trump_suit):
                             trump_played.append((p, card))
         if trump_played:
-            bonus_winner, bonus_card = max(trump_played, key=lambda x: get_trump_value(x[1], self.trump_suit))
+            bonus_winner, _ = max(trump_played, key=lambda x: get_trump_value(x[1], self.trump_suit))
         elif self.currentTurn:
             bonus_winner = self.currentTurn
         if bonus_winner:
@@ -469,7 +458,7 @@ class Game:
             "lastTrick": [{"player": entry["player"], "card": entry["card"].to_dict()} for entry in self.lastTrick],
             "trickLog": self.trickLog,
             "scoreboard": {p: self.players[p]["score"] for p in self.players},
-            "currentTurn": self.currentTurn,
+            "currentTurn": self.currentTurn if self.currentTurn is not None else "player",
             "dealer": self.dealer,
             "gameNotes": self.gameNotes,
             "handScores": self.handScores,
