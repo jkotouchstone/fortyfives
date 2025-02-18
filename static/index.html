@@ -5,7 +5,7 @@
   <title>45's - Enhanced Card Game</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    /* Basic styling for the game UI */
+    /* Basic styling */
     body {
       font-family: sans-serif;
       background-color: #4CAF50;
@@ -17,7 +17,7 @@
     .container {
       max-width: 900px;
       margin: auto;
-      background: rgba(0, 0, 0, 0.7);
+      background: rgba(0,0,0,0.7);
       padding: 20px;
       border-radius: 8px;
       position: relative;
@@ -28,10 +28,8 @@
       margin-bottom: 10px;
       font-weight: bold;
     }
-    #trump-display {
-      color: #FFD700;
-    }
-    /* Only one hand section displayed at a time */
+    #trump-display { color: #FFD700; }
+    /* Only one hand section visible at a time */
     #your-hand, #draw-hand, #kitty-hand {
       margin-bottom: 20px;
       text-align: center;
@@ -44,13 +42,7 @@
       border: 1px dashed #fff;
       padding: 10px;
     }
-    .section {
-      margin: 20px 0;
-      display: none;
-    }
-    .section.visible {
-      display: block;
-    }
+    .section { margin: 20px 0; display: none; }
     #game-options, #instructions {
       max-width: 900px;
       margin: 20px auto;
@@ -58,11 +50,7 @@
       padding: 10px;
       border-radius: 8px;
     }
-    #instructions {
-      display: none;
-      text-align: left;
-      font-size: 14px;
-    }
+    #instructions { display: none; text-align: left; font-size: 14px; }
     /* Bidding Section */
     #bidding-section {
       background: rgba(0,0,0,0.5);
@@ -70,9 +58,7 @@
       padding: 10px;
       display: none;
     }
-    #bid-buttons button {
-      margin: 5px;
-    }
+    #bid-buttons button { margin: 5px; }
     /* Trump Selection Section */
     #trump-section {
       background: rgba(0,0,0,0.5);
@@ -80,10 +66,7 @@
       padding: 10px;
       display: none;
     }
-    #trump-buttons button {
-      margin: 5px;
-      font-size: 20px;
-    }
+    #trump-buttons button { margin: 5px; font-size: 20px; }
     /* Kitty Selection Section */
     #kitty-section {
       background: rgba(0,0,0,0.5);
@@ -91,9 +74,7 @@
       padding: 10px;
       display: none;
     }
-    #kitty-hand .card {
-      border: 2px dashed #fff;
-    }
+    #kitty-hand .card { border: 2px dashed #fff; }
     /* Draw Phase Section */
     #draw-section {
       background: rgba(0,0,0,0.5);
@@ -119,16 +100,9 @@
       transition: opacity 0.5s ease, transform 0.5s ease;
       cursor: pointer;
     }
-    .card:hover {
-      transform: scale(1.1);
-    }
-    .card.selected {
-      background: #90ee90;
-      border: 2px solid #000;
-    }
-    .card.played {
-      opacity: 0;
-    }
+    .card:hover { transform: scale(1.1); }
+    .card.selected { background: #90ee90; border: 2px solid #000; }
+    .card.played { opacity: 0; }
     /* Buttons */
     button {
       padding: 12px 18px;
@@ -138,13 +112,8 @@
       border-radius: 8px;
     }
     /* Scoreboard & Game Log */
-    #scoreboard-section {
-      padding-top: 10px;
-    }
-    #scoreboard {
-      font-size: 18px;
-      margin-top: 10px;
-    }
+    #scoreboard-section { padding-top: 10px; }
+    #scoreboard { font-size: 18px; margin-top: 10px; }
     #game-log {
       margin-top: 10px;
       background: rgba(255,255,255,0.1);
@@ -157,17 +126,9 @@
       display: block;
     }
     /* Responsive styling */
-    @media (max-width: 600px) {
-      .card {
-        width: 60px;
-        height: 90px;
-        line-height: 90px;
-        font-size: 18px;
-      }
-      button {
-        padding: 10px 14px;
-        font-size: 16px;
-      }
+    @media (max-width:600px) {
+      .card { width: 60px; height: 90px; line-height: 90px; font-size: 18px; }
+      button { padding: 10px 14px; font-size: 16px; }
     }
   </style>
 </head>
@@ -185,7 +146,7 @@
     </label>
     <br>
     <h3>Game Settings</h3>
-    <!-- Removed game speed option -->
+    <!-- Game speed option removed -->
     <label>
       <input type="checkbox" id="sound-toggle" checked> Enable Sound Effects
     </label>
@@ -291,10 +252,8 @@
 
   <script>
     let gameState = {};
-    let gameSettings = {
-      sound: true
-    };
-    // Tutorial is off by default
+    let gameSettings = { sound: true };
+    // Tutorial defaults to off.
     let tutorialSteps = [
       "Step 1: Cards are dealt. Your hand and the kitty are displayed.",
       "Step 2: During bidding, the computer's bid is shown in the Game Log.",
@@ -306,11 +265,20 @@
     ];
     let currentTutorialStep = 0;
 
-    function updateTrumpDisplay(trumpSuit) {
-      let trumpDisplay = document.getElementById("trump-display");
-      trumpDisplay.textContent = trumpSuit ? "Trump: " + trumpSuit : "";
+    // Helper functions for sorting (must match game_logic.py).
+    function is_trump(card, trumpSuit) {
+      if (card.suit === trumpSuit) return true;
+      if (card.suit === "♥" && card.rank === "A") return true;
+      return false;
     }
-
+    function get_trump_value(card, trumpSuit) {
+      const ranking = ["2", "3", "4", "6", "7", "8", "9", "10", "Q", "K", "A", "J", "5"];
+      return ranking.indexOf(card.rank);
+    }
+    function get_offsuit_value(card) {
+      const ranking = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"];
+      return ranking.indexOf(card.rank);
+    }
     function sortPlayerHand(handArray, trumpSuit) {
       return handArray.sort((a, b) => {
         const aTrump = is_trump(a, trumpSuit);
@@ -325,6 +293,11 @@
           return get_offsuit_value(b) - get_offsuit_value(a);
         }
       });
+    }
+
+    function updateTrumpDisplay(trumpSuit) {
+      let trumpDisplay = document.getElementById("trump-display");
+      trumpDisplay.textContent = trumpSuit ? "Trump: " + trumpSuit : "";
     }
 
     function updateYourHand(handArray) {
@@ -352,10 +325,11 @@
       container.innerHTML = "<strong>Your Hand:</strong>";
       handArray.forEach((card, index) => {
         let div = document.createElement("div");
+        // The kept cards remain selected (and will have a CSS class "selected")
         div.className = "card" + (card.selected ? " selected" : "");
         div.textContent = card.text;
         div.dataset.index = index;
-        // Toggle selection on click if not already selected
+        // Allow toggling selection only for unkept cards
         div.onclick = function() {
           if (!card.selected) {
             div.classList.toggle("selected");
@@ -437,12 +411,12 @@
         document.getElementById("status-message").textContent = (state.currentTurn === "player") ? "Your Turn!" : `Waiting for ${state.currentTurn}...`;
       }
 
-      // Normal Play: update player's hand if not in draw, kitty, or trump phase
+      // Normal Play: update player's hand if not in draw/kitty/trump phase
       if (state.gamePhase !== "draw" && state.gamePhase !== "kitty" && state.gamePhase !== "trump") {
         updateYourHand(state.playerHand);
       }
 
-      // Trick Area
+      // Trick Area: show played cards during trick play
       let trickArea = document.getElementById("trick-area");
       if (state.gamePhase === "trick" || state.gamePhase === "trickComplete") {
         trickArea.innerHTML = "";
@@ -558,7 +532,6 @@
       }
     }
 
-    // Attach event listeners after DOM loads
     document.addEventListener("DOMContentLoaded", function() {
       document.getElementById("start-game-btn").addEventListener("click", startGame);
       document.getElementById("reset-game-btn").addEventListener("click", resetGame);
@@ -568,32 +541,22 @@
       document.getElementById("next-tutorial-btn").addEventListener("click", nextTutorialStep);
       document.getElementById("prev-tutorial-btn").addEventListener("click", prevTutorialStep);
       document.getElementById("close-tutorial-btn").addEventListener("click", closeTutorial);
-
-      // Bidding buttons
       document.querySelectorAll(".bid-btn").forEach(function(button) {
         button.addEventListener("click", function() {
           let bidValue = parseInt(this.getAttribute("data-bid"));
           callAPI("/bid", "POST", { bid: bidValue });
         });
       });
-
-      // Trump selection buttons
       document.querySelectorAll(".trump-btn").forEach(function(button) {
         button.addEventListener("click", function() {
           let trump = this.getAttribute("data-trump");
           selectTrump(trump);
         });
       });
-
-      // Confirm Kitty button
       document.getElementById("confirm-kitty-btn").addEventListener("click", confirmKitty);
-
-      // Confirm Draw button
       document.getElementById("confirm-draw-btn").addEventListener("click", confirmDraw);
     });
   </script>
-  <footer>
-    © 2025 ♣ O'Donohue Software ♣
-  </footer>
+  <footer>© 2025 ♣ O'Donohue Software ♣</footer>
 </body>
 </html>
