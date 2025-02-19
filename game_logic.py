@@ -6,8 +6,8 @@ import time
 # ---------------------------
 class Card:
     def __init__(self, suit, rank):
-        self.suit = suit  # e.g. "♥", "♦", "♣", "♠"
-        self.rank = rank  # e.g. "2", "3", ..., "10", "J", "Q", "K", "A"
+        self.suit = suit  # e.g., "♥", "♦", "♣", "♠"
+        self.rank = rank  # e.g., "2", "3", …, "10", "J", "Q", "K", "A"
         self.text = f"{self.rank}{self.suit}"  # Unique identifier
 
     def __str__(self):
@@ -55,7 +55,6 @@ OFFSUIT_RANKINGS = {
 def is_trump(card, trump_suit):
     if card.suit == trump_suit:
         return True
-    # Ace of hearts is always trump.
     if card.suit == "♥" and card.rank == "A":
         return True
     return False
@@ -102,7 +101,7 @@ class Game:
         self.phase = "bidding"
         self.biddingMessage = "Place your bid (15, 20, 25, or 30). Dealer: " + self.dealer
         self.currentTrick = []
-        self.lastTrick = []  # Stores played cards for display
+        self.lastTrick = []  # Stores played cards for visual display
         self.trickLog = []
         self.gameNotes = []
         self.handScores = []
@@ -220,7 +219,7 @@ class Game:
         if self.phase == "trump":
             self.trump_suit = suit
             self.biddingMessage = f"Trump is set to {suit}."
-            # If player wins the bid, show kitty phase; if computer wins, proceed directly to draw.
+            # If player wins the bid, proceed to kitty phase; if computer wins, proceed directly to draw.
             if self.bidder == "player":
                 self.phase = "kitty"
             else:
@@ -228,7 +227,9 @@ class Game:
         return
 
     def confirm_kitty(self, keptIndices):
+        # This phase is only for player bids.
         if self.bidder == "player":
+            # Combine player's original hand and kitty.
             self.combinedHand = self.players["player"]["hand"] + self.kitty
             selected = []
             for i in keptIndices:
@@ -277,8 +278,7 @@ class Game:
                 self.gameNotes.append(f"{timestamp} - {p} drew {drawn} card(s) in draw phase.")
         self.biddingMessage = "Draw complete. Proceeding to trick play."
         self.phase = "trick"
-        # Set currentTurn to the winning bidder so they lead the first trick.
-        self.currentTurn = self.bidder
+        self.currentTurn = self.bidder  # Winning bidder leads the first trick.
         if self.currentTurn != "player":
             self.auto_play()
         return self.to_dict()
@@ -309,7 +309,7 @@ class Game:
             return False, "Invalid move: You must follow suit or play a valid trump card."
         return True, ""
     
-    # play_card now uses cardText to identify the card
+    # Updated play_card uses the card's unique text identifier.
     def play_card(self, player, cardText):
         hand = self.players[player]["hand"]
         index = None
@@ -364,15 +364,13 @@ class Game:
         trick_summary += f". Winner: {winner}."
         self.gameNotes.append(trick_summary)
         self.trickLog.append(trick_summary)
-        self.lastTrick = self.currentTrick.copy()  # Display played cards in the Trick Area
+        self.lastTrick = self.currentTrick.copy()  # For display in the Trick Area
         self.players[winner]["tricks"].append(self.currentTrick.copy())
         for entry in self.currentTrick:
             if is_trump(entry["card"], self.trump_suit):
                 self.trumpCardsPlayed.append((entry["player"], entry["card"]))
-        # The client will clear the trick area after 1.5 seconds.
         self.currentTrick = []
         self.phase = "trickComplete"
-        # For tricks 2-5, the winner of the previous trick leads the next trick.
         self.currentTurn = winner if winner is not None else "player"
         return
 
@@ -445,7 +443,8 @@ class Game:
     def to_dict(self):
         state = {
             "gamePhase": self.phase,
-            "playerHand": [card.to_dict() for card in self.players["player"]["hand"]],
+            # During kitty phase, omit the regular playerHand so only the kitty display is shown.
+            "playerHand": [] if self.phase == "kitty" and self.bidder == "player" else [card.to_dict() for card in self.players["player"]["hand"]],
             "computerHandCount": (len(self.players[self.player_order[1]]["hand"]) if self.mode == "2p" else None),
             "kitty": [card.to_dict() for card in self.kitty],
             "trumpSuit": self.trump_suit if self.phase not in ["bidding"] else None,
@@ -463,7 +462,6 @@ class Game:
             "bidder": self.bidder
         }
         if self.phase == "kitty" and self.bidder == "player":
-            state["playerHand"] = [card.to_dict() for card in self.players["player"]["hand"]]
             state["kitty"] = [card.to_dict() for card in self.kitty]
         if self.phase == "draw":
             state["drawHand"] = [card.to_dict() for card in self.players["player"]["hand"]]
