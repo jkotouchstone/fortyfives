@@ -170,7 +170,7 @@
       Place your bid (15, 20, 25, or 30). The computer bids based on hand strength.
     </p>
     <p><strong>Trick Play:</strong><br>
-      The winner of each trick leads the next round. Review the game log for all actions.
+      The winner of each trick leads the next round. Played cards are shown on the table for you to see.
     </p>
     <button id="hide-instructions-btn">Hide Detailed Rules</button>
   </div>
@@ -200,14 +200,7 @@
     <div id="bidding-section">
       <h2>Bidding Phase</h2>
       <p id="bidding-message"></p>
-      <p id="dealer-info"></p>
-      <div id="bid-buttons">
-        <button class="bid-btn" data-bid="0">Pass</button>
-        <button class="bid-btn" data-bid="15">Bid 15</button>
-        <button class="bid-btn" data-bid="20">Bid 20</button>
-        <button class="bid-btn" data-bid="25">Bid 25</button>
-        <button class="bid-btn" data-bid="30">Bid 30</button>
-      </div>
+      <!-- Dealer info now only appears in the prompt -->
     </div>
 
     <!-- Trump Selection Section -->
@@ -257,6 +250,7 @@
   <script>
     let gameState = {};
     let gameSettings = { sound: true };
+
     // Tutorial defaults to off.
     let tutorialSteps = [
       "Step 1: Cards are dealt. Your hand and the kitty are displayed.",
@@ -378,7 +372,6 @@
       if (state.gamePhase === "bidding") {
         document.getElementById("bidding-section").style.display = "block";
         document.getElementById("bidding-message").textContent = state.biddingMessage;
-        document.getElementById("dealer-info").textContent = "";
       } else {
         document.getElementById("bidding-section").style.display = "none";
       }
@@ -420,7 +413,6 @@
         document.getElementById("your-hand").style.display = "block";
       }
 
-      // Use a simple status message.
       document.getElementById("status-message").textContent = (state.currentTurn === "player") ? "Your Turn!" : `Waiting for ${state.currentTurn}...`;
 
       if (state.gamePhase !== "draw" && state.gamePhase !== "kitty" && state.gamePhase !== "trump") {
@@ -473,8 +465,12 @@
     }
 
     function playCard(index) {
-      if (gameSettings.sound) {
-        document.getElementById("card-sound").play();
+      try {
+        if (gameSettings.sound) {
+          document.getElementById("card-sound").play().catch(e => console.error("Audio play error:", e));
+        }
+      } catch (e) {
+        console.error("Audio play error:", e);
       }
       callAPI("/play_trick", "POST", { cardIndex: index });
     }
@@ -484,6 +480,7 @@
       let selectedDivs = container.querySelectorAll(".card.selected");
       let indices = [];
       selectedDivs.forEach(div => indices.push(parseInt(div.dataset.index)));
+      // Immediately confirm draw with no delay
       callAPI("/confirm_draw", "POST", { keptIndices: indices });
     }
 
