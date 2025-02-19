@@ -1,7 +1,6 @@
 from flask import Flask, request, jsonify, send_from_directory
 from game_logic import Game
 
-# Serve static files from the "static" folder at the root URL.
 app = Flask(__name__, static_folder="static", static_url_path="")
 current_game = None
 
@@ -17,8 +16,6 @@ def start_game():
         mode = data.get("mode", "2p")
         instructional = data.get("instructional", False)
         current_game = Game(mode=mode, instructional=instructional)
-        # On starting the game, the bidding phase should be clearly indicated.
-        # The game state (including biddingMessage) is returned to the UI.
         return jsonify(current_game.to_dict())
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -82,11 +79,11 @@ def play_trick():
         if not current_game:
             return jsonify({"error": "No game started."}), 500
         data = request.get_json()
-        cardIndex = data.get("cardIndex")
-        if cardIndex is None:
-            return jsonify({"error": "cardIndex required."}), 500
-        current_game.play_card("player", cardIndex)
-        return jsonify(current_game.to_dict())
+        cardText = data.get("cardText")
+        if cardText is None:
+            return jsonify({"error": "cardText required."}), 500
+        state = current_game.play_card("player", cardText)
+        return jsonify(state)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
