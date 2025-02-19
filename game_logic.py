@@ -110,6 +110,7 @@ class Game:
         self.bid = 0
         self.trumpCardsPlayed = []
         self.combinedHand = []
+        self.trick_count = 0  # Initialize trick counter for the hand
         self.deal_hands()
 
     def next_player(self, current):
@@ -132,7 +133,7 @@ class Game:
         self.trumpCardsPlayed = []
         self.combinedHand = []
         self.computerDrawCounts = {}
-        self.trick_count = 0  # Initialize trick counter for the hand
+        self.trick_count = 0  # Reset trick counter for each hand
         if self.mode == "2p" and self.dealer == "player":
             comp_id = self.player_order[1]
             comp_bid, comp_trump = self.computer_bid(comp_id)
@@ -220,7 +221,6 @@ class Game:
         if self.phase == "trump":
             self.trump_suit = suit
             self.biddingMessage = f"Trump is set to {suit}."
-            # If player wins the bid, proceed to kitty phase; if computer wins, go directly to draw.
             if self.bidder == "player":
                 self.phase = "kitty"
             else:
@@ -228,7 +228,6 @@ class Game:
         return
 
     def confirm_kitty(self, keptIndices):
-        # This phase applies only when the player wins the bid.
         if self.bidder == "player":
             original_count = len(self.players["player"]["hand"])
             self.combinedHand = self.players["player"]["hand"] + self.kitty
@@ -238,7 +237,6 @@ class Game:
                     card = self.combinedHand[i]
                     card.selected = True
                     selected.append(card)
-            # Ensure at least one card from the original hand (indices 0 to original_count-1) is kept.
             if not any(i < original_count for i in keptIndices):
                 selected.insert(0, self.players["player"]["hand"][0])
             self.players["player"]["hand"] = selected
@@ -280,9 +278,12 @@ class Game:
                 self.gameNotes.append(f"{timestamp} - {p} drew {drawn} card(s) in draw phase.")
         self.biddingMessage = "Draw complete. Proceeding to trick play."
         self.phase = "trick"
-        self.currentTurn = self.bidder  # Winning bidder leads the first trick.
+        self.currentTurn = self.bidder
         if self.currentTurn != "player":
-            self.auto_play()
+            try:
+                self.auto_play()
+            except Exception as e:
+                self.gameNotes.append(f"Auto play error: {str(e)}")
         return self.to_dict()
 
     def validate_move(self, player, card):
@@ -319,17 +320,20 @@ class Game:
                 index = i
                 break
         if index is None:
-            return  # Card not found.
+            return self.to_dict()  # Return current state if card not found.
         card = hand.pop(index)
         card.selected = True
         self.currentTrick.append({"player": player, "card": card})
         timestamp = time.strftime("%H:%M:%S")
         self.gameNotes.append(f"{timestamp} - {player} played {card}")
         self.currentTurn = self.next_player(player)
-        self.auto_play()
+        try:
+            self.auto_play()
+        except Exception as e:
+            self.gameNotes.append(f"Auto play error: {str(e)}")
         if len(self.currentTrick) == len(self.player_order):
             self.finish_trick()
-        return
+        return self.to_dict()
 
     def auto_play(self):
         while self.currentTurn != "player" and len(self.currentTrick) < len(self.player_order):
@@ -373,7 +377,6 @@ class Game:
         self.currentTrick = []
         self.phase = "trickComplete"
         self.currentTurn = winner if winner is not None else "player"
-        # Increment trick counter; only complete the hand after 5 tricks.
         self.trick_count += 1
         if self.trick_count >= 5:
             return self.complete_hand()
