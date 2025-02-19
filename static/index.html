@@ -45,7 +45,7 @@
       padding: 10px;
       min-height: 150px;
       border: 3px solid #fff;
-      background-color: rgba(255, 255, 255, 0.2);
+      background-color: rgba(255,255,255,0.2);
       border-radius: 8px;
       text-align: center;
     }
@@ -174,7 +174,7 @@
       Place your bid (15, 20, 25, or 30). The computer bids based on hand strength.
     </p>
     <p><strong>Trick Play:</strong><br>
-      The winner of each trick leads the next round. When both cards are displayed in the Trick Area, they will be cleared after a short delay before the next trick begins.
+      The winner of each trick leads the next round. Played cards appear in the Trick Area for 1.5 seconds before being cleared.
     </p>
     <button id="hide-instructions-btn">Hide Detailed Rules</button>
   </div>
@@ -247,7 +247,7 @@
     <!-- Enhanced Trick Area -->
     <div id="trick-area">
       <h3>Trick Area</h3>
-      <!-- Played cards will appear here for a short time and then be cleared -->
+      <!-- Played cards will appear here for 1.5 seconds and then be cleared (the client will call /clear_trick) -->
     </div>
     <div id="scoreboard-section">
       <h2>Scoreboard</h2>
@@ -275,7 +275,40 @@
     ];
     let currentTutorialStep = 0;
 
-    // Instead of sending an index, we now send the card text as an identifier.
+    function is_trump(card, trumpSuit) {
+      if (card.suit === trumpSuit) return true;
+      if (card.suit === "♥" && card.rank === "A") return true;
+      return false;
+    }
+    function get_trump_value(card, trumpSuit) {
+      const ranking = ["2", "3", "4", "6", "7", "8", "9", "10", "Q", "K", "A", "J", "5"];
+      return ranking.indexOf(card.rank);
+    }
+    function get_offsuit_value(card) {
+      const ranking = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"];
+      return ranking.indexOf(card.rank);
+    }
+    function sortPlayerHand(handArray, trumpSuit) {
+      return handArray.sort((a, b) => {
+        const aTrump = is_trump(a, trumpSuit);
+        const bTrump = is_trump(b, trumpSuit);
+        if (aTrump && bTrump) {
+          return get_trump_value(b, trumpSuit) - get_trump_value(a, trumpSuit);
+        } else if (aTrump) {
+          return -1;
+        } else if (bTrump) {
+          return 1;
+        } else {
+          return get_offsuit_value(b) - get_offsuit_value(a);
+        }
+      });
+    }
+
+    function updateTrumpDisplay(trumpSuit) {
+      let trumpDisplay = document.getElementById("trump-display");
+      trumpDisplay.textContent = trumpSuit ? "Trump: " + trumpSuit : "";
+    }
+
     function updateYourHand(handArray) {
       let container = document.getElementById("your-hand");
       container.innerHTML = "<strong>Your Cards:</strong>";
@@ -403,7 +436,7 @@
         updateYourHand(state.playerHand);
       }
 
-      // Enhanced Trick Area: Show played cards then clear after a short delay.
+      // Update Trick Area – show played cards (if any)
       let trickArea = document.getElementById("trick-area");
       trickArea.innerHTML = "<h3>Trick Area</h3>";
       let trickCards = (state.currentTrick && state.currentTrick.length > 0) ? state.currentTrick : state.lastTrick;
@@ -425,6 +458,13 @@
 
       let logDiv = document.getElementById("game-log");
       logDiv.innerHTML = "<strong>Game Log:</strong><br>" + state.gameNotes.slice().reverse().join("<br>");
+
+      // If phase is "trickComplete", clear the trick area after 1.5 seconds
+      if (state.gamePhase === "trickComplete") {
+        setTimeout(() => {
+          callAPI("/clear_trick", "POST", {});
+        }, 1500);
+      }
     }
 
     async function callAPI(endpoint, method = "POST", data = {}) {
@@ -449,7 +489,7 @@
       callAPI("/start_game", "POST", { mode: mode, instructional: instructional });
     }
 
-    // Updated playCard sends the card's text identifier
+    // playCard sends the card's unique text identifier
     function playCard(cardText) {
       try {
         if (gameSettings.sound) {
