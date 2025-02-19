@@ -55,6 +55,7 @@ OFFSUIT_RANKINGS = {
 def is_trump(card, trump_suit):
     if card.suit == trump_suit:
         return True
+    # Ace of hearts is always trump.
     if card.suit == "♥" and card.rank == "A":
         return True
     return False
@@ -101,7 +102,7 @@ class Game:
         self.phase = "bidding"
         self.biddingMessage = "Place your bid (15, 20, 25, or 30). Dealer: " + self.dealer
         self.currentTrick = []
-        self.lastTrick = []  # For displaying played cards temporarily
+        self.lastTrick = []  # For temporarily displaying played cards
         self.trickLog = []
         self.gameNotes = []
         self.handScores = []
@@ -219,7 +220,7 @@ class Game:
         if self.phase == "trump":
             self.trump_suit = suit
             self.biddingMessage = f"Trump is set to {suit}."
-            # If player wins the bid, proceed to kitty phase; otherwise, go directly to draw.
+            # If the player wins the bid, proceed to kitty phase; if computer wins, go directly to draw.
             if self.bidder == "player":
                 self.phase = "kitty"
             else:
@@ -227,9 +228,11 @@ class Game:
         return
 
     def confirm_kitty(self, keptIndices):
-        # This phase is for when the player wins the bid.
+        # This phase applies only when the player wins the bid.
         if self.bidder == "player":
-            # Combine original hand and kitty into a separate combinedHand.
+            # Save the original hand length.
+            original_count = len(self.players["player"]["hand"])
+            # Combine original hand and kitty.
             self.combinedHand = self.players["player"]["hand"] + self.kitty
             selected = []
             for i in keptIndices:
@@ -237,9 +240,9 @@ class Game:
                     card = self.combinedHand[i]
                     card.selected = True
                     selected.append(card)
-            if len(selected) < 1:
-                selected = self.players["player"]["hand"][:1]
-            # Set player's hand to the selection (which may include cards from the kitty).
+            # Ensure at least one card from the original hand is kept.
+            if not any(i < original_count for i in keptIndices):
+                selected.insert(0, self.players["player"]["hand"][0])
             self.players["player"]["hand"] = selected
             self.biddingMessage = "Kitty selection confirmed. Proceeding to draw phase."
             self.phase = "draw"
@@ -258,13 +261,13 @@ class Game:
                     card = self.players["player"]["hand"][i]
                     card.selected = True
                     kept_cards.append(card)
-        if len(kept_cards) < 1:
-            kept_cards = self.players["player"]["hand"][:1]
+            if len(kept_cards) == 0:
+                kept_cards = self.players["player"]["hand"]
         self.players["player"]["hand"] = kept_cards
         while len(self.players["player"]["hand"]) < 5 and len(self.deck.cards) > 0:
             self.players["player"]["hand"].append(self.deck.deal(1)[0])
         for card in self.players["player"]["hand"]:
-            card.selected = True
+            card.selected = False
         for p in self.players:
             if p != "player":
                 current_hand = self.players[p]["hand"]
@@ -310,7 +313,6 @@ class Game:
             return False, "Invalid move: You must follow suit or play a valid trump card."
         return True, ""
     
-    # play_card now uses the card's unique text identifier.
     def play_card(self, player, cardText):
         hand = self.players[player]["hand"]
         index = None
@@ -461,7 +463,7 @@ class Game:
             "mode": self.mode,
             "bidder": self.bidder
         }
-        # In kitty phase (when the player wins the bid), send both original hand and kitty separately.
+        # During kitty phase (when the player wins the bid), send separate arrays for original hand and kitty.
         if self.phase == "kitty" and self.bidder == "player":
             state["originalHand"] = [card.to_dict() for card in self.players["player"]["hand"]]
             state["kitty"] = [card.to_dict() for card in self.kitty]
