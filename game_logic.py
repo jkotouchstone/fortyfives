@@ -102,7 +102,7 @@ class Game:
         self.phase = "bidding"
         self.biddingMessage = "Place your bid (15, 20, 25, or 30). Dealer: " + self.dealer
         self.currentTrick = []
-        self.lastTrick = []  # Stores the played cards for visual display
+        self.lastTrick = []  # Stores played cards for display
         self.trickLog = []
         self.gameNotes = []
         self.handScores = []
@@ -220,8 +220,11 @@ class Game:
         if self.phase == "trump":
             self.trump_suit = suit
             self.biddingMessage = f"Trump is set to {suit}."
-            # Proceed to draw phase so the player can adjust their hand
-            self.phase = "draw"
+            # If player wins the bid, show kitty phase; if computer wins, proceed directly to draw.
+            if self.bidder == "player":
+                self.phase = "kitty"
+            else:
+                self.phase = "draw"
         return
 
     def confirm_kitty(self, keptIndices):
@@ -274,7 +277,7 @@ class Game:
                 self.gameNotes.append(f"{timestamp} - {p} drew {drawn} card(s) in draw phase.")
         self.biddingMessage = "Draw complete. Proceeding to trick play."
         self.phase = "trick"
-        # Set currentTurn to the bidder (winning bidder leads the first trick)
+        # Set currentTurn to the winning bidder so they lead the first trick.
         self.currentTurn = self.bidder
         if self.currentTurn != "player":
             self.auto_play()
@@ -306,7 +309,7 @@ class Game:
             return False, "Invalid move: You must follow suit or play a valid trump card."
         return True, ""
     
-    # play_card now accepts a cardText identifier
+    # play_card now uses cardText to identify the card
     def play_card(self, player, cardText):
         hand = self.players[player]["hand"]
         index = None
@@ -315,7 +318,7 @@ class Game:
                 index = i
                 break
         if index is None:
-            return  # Card not found
+            return  # Card not found.
         card = hand.pop(index)
         card.selected = True
         self.currentTrick.append({"player": player, "card": card})
@@ -361,15 +364,15 @@ class Game:
         trick_summary += f". Winner: {winner}."
         self.gameNotes.append(trick_summary)
         self.trickLog.append(trick_summary)
-        self.lastTrick = self.currentTrick.copy()  # Store played cards for display
+        self.lastTrick = self.currentTrick.copy()  # Display played cards in the Trick Area
         self.players[winner]["tricks"].append(self.currentTrick.copy())
         for entry in self.currentTrick:
             if is_trump(entry["card"], self.trump_suit):
                 self.trumpCardsPlayed.append((entry["player"], entry["card"]))
-        # Instead of sleeping here, the client will clear the trick area after a delay.
+        # The client will clear the trick area after 1.5 seconds.
         self.currentTrick = []
         self.phase = "trickComplete"
-        # For trick 2-5, the winner of the previous trick leads.
+        # For tricks 2-5, the winner of the previous trick leads the next trick.
         self.currentTurn = winner if winner is not None else "player"
         return
 
