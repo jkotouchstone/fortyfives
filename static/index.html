@@ -200,7 +200,13 @@
     <div id="bidding-section">
       <h2>Bidding Phase</h2>
       <p id="bidding-message"></p>
-      <!-- Dealer info now only appears in the prompt -->
+      <div id="bid-buttons">
+        <button class="bid-btn" data-bid="0">Pass</button>
+        <button class="bid-btn" data-bid="15">Bid 15</button>
+        <button class="bid-btn" data-bid="20">Bid 20</button>
+        <button class="bid-btn" data-bid="25">Bid 25</button>
+        <button class="bid-btn" data-bid="30">Bid 30</button>
+      </div>
     </div>
 
     <!-- Trump Selection Section -->
@@ -250,7 +256,6 @@
   <script>
     let gameState = {};
     let gameSettings = { sound: true };
-
     // Tutorial defaults to off.
     let tutorialSteps = [
       "Step 1: Cards are dealt. Your hand and the kitty are displayed.",
@@ -480,7 +485,6 @@
       let selectedDivs = container.querySelectorAll(".card.selected");
       let indices = [];
       selectedDivs.forEach(div => indices.push(parseInt(div.dataset.index)));
-      // Immediately confirm draw with no delay
       callAPI("/confirm_draw", "POST", { keptIndices: indices });
     }
 
