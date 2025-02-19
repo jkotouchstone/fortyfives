@@ -39,11 +39,15 @@
     /* In kitty phase, display two groups with headers */
     .kitty-group { margin-bottom: 10px; }
     .kitty-group h4 { margin: 5px 0; }
+    /* Enhanced trick area styling */
     #trick-area {
-      margin: 20px 0;
-      min-height: 100px;
-      border: 1px dashed #fff;
+      margin: 20px auto;
       padding: 10px;
+      min-height: 150px;
+      border: 3px solid #fff;
+      background-color: rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      text-align: center;
     }
     .section { margin: 20px 0; display: none; }
     #game-options, #instructions {
@@ -105,7 +109,7 @@
     }
     .card:hover { transform: scale(1.1); }
     .card.selected { background: #90ee90; border: 2px solid #000; }
-    .card.played { opacity: 0; }
+    .card.played { opacity: 0.8; }
     /* Optional: highlight legal moves */
     .card.legal { box-shadow: 0 0 15px 3px #00ff00; }
     /* Buttons */
@@ -170,7 +174,7 @@
       Place your bid (15, 20, 25, or 30). The computer bids based on hand strength.
     </p>
     <p><strong>Trick Play:</strong><br>
-      The winner of each trick leads the next round. Played cards are shown on the table for you to see.
+      The winner of each trick leads the next round. The played cards will appear on the table (in the “Trick Area”) so everyone can see them.
     </p>
     <button id="hide-instructions-btn">Hide Detailed Rules</button>
   </div>
@@ -240,7 +244,11 @@
 
     <!-- Trick Play Section -->
     <div id="your-hand"></div>
-    <div id="trick-area"></div>
+    <!-- Enhanced Trick Area -->
+    <div id="trick-area">
+      <h3>Trick Area</h3>
+      <!-- Played cards will be shown here -->
+    </div>
     <div id="scoreboard-section">
       <h2>Scoreboard</h2>
       <div id="scoreboard"></div>
@@ -256,14 +264,13 @@
   <script>
     let gameState = {};
     let gameSettings = { sound: true };
-    // Tutorial defaults to off.
     let tutorialSteps = [
       "Step 1: Cards are dealt. Your hand and the kitty are displayed.",
       "Step 2: During bidding, the computer's bid is shown in the Game Log.",
       "Step 3: If you win the bid, select the trump suit.",
       "Step 4: In the kitty phase, you will see two groups: Your Original Hand and Kitty Cards. Select the cards you wish to keep.",
       "Step 5: In the draw phase, your kept cards remain selected and the rest are drawn so that your hand totals 5 cards.",
-      "Step 6: In trick play, when you click a card, that card flips and moves to the trick area; the computer's played card is also shown.",
+      "Step 6: In trick play, when you click a card, that card flips and moves to the Trick Area; the computer's played card will also appear there.",
       "Step 7: All game events are logged in the Game Log area."
     ];
     let currentTutorialStep = 0;
@@ -424,10 +431,11 @@
         updateYourHand(state.playerHand);
       }
 
+      // Enhanced Trick Area: Always display the played cards from the current or last trick.
       let trickArea = document.getElementById("trick-area");
-      if (state.gamePhase === "trick" || state.gamePhase === "trickComplete") {
-        trickArea.innerHTML = "";
-        let trickCards = state.currentTrick.length > 0 ? state.currentTrick : state.lastTrick;
+      trickArea.innerHTML = "<h3>Trick Area</h3>";
+      let trickCards = (state.currentTrick && state.currentTrick.length > 0) ? state.currentTrick : state.lastTrick;
+      if (trickCards && trickCards.length > 0) {
         trickCards.forEach(entry => {
           let div = document.createElement("div");
           div.className = "card played";
@@ -435,7 +443,7 @@
           trickArea.appendChild(div);
         });
       } else {
-        trickArea.innerHTML = "";
+        trickArea.innerHTML += "<p>No cards played yet.</p>";
       }
 
       let scoreboardDiv = document.getElementById("scoreboard");
