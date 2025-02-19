@@ -36,7 +36,7 @@
       padding: 5px;
       border-bottom: 1px solid #fff;
     }
-    /* In kitty phase, show two groups with separate indices */
+    /* In kitty phase, show two groups with headers */
     .kitty-group { margin-bottom: 10px; }
     .kitty-group h4 { margin: 5px 0; }
     /* Enhanced Trick Area */
@@ -148,7 +148,7 @@
       <option value="2p">2-Player (You vs. Computer)</option>
       <option value="3p">Three-Way Cut-Throat (You vs. 2 Computers)</option>
     </select>
-    <!-- Default tutorial mode is off (unchecked) -->
+    <!-- Default tutorial mode is off -->
     <label>
       <input type="checkbox" id="instruction-mode"> Enable Tutorial Mode
     </label>
@@ -173,7 +173,7 @@
       Place your bid (15, 20, 25, or 30). The computer bids based on hand strength.
     </p>
     <p><strong>Trick Play:</strong><br>
-      If you win the bid, you'll first see the Kitty Selection phase – your original hand and the kitty are shown separately so you can select which cards to keep. Then you proceed to the draw phase and trick play, where your hand remains visible.
+      If you win the bid, you’ll first enter the Kitty Selection phase where your original hand (top) and the kitty (bottom) are shown so you can choose which cards to keep. Then you proceed to the draw phase and trick play, where your hand remains visible.
     </p>
     <button id="hide-instructions-btn">Hide Detailed Rules</button>
   </div>
@@ -224,10 +224,12 @@
       </div>
     </div>
 
-    <!-- Kitty Selection Section (visible only when you win the bid) -->
+    <!-- Kitty Selection Section (only when you win the bid) -->
     <div id="kitty-section" class="section">
       <h2>Kitty Selection</h2>
-      <p>Your combined hand is shown below. The top group is your original hand and the bottom group shows the kitty. Select at least one card from your original hand to keep.</p>
+      <p>Your combined hand is shown below. The top group is your original hand and the bottom group shows the kitty.
+         Please select at least one card from your original hand (top group) to keep.
+      </p>
       <div id="kitty-hand"></div>
       <button id="confirm-kitty-btn">Confirm Kitty</button>
     </div>
@@ -263,9 +265,7 @@
   <script>
     let gameState = {};
     let gameSettings = { sound: true };
-
-    // Tutorial mode is off by default (checkbox unchecked)
-
+    // Tutorial mode is off by default.
     let tutorialSteps = [
       "Step 1: Cards are dealt. Your hand and the kitty are displayed.",
       "Step 2: During bidding, the computer's bid is shown in the Game Log.",
@@ -277,7 +277,7 @@
     ];
     let currentTutorialStep = 0;
 
-    // Update the kitty hand UI – assign combined indices so that the original hand cards have indices 0..(N-1) and kitty cards continue from there.
+    // In kitty phase, update both original hand and kitty separately.
     function updateKittyHand(originalHand, kitty) {
       let container = document.getElementById("kitty-hand");
       container.innerHTML = "";
@@ -404,10 +404,11 @@
       }
 
       if (state.gamePhase === "kitty") {
-        // In kitty phase, show the kitty selection UI and hide the "Your Cards" section.
+        // In kitty phase, show kitty selection UI and hide the regular "Your Cards" section.
         document.getElementById("your-hand").style.display = "none";
         document.getElementById("kitty-section").style.display = "block";
-        updateKittyHand(state.playerHand || [], state.kitty || []);
+        // Use the separate originalHand from the server.
+        updateKittyHand(state.originalHand || [], state.kitty || []);
       } else {
         document.getElementById("kitty-section").style.display = "none";
       }
