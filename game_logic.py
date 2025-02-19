@@ -144,12 +144,15 @@ class Game:
         hand = self.players[comp_id]["hand"]
         has5 = any(card.rank == "5" for card in hand)
         topCount = sum(1 for card in hand if card.rank in ["J", "A", "K"])
+        # Compute a bid based on hand strength.
         if has5 or topCount >= 2:
             bid = 20
         elif topCount == 1:
             bid = 15
         else:
             bid = 0
+        # For our purposes, if the player passes, we want a minimum bid of 15.
+        # (This value is adjusted in process_bid below when player_bid == 0.)
         if bid == 20 and random.random() < 0.3:
             bid = 25
         suit_counts = {}
@@ -177,17 +180,19 @@ class Game:
                     self.biddingMessage = "Dealer automatically bid 15. Please select the trump suit. Dealer: " + self.dealer
                     self.phase = "trump"
                 else:
-                    if player_bid != 0 and player_bid != comp_bid + 5:
-                        self.biddingMessage = f"As dealer, you must pass or bid {comp_bid + 5}."
-                        return self.to_dict()
                     if player_bid == 0:
+                        # Player passed; force computer's bid to minimum 15.
                         self.bidder = comp_id
-                        self.bid = comp_bid
+                        self.bid = 15
                         _, comp_trump = self.computer_bid(comp_id)
                         self.trump_suit = comp_trump
-                        self.biddingMessage = f"{comp_id} wins the bid with {comp_bid} and selects {comp_trump} as trump."
+                        self.biddingMessage = f"{comp_id} wins the bid with 15 and selects {comp_trump} as trump."
                         self.phase = "draw"
                     else:
+                        # If player bid, then follow standard logic.
+                        if player_bid != 0 and player_bid != comp_bid + 5:
+                            self.biddingMessage = f"As dealer, you must pass or bid {comp_bid + 5}."
+                            return self.to_dict()
                         self.bidder = "player"
                         self.bid = player_bid
                         self.biddingMessage = f"Player wins the bid with {player_bid}. Please select the trump suit."
@@ -337,8 +342,7 @@ class Game:
 
     def auto_play(self):
         while self.currentTurn != "player" and len(self.currentTrick) < len(self.player_order):
-            # Add a slight delay to simulate the computer taking its time.
-            time.sleep(0.3)
+            time.sleep(0.3)  # Slight delay to simulate computer thinking.
             available = self.players[self.currentTurn]["hand"]
             if not available:
                 break
@@ -430,7 +434,9 @@ class Game:
         for p in self.players:
             hand_points = points[p]
             new_total = self.players[p]["score"] + hand_points
-            hand_summary_parts.append(f"{'Player' if p=='player' else p}: {hand_points} (Total: {new_total})")
+            # Update key to "Player" if p=="player"
+            label = "Player" if p == "player" else p
+            hand_summary_parts.append(f"{label}: {hand_points} (Total: {new_total})")
             self.players[p]["score"] = new_total
         summary = "Hand over. " + " | ".join(hand_summary_parts)
         self.trickLog.append(summary)
@@ -462,7 +468,7 @@ class Game:
             "currentTrick": [{"player": entry["player"], "card": entry["card"].to_dict()} for entry in self.currentTrick],
             "lastTrick": [{"player": entry["player"], "card": entry["card"].to_dict()} for entry in self.lastTrick],
             "trickLog": self.trickLog,
-            "scoreboard": {p: self.players[p]["score"] for p in self.players},
+            "scoreboard": {("Player" if p == "player" else p): self.players[p]["score"] for p in self.players},
             "currentTurn": self.currentTurn if self.currentTurn is not None else "player",
             "dealer": self.dealer,
             "gameNotes": self.gameNotes,
