@@ -36,7 +36,7 @@
       padding: 5px;
       border-bottom: 1px solid #fff;
     }
-    /* In kitty phase, only show kitty-hand */
+    /* In kitty phase, show two groups with separate indices */
     .kitty-group { margin-bottom: 10px; }
     .kitty-group h4 { margin: 5px 0; }
     /* Enhanced Trick Area */
@@ -148,6 +148,7 @@
       <option value="2p">2-Player (You vs. Computer)</option>
       <option value="3p">Three-Way Cut-Throat (You vs. 2 Computers)</option>
     </select>
+    <!-- Default tutorial mode is off (unchecked) -->
     <label>
       <input type="checkbox" id="instruction-mode"> Enable Tutorial Mode
     </label>
@@ -172,7 +173,7 @@
       Place your bid (15, 20, 25, or 30). The computer bids based on hand strength.
     </p>
     <p><strong>Trick Play:</strong><br>
-      The winning bidder leads the first trick. If you win the bid, you’ll first see your combined hand (your original hand plus the kitty) in the Kitty Selection phase – the "Your Cards" section will be hidden during this phase. Then you proceed to the draw phase and trick play, where your hand remains visible.
+      If you win the bid, you'll first see the Kitty Selection phase – your original hand and the kitty are shown separately so you can select which cards to keep. Then you proceed to the draw phase and trick play, where your hand remains visible.
     </p>
     <button id="hide-instructions-btn">Hide Detailed Rules</button>
   </div>
@@ -226,9 +227,7 @@
     <!-- Kitty Selection Section (visible only when you win the bid) -->
     <div id="kitty-section" class="section">
       <h2>Kitty Selection</h2>
-      <p>Your combined hand (your original hand plus the kitty) is shown below.
-         Please select at least one card from your original hand to keep, then confirm.
-      </p>
+      <p>Your combined hand is shown below. The top group is your original hand and the bottom group shows the kitty. Select at least one card from your original hand to keep.</p>
       <div id="kitty-hand"></div>
       <button id="confirm-kitty-btn">Confirm Kitty</button>
     </div>
@@ -236,7 +235,7 @@
     <!-- Draw Phase Section -->
     <div id="draw-section" class="section">
       <h2>Draw Phase</h2>
-      <p>Your kept cards remain selected. Unselected cards will be replaced so that your hand totals 5 cards.</p>
+      <p>Your kept cards remain selected. Unselected cards will be replaced to complete your hand of 5 cards.</p>
       <div id="draw-hand"></div>
       <button id="confirm-draw-btn">Confirm Draw</button>
       <div id="computer-draw-info"></div>
@@ -247,7 +246,7 @@
     <!-- Enhanced Trick Area -->
     <div id="trick-area">
       <h3>Trick Area</h3>
-      <!-- Played cards will appear here for 1.5 seconds before being cleared -->
+      <!-- Played cards appear here for 1.5 seconds before being cleared -->
     </div>
     <div id="scoreboard-section">
       <h2>Scoreboard</h2>
@@ -264,19 +263,54 @@
   <script>
     let gameState = {};
     let gameSettings = { sound: true };
-    // Default tutorial mode is closed.
+
+    // Tutorial mode is off by default (checkbox unchecked)
+
     let tutorialSteps = [
       "Step 1: Cards are dealt. Your hand and the kitty are displayed.",
       "Step 2: During bidding, the computer's bid is shown in the Game Log.",
       "Step 3: If you win the bid, select the trump suit.",
-      "Step 4: In the kitty phase, your combined hand is shown. (The 'Your Cards' area will be hidden.) Select at least one card from your original hand to keep.",
-      "Step 5: In the draw phase, your kept cards remain selected and the rest are drawn to complete your hand of 5 cards.",
+      "Step 4: In the kitty phase, your original hand (top) and kitty cards (bottom) are shown. Select at least one card from your original hand to keep.",
+      "Step 5: In the draw phase, your kept cards remain selected and the rest are drawn to complete your hand.",
       "Step 6: In trick play, when you click a card, that card moves to the Trick Area; the computer's played card will also appear.",
       "Step 7: All game events are logged in the Game Log area."
     ];
     let currentTutorialStep = 0;
 
-    // Use each card's unique text identifier for play
+    // Update the kitty hand UI – assign combined indices so that the original hand cards have indices 0..(N-1) and kitty cards continue from there.
+    function updateKittyHand(originalHand, kitty) {
+      let container = document.getElementById("kitty-hand");
+      container.innerHTML = "";
+      let origDiv = document.createElement("div");
+      origDiv.className = "kitty-group";
+      origDiv.innerHTML = "<h4>Your Original Hand:</h4>";
+      originalHand.forEach((card, i) => {
+        let div = document.createElement("div");
+        div.className = "card";
+        div.textContent = card.text;
+        div.dataset.index = i; // index within original hand
+        div.dataset.cardtext = card.text;
+        div.onclick = function() { div.classList.toggle("selected"); };
+        origDiv.appendChild(div);
+      });
+      container.appendChild(origDiv);
+      let kittyDiv = document.createElement("div");
+      kittyDiv.className = "kitty-group";
+      kittyDiv.innerHTML = "<h4>Kitty Cards:</h4>";
+      kitty.forEach((card, i) => {
+        let div = document.createElement("div");
+        div.className = "card";
+        div.textContent = card.text;
+        // For kitty cards, set index starting after original hand length
+        div.dataset.index = originalHand.length + i;
+        div.dataset.cardtext = card.text;
+        div.style.backgroundColor = "#ffe6e6";
+        div.onclick = function() { div.classList.toggle("selected"); };
+        kittyDiv.appendChild(div);
+      });
+      container.appendChild(kittyDiv);
+    }
+
     function updateYourHand(handArray) {
       let container = document.getElementById("your-hand");
       container.innerHTML = "<strong>Your Cards:</strong>";
@@ -312,36 +346,6 @@
         };
         container.appendChild(div);
       });
-    }
-
-    function updateKittyHand(originalHand, kitty) {
-      let container = document.getElementById("kitty-hand");
-      container.innerHTML = "";
-      let origDiv = document.createElement("div");
-      origDiv.className = "kitty-group";
-      origDiv.innerHTML = "<h4>Your Original Hand:</h4>";
-      originalHand.forEach((card) => {
-        let div = document.createElement("div");
-        div.className = "card";
-        div.textContent = card.text;
-        div.dataset.cardtext = card.text;
-        div.onclick = function() { div.classList.toggle("selected"); };
-        origDiv.appendChild(div);
-      });
-      container.appendChild(origDiv);
-      let kittyDiv = document.createElement("div");
-      kittyDiv.className = "kitty-group";
-      kittyDiv.innerHTML = "<h4>Kitty Cards:</h4>";
-      kitty.forEach((card) => {
-        let div = document.createElement("div");
-        div.className = "card";
-        div.textContent = card.text;
-        div.dataset.cardtext = card.text;
-        div.style.backgroundColor = "#ffe6e6";
-        div.onclick = function() { div.classList.toggle("selected"); };
-        kittyDiv.appendChild(div);
-      });
-      container.appendChild(kittyDiv);
     }
 
     function sortPlayerHand(handArray, trumpSuit) {
@@ -400,10 +404,9 @@
       }
 
       if (state.gamePhase === "kitty") {
-        // Hide the regular "Your Cards" section
+        // In kitty phase, show the kitty selection UI and hide the "Your Cards" section.
         document.getElementById("your-hand").style.display = "none";
         document.getElementById("kitty-section").style.display = "block";
-        // Display only the kitty selection UI
         updateKittyHand(state.playerHand || [], state.kitty || []);
       } else {
         document.getElementById("kitty-section").style.display = "none";
