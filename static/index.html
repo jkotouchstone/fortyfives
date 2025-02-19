@@ -272,6 +272,8 @@
   <script>
     let gameState = {};
     let gameSettings = { sound: true };
+    // Flag to avoid repeated game-over alerts.
+    let gameOverAlertShown = false;
     let tutorialSteps = [
       "Step 1: Cards are dealt. Your hand and the kitty are displayed.",
       "Step 2: During bidding, the computer's bid is shown in the Game Log.",
@@ -465,10 +467,20 @@
       logDiv.innerHTML = "<strong>Game Log:</strong><br>" + state.gameNotes.slice().reverse().join("<br>");
 
       if (state.gamePhase === "trickComplete") {
-        // Increased delay to 2500ms to allow player to see the computer's card.
         setTimeout(() => {
           callAPI("/clear_trick", "POST", {});
         }, 2500);
+      }
+
+      // Game Over Alert: If finished and alert not yet shown, prompt to play again.
+      if (state.gamePhase === "finished" && !gameOverAlertShown) {
+        gameOverAlertShown = true;
+        // Determine winner based on highest score.
+        let winner = Object.keys(state.scoreboard).reduce((a, b) => state.scoreboard[a] > state.scoreboard[b] ? a : b);
+        let playAgain = confirm(`Game Over! ${winner} wins. Would you like to play again?`);
+        if (playAgain) {
+          resetGame();
+        }
       }
     }
 
@@ -489,6 +501,8 @@
     function startGame() {
       let mode = document.getElementById("mode-select").value;
       let instructional = document.getElementById("instruction-mode").checked;
+      // Reset gameOverAlertShown for new game.
+      gameOverAlertShown = false;
       document.getElementById("game-options").style.display = "none";
       document.getElementById("game-container").style.display = "block";
       callAPI("/start_game", "POST", { mode: mode, instructional: instructional });
