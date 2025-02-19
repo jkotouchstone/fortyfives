@@ -219,7 +219,7 @@ class Game:
         if self.phase == "trump":
             self.trump_suit = suit
             self.biddingMessage = f"Trump is set to {suit}."
-            # If the player wins the bid, proceed to kitty phase; otherwise, go directly to draw.
+            # If player wins the bid, proceed to kitty phase; otherwise, go directly to draw.
             if self.bidder == "player":
                 self.phase = "kitty"
             else:
@@ -229,7 +229,7 @@ class Game:
     def confirm_kitty(self, keptIndices):
         # This phase is for when the player wins the bid.
         if self.bidder == "player":
-            # Combine player's original hand and kitty into one list.
+            # Combine original hand and kitty into a separate combinedHand.
             self.combinedHand = self.players["player"]["hand"] + self.kitty
             selected = []
             for i in keptIndices:
@@ -238,8 +238,8 @@ class Game:
                     card.selected = True
                     selected.append(card)
             if len(selected) < 1:
-                # Ensure at least one card from the original hand is kept.
                 selected = self.players["player"]["hand"][:1]
+            # Set player's hand to the selection (which may include cards from the kitty).
             self.players["player"]["hand"] = selected
             self.biddingMessage = "Kitty selection confirmed. Proceeding to draw phase."
             self.phase = "draw"
@@ -279,8 +279,7 @@ class Game:
                 self.gameNotes.append(f"{timestamp} - {p} drew {drawn} card(s) in draw phase.")
         self.biddingMessage = "Draw complete. Proceeding to trick play."
         self.phase = "trick"
-        # Set currentTurn to the winning bidder (they lead the first trick).
-        self.currentTurn = self.bidder
+        self.currentTurn = self.bidder  # Winning bidder leads the first trick.
         if self.currentTurn != "player":
             self.auto_play()
         return self.to_dict()
@@ -311,7 +310,7 @@ class Game:
             return False, "Invalid move: You must follow suit or play a valid trump card."
         return True, ""
     
-    # play_card uses the card's unique text identifier.
+    # play_card now uses the card's unique text identifier.
     def play_card(self, player, cardText):
         hand = self.players[player]["hand"]
         index = None
@@ -366,7 +365,7 @@ class Game:
         trick_summary += f". Winner: {winner}."
         self.gameNotes.append(trick_summary)
         self.trickLog.append(trick_summary)
-        self.lastTrick = self.currentTrick.copy()  # Display played cards
+        self.lastTrick = self.currentTrick.copy()  # For display in the Trick Area
         self.players[winner]["tricks"].append(self.currentTrick.copy())
         for entry in self.currentTrick:
             if is_trump(entry["card"], self.trump_suit):
@@ -462,9 +461,9 @@ class Game:
             "mode": self.mode,
             "bidder": self.bidder
         }
-        # During kitty phase (when you win the bid), include both original hand and kitty.
+        # In kitty phase (when the player wins the bid), send both original hand and kitty separately.
         if self.phase == "kitty" and self.bidder == "player":
-            state["playerHand"] = [card.to_dict() for card in self.players["player"]["hand"]]
+            state["originalHand"] = [card.to_dict() for card in self.players["player"]["hand"]]
             state["kitty"] = [card.to_dict() for card in self.kitty]
         if self.phase == "draw":
             state["drawHand"] = [card.to_dict() for card in self.players["player"]["hand"]]
