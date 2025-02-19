@@ -132,6 +132,7 @@ class Game:
         self.trumpCardsPlayed = []
         self.combinedHand = []
         self.computerDrawCounts = {}
+        self.trick_count = 0  # Initialize trick counter for the hand
         if self.mode == "2p" and self.dealer == "player":
             comp_id = self.player_order[1]
             comp_bid, comp_trump = self.computer_bid(comp_id)
@@ -229,9 +230,7 @@ class Game:
     def confirm_kitty(self, keptIndices):
         # This phase applies only when the player wins the bid.
         if self.bidder == "player":
-            # Save the original hand count.
             original_count = len(self.players["player"]["hand"])
-            # Combine original hand and kitty.
             self.combinedHand = self.players["player"]["hand"] + self.kitty
             selected = []
             for i in keptIndices:
@@ -374,8 +373,9 @@ class Game:
         self.currentTrick = []
         self.phase = "trickComplete"
         self.currentTurn = winner if winner is not None else "player"
-        # If all players' hands are empty, complete the hand.
-        if all(len(self.players[p]["hand"]) == 0 for p in self.players):
+        # Increment trick counter; only complete the hand after 5 tricks.
+        self.trick_count += 1
+        if self.trick_count >= 5:
             return self.complete_hand()
         return
 
