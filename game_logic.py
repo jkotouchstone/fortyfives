@@ -99,7 +99,6 @@ class Game:
         self.kitty = []
         self.trump_suit = None
         self.phase = "bidding"
-        # Bidding prompt now appears once
         self.biddingMessage = "Place your bid (15, 20, 25, or 30). Dealer: " + self.dealer
         self.currentTrick = []
         self.lastTrick = []
@@ -115,7 +114,6 @@ class Game:
 
     def next_player(self, current):
         idx = self.player_order.index(current)
-        # Default to "player" if somehow undefined
         return self.player_order[(idx + 1) % len(self.player_order)] if self.player_order else "player"
 
     def deal_hands(self):
@@ -221,10 +219,8 @@ class Game:
         if self.phase == "trump":
             self.trump_suit = suit
             self.biddingMessage = f"Trump is set to {suit}."
-            if self.bidder == "player":
-                self.phase = "kitty"
-            else:
-                self.phase = "draw"
+            # Whether player or computer wins the bid, we now proceed to draw phase.
+            self.phase = "draw"
         return
 
     def confirm_kitty(self, keptIndices):
@@ -277,7 +273,10 @@ class Game:
                 self.gameNotes.append(f"{timestamp} - {p} drew {drawn} card(s) in draw phase.")
         self.biddingMessage = "Draw complete. Proceeding to trick play."
         self.phase = "trick"
-        self.currentTurn = self.bidder  # Whoever won the bid leads the first trick.
+        # Now that drawing is done, if computer won the bid, set currentTurn to computer so it leads.
+        self.currentTurn = self.bidder
+        if self.currentTurn != "player":
+            self.auto_play()
         return self.to_dict()
 
     def validate_move(self, player, card):
@@ -320,14 +319,12 @@ class Game:
             timestamp = time.strftime("%H:%M:%S")
             self.gameNotes.append(f"{timestamp} - Illegal move attempted by {player}: {message}")
             return
-        # Remove only the selected card.
         card = self.players[player]["hand"].pop(cardIndex)
         card.selected = True
         self.currentTrick.append({"player": player, "card": card})
         timestamp = time.strftime("%H:%M:%S")
         self.gameNotes.append(f"{timestamp} - {player} played {card}")
         self.currentTurn = self.next_player(player)
-        # Immediately trigger auto-play if it's not player's turn.
         self.auto_play()
         if len(self.currentTrick) == len(self.player_order):
             self.finish_trick()
@@ -369,7 +366,7 @@ class Game:
         trick_summary += f". Winner: {winner}."
         self.gameNotes.append(trick_summary)
         self.trickLog.append(trick_summary)
-        self.lastTrick = self.currentTrick.copy()  # Keep played cards visible.
+        self.lastTrick = self.currentTrick.copy()
         self.players[winner]["tricks"].append(self.currentTrick.copy())
         for entry in self.currentTrick:
             if is_trump(entry["card"], self.trump_suit):
