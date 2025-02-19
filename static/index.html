@@ -255,7 +255,7 @@
     <!-- Enhanced Trick Area -->
     <div id="trick-area">
       <h3>Trick Area</h3>
-      <!-- Played cards appear here for 1.5 seconds before being cleared -->
+      <!-- Played cards appear here for a few seconds before being cleared -->
     </div>
     <div id="scoreboard-section">
       <h2>Scoreboard</h2>
@@ -272,7 +272,6 @@
   <script>
     let gameState = {};
     let gameSettings = { sound: true };
-    // Default: Tutorial mode is off.
     let tutorialSteps = [
       "Step 1: Cards are dealt. Your hand and the kitty are displayed.",
       "Step 2: During bidding, the computer's bid is shown in the Game Log.",
@@ -284,7 +283,6 @@
     ];
     let currentTutorialStep = 0;
 
-    // In kitty phase, update both original hand and kitty separately.
     function updateKittyHand(originalHand, kitty) {
       let container = document.getElementById("kitty-hand");
       container.innerHTML = "";
@@ -337,7 +335,6 @@
       });
     }
 
-    // Updated updateDrawHand to assign dataset.index for each card.
     function updateDrawHand(handArray) {
       let container = document.getElementById("draw-hand");
       container.innerHTML = "<strong>Your Hand:</strong>";
@@ -346,7 +343,7 @@
         div.className = "card" + (card.selected ? " selected" : "");
         div.textContent = card.text;
         div.dataset.cardtext = card.text;
-        div.dataset.index = i;  // assign index so that selection works properly
+        div.dataset.index = i;
         div.onclick = function() {
           if (!card.selected) {
             div.classList.toggle("selected");
@@ -412,7 +409,6 @@
       }
 
       if (state.gamePhase === "kitty") {
-        // In kitty phase, show kitty-selection UI and hide the regular "Your Cards" section.
         document.getElementById("your-hand").style.display = "none";
         document.getElementById("kitty-section").style.display = "block";
         updateKittyHand(state.originalHand || [], state.kitty || []);
@@ -446,7 +442,6 @@
         updateYourHand(state.playerHand);
       }
 
-      // Update Trick Area
       let trickArea = document.getElementById("trick-area");
       trickArea.innerHTML = "<h3>Trick Area</h3>";
       let trickCards = (state.currentTrick && state.currentTrick.length > 0) ? state.currentTrick : state.lastTrick;
@@ -470,9 +465,10 @@
       logDiv.innerHTML = "<strong>Game Log:</strong><br>" + state.gameNotes.slice().reverse().join("<br>");
 
       if (state.gamePhase === "trickComplete") {
+        // Increased delay to 2500ms to allow player to see the computer's card.
         setTimeout(() => {
           callAPI("/clear_trick", "POST", {});
-        }, 1500);
+        }, 2500);
       }
     }
 
@@ -498,7 +494,6 @@
       callAPI("/start_game", "POST", { mode: mode, instructional: instructional });
     }
 
-    // playCard sends the card's unique text identifier
     function playCard(cardText) {
       try {
         if (gameSettings.sound) {
