@@ -85,7 +85,6 @@
     .kitty-card {
       background-color: #ffe6e6;
     }
-    /* When selected, override with green (same as normal selected) */
     .kitty-card.selected {
       background-color: #90ee90 !important;
       border: 2px solid #000 !important;
@@ -181,13 +180,13 @@
       Place your bid (15, 20, 25, or 30). The computer bids based on hand strength.
     </p>
     <p><strong>Trick Play:</strong><br>
-      If you win the bid, you'll first enter the Kitty Selection phase where your original hand (top) and kitty cards (bottom) are shown. Select at least one card from your original hand to keep, then proceed to the draw phase and trick play.
+      If you win the bid, you’ll first enter the Kitty Selection phase where your original hand (top) and kitty cards (bottom) are shown. Select at least one card from your original hand to keep. Then you proceed to the draw phase and trick play, where your hand remains visible.
     </p>
     <button id="hide-instructions-btn">Hide Detailed Rules</button>
   </div>
 
-  <!-- Tutorial Modal -->
-  <div id="tutorial-modal">
+  <!-- Tutorial Modal (hidden by default) -->
+  <div id="tutorial-modal" style="display:none;">
     <div id="tutorial-content">
       <h2>Welcome to 45's!</h2>
       <div id="tutorial-step-content">
@@ -273,8 +272,7 @@
   <script>
     let gameState = {};
     let gameSettings = { sound: true };
-
-    // Tutorial mode is off by default.
+    // Default: Tutorial mode is off.
     let tutorialSteps = [
       "Step 1: Cards are dealt. Your hand and the kitty are displayed.",
       "Step 2: During bidding, the computer's bid is shown in the Game Log.",
@@ -286,7 +284,6 @@
     ];
     let currentTutorialStep = 0;
 
-    // Update the kitty hand UI using separate arrays for original hand and kitty.
     function updateKittyHand(originalHand, kitty) {
       let container = document.getElementById("kitty-hand");
       container.innerHTML = "";
@@ -297,7 +294,7 @@
         let div = document.createElement("div");
         div.className = "card";
         div.textContent = card.text;
-        div.dataset.index = i; // index within original hand
+        div.dataset.index = i;
         div.dataset.cardtext = card.text;
         div.onclick = function() { div.classList.toggle("selected"); };
         origDiv.appendChild(div);
@@ -308,10 +305,8 @@
       kittyDiv.innerHTML = "<h4>Kitty Cards:</h4>";
       kitty.forEach((card, i) => {
         let div = document.createElement("div");
-        // Assign kitty cards an extra class so they have a distinct default color.
         div.className = "card kitty-card";
         div.textContent = card.text;
-        // For kitty cards, set index starting after original hand length.
         div.dataset.index = originalHand.length + i;
         div.dataset.cardtext = card.text;
         div.onclick = function() { div.classList.toggle("selected"); };
@@ -413,7 +408,6 @@
       }
 
       if (state.gamePhase === "kitty") {
-        // During kitty phase, show kitty-selection UI and hide the regular "Your Cards" section.
         document.getElementById("your-hand").style.display = "none";
         document.getElementById("kitty-section").style.display = "block";
         updateKittyHand(state.originalHand || [], state.kitty || []);
@@ -447,7 +441,6 @@
         updateYourHand(state.playerHand);
       }
 
-      // Update Trick Area
       let trickArea = document.getElementById("trick-area");
       trickArea.innerHTML = "<h3>Trick Area</h3>";
       let trickCards = (state.currentTrick && state.currentTrick.length > 0) ? state.currentTrick : state.lastTrick;
@@ -499,7 +492,6 @@
       callAPI("/start_game", "POST", { mode: mode, instructional: instructional });
     }
 
-    // playCard sends the card's unique text identifier
     function playCard(cardText) {
       try {
         if (gameSettings.sound) {
