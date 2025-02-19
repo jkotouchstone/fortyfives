@@ -101,7 +101,7 @@ class Game:
         self.phase = "bidding"
         self.biddingMessage = "Place your bid (15, 20, 25, or 30). Dealer: " + self.dealer
         self.currentTrick = []
-        self.lastTrick = []
+        self.lastTrick = []  # Will hold the played cards from the completed trick.
         self.trickLog = []
         self.gameNotes = []
         self.handScores = []
@@ -219,7 +219,7 @@ class Game:
         if self.phase == "trump":
             self.trump_suit = suit
             self.biddingMessage = f"Trump is set to {suit}."
-            # Whether player or computer wins the bid, we now proceed to draw phase.
+            # Regardless of bidder, always proceed to draw phase.
             self.phase = "draw"
         return
 
@@ -273,7 +273,7 @@ class Game:
                 self.gameNotes.append(f"{timestamp} - {p} drew {drawn} card(s) in draw phase.")
         self.biddingMessage = "Draw complete. Proceeding to trick play."
         self.phase = "trick"
-        # Now that drawing is done, if computer won the bid, set currentTurn to computer so it leads.
+        # Set currentTurn to the bidder. If computer won the bid, it now leads.
         self.currentTurn = self.bidder
         if self.currentTurn != "player":
             self.auto_play()
