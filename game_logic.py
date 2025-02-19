@@ -151,8 +151,6 @@ class Game:
             bid = 15
         else:
             bid = 0
-        # For our purposes, if the player passes, we want a minimum bid of 15.
-        # (This value is adjusted in process_bid below when player_bid == 0.)
         if bid == 20 and random.random() < 0.3:
             bid = 25
         suit_counts = {}
@@ -189,7 +187,6 @@ class Game:
                         self.biddingMessage = f"{comp_id} wins the bid with 15 and selects {comp_trump} as trump."
                         self.phase = "draw"
                     else:
-                        # If player bid, then follow standard logic.
                         if player_bid != 0 and player_bid != comp_bid + 5:
                             self.biddingMessage = f"As dealer, you must pass or bid {comp_bid + 5}."
                             return self.to_dict()
@@ -369,6 +366,9 @@ class Game:
         return
 
     def finish_trick(self):
+        # If the last card played is by the computer, delay to let the player see it.
+        if self.currentTrick and self.currentTrick[-1]["player"] != "player":
+            time.sleep(0.5)
         winner = self.evaluate_trick(self.currentTrick)
         timestamp = time.strftime("%H:%M:%S")
         trick_summary = f"{timestamp} - " + ", ".join(f"{entry['player']} played {entry['card']}" for entry in self.currentTrick)
@@ -434,7 +434,6 @@ class Game:
         for p in self.players:
             hand_points = points[p]
             new_total = self.players[p]["score"] + hand_points
-            # Update key to "Player" if p=="player"
             label = "Player" if p == "player" else p
             hand_summary_parts.append(f"{label}: {hand_points} (Total: {new_total})")
             self.players[p]["score"] = new_total
