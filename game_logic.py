@@ -6,8 +6,8 @@ import time
 # ---------------------------
 class Card:
     def __init__(self, suit, rank):
-        self.suit = suit  # e.g., "♥", "♦", "♣", "♠"
-        self.rank = rank  # e.g., "2", "3", …, "10", "J", "Q", "K", "A"
+        self.suit = suit  # e.g. "♥", "♦", "♣", "♠"
+        self.rank = rank  # e.g. "2", "3", ..., "10", "J", "Q", "K", "A"
         self.text = f"{self.rank}{self.suit}"  # Unique identifier
 
     def __str__(self):
@@ -102,7 +102,7 @@ class Game:
         self.phase = "bidding"
         self.biddingMessage = "Place your bid (15, 20, 25, or 30). Dealer: " + self.dealer
         self.currentTrick = []
-        self.lastTrick = []  # Will hold the played cards for visual display
+        self.lastTrick = []  # Stores the played cards for visual display
         self.trickLog = []
         self.gameNotes = []
         self.handScores = []
@@ -220,7 +220,7 @@ class Game:
         if self.phase == "trump":
             self.trump_suit = suit
             self.biddingMessage = f"Trump is set to {suit}."
-            # Always proceed to draw phase so the player can adjust their hand.
+            # Proceed to draw phase so the player can adjust their hand
             self.phase = "draw"
         return
 
@@ -274,10 +274,10 @@ class Game:
                 self.gameNotes.append(f"{timestamp} - {p} drew {drawn} card(s) in draw phase.")
         self.biddingMessage = "Draw complete. Proceeding to trick play."
         self.phase = "trick"
-        # After drawing, set currentTurn to the bid winner so that the winning bidder leads the first trick.
+        # Set currentTurn to the bidder (winning bidder leads the first trick)
         self.currentTurn = self.bidder
         if self.currentTurn != "player":
-            self.auto_play()  # Computer leads if it won the bid.
+            self.auto_play()
         return self.to_dict()
 
     def validate_move(self, player, card):
@@ -306,7 +306,7 @@ class Game:
             return False, "Invalid move: You must follow suit or play a valid trump card."
         return True, ""
     
-    # Updated play_card now uses cardText (the card's unique identifier) instead of an index.
+    # play_card now accepts a cardText identifier
     def play_card(self, player, cardText):
         hand = self.players[player]["hand"]
         index = None
@@ -315,7 +315,7 @@ class Game:
                 index = i
                 break
         if index is None:
-            return  # Card not found.
+            return  # Card not found
         card = hand.pop(index)
         card.selected = True
         self.currentTrick.append({"player": player, "card": card})
@@ -361,17 +361,15 @@ class Game:
         trick_summary += f". Winner: {winner}."
         self.gameNotes.append(trick_summary)
         self.trickLog.append(trick_summary)
-        self.lastTrick = self.currentTrick.copy()  # Show played cards in the Trick Area
+        self.lastTrick = self.currentTrick.copy()  # Store played cards for display
         self.players[winner]["tricks"].append(self.currentTrick.copy())
         for entry in self.currentTrick:
             if is_trump(entry["card"], self.trump_suit):
                 self.trumpCardsPlayed.append((entry["player"], entry["card"]))
-        # Wait briefly so that played cards are visible
-        time.sleep(1.5)
-        self.lastTrick = []  # Clear the Trick Area after showing the trick
+        # Instead of sleeping here, the client will clear the trick area after a delay.
         self.currentTrick = []
         self.phase = "trickComplete"
-        # For tricks 2-5, the winner of the previous trick leads the next card.
+        # For trick 2-5, the winner of the previous trick leads.
         self.currentTurn = winner if winner is not None else "player"
         return
 
