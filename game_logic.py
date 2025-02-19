@@ -55,7 +55,6 @@ OFFSUIT_RANKINGS = {
 def is_trump(card, trump_suit):
     if card.suit == trump_suit:
         return True
-    # Ace of hearts is always trump.
     if card.suit == "♥" and card.rank == "A":
         return True
     return False
@@ -220,7 +219,7 @@ class Game:
         if self.phase == "trump":
             self.trump_suit = suit
             self.biddingMessage = f"Trump is set to {suit}."
-            # If the player wins the bid, proceed to kitty phase; if computer wins, go directly to draw.
+            # If player wins the bid, proceed to kitty phase; if computer wins, go directly to draw.
             if self.bidder == "player":
                 self.phase = "kitty"
             else:
@@ -230,7 +229,7 @@ class Game:
     def confirm_kitty(self, keptIndices):
         # This phase applies only when the player wins the bid.
         if self.bidder == "player":
-            # Save the original hand length.
+            # Save the original hand count.
             original_count = len(self.players["player"]["hand"])
             # Combine original hand and kitty.
             self.combinedHand = self.players["player"]["hand"] + self.kitty
@@ -240,7 +239,7 @@ class Game:
                     card = self.combinedHand[i]
                     card.selected = True
                     selected.append(card)
-            # Ensure at least one card from the original hand is kept.
+            # Ensure at least one card from the original hand (indices 0 to original_count-1) is kept.
             if not any(i < original_count for i in keptIndices):
                 selected.insert(0, self.players["player"]["hand"][0])
             self.players["player"]["hand"] = selected
@@ -375,6 +374,9 @@ class Game:
         self.currentTrick = []
         self.phase = "trickComplete"
         self.currentTurn = winner if winner is not None else "player"
+        # If all players' hands are empty, complete the hand.
+        if all(len(self.players[p]["hand"]) == 0 for p in self.players):
+            return self.complete_hand()
         return
 
     def clear_trick(self):
@@ -463,7 +465,6 @@ class Game:
             "mode": self.mode,
             "bidder": self.bidder
         }
-        # During kitty phase (when the player wins the bid), send separate arrays for original hand and kitty.
         if self.phase == "kitty" and self.bidder == "player":
             state["originalHand"] = [card.to_dict() for card in self.players["player"]["hand"]]
             state["kitty"] = [card.to_dict() for card in self.kitty]
