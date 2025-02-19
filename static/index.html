@@ -81,7 +81,15 @@
       padding: 10px;
       display: none;
     }
-    #kitty-hand .card { border: 2px dashed #fff; }
+    /* Assign kitty cards a dedicated class */
+    .kitty-card {
+      background-color: #ffe6e6;
+    }
+    /* When selected, override with green (same as normal selected) */
+    .kitty-card.selected {
+      background-color: #90ee90 !important;
+      border: 2px solid #000 !important;
+    }
     /* Draw Phase Section */
     #draw-section {
       background: rgba(0,0,0,0.5);
@@ -173,7 +181,7 @@
       Place your bid (15, 20, 25, or 30). The computer bids based on hand strength.
     </p>
     <p><strong>Trick Play:</strong><br>
-      If you win the bid, you’ll first enter the Kitty Selection phase where your original hand (top) and the kitty (bottom) are shown so you can choose which cards to keep. Then you proceed to the draw phase and trick play, where your hand remains visible.
+      If you win the bid, you'll first enter the Kitty Selection phase where your original hand (top) and kitty cards (bottom) are shown. Select at least one card from your original hand to keep, then proceed to the draw phase and trick play.
     </p>
     <button id="hide-instructions-btn">Hide Detailed Rules</button>
   </div>
@@ -265,6 +273,7 @@
   <script>
     let gameState = {};
     let gameSettings = { sound: true };
+
     // Tutorial mode is off by default.
     let tutorialSteps = [
       "Step 1: Cards are dealt. Your hand and the kitty are displayed.",
@@ -277,7 +286,7 @@
     ];
     let currentTutorialStep = 0;
 
-    // In kitty phase, update both original hand and kitty separately.
+    // Update the kitty hand UI using separate arrays for original hand and kitty.
     function updateKittyHand(originalHand, kitty) {
       let container = document.getElementById("kitty-hand");
       container.innerHTML = "";
@@ -299,12 +308,12 @@
       kittyDiv.innerHTML = "<h4>Kitty Cards:</h4>";
       kitty.forEach((card, i) => {
         let div = document.createElement("div");
-        div.className = "card";
+        // Assign kitty cards an extra class so they have a distinct default color.
+        div.className = "card kitty-card";
         div.textContent = card.text;
-        // For kitty cards, set index starting after original hand length
+        // For kitty cards, set index starting after original hand length.
         div.dataset.index = originalHand.length + i;
         div.dataset.cardtext = card.text;
-        div.style.backgroundColor = "#ffe6e6";
         div.onclick = function() { div.classList.toggle("selected"); };
         kittyDiv.appendChild(div);
       });
@@ -404,10 +413,9 @@
       }
 
       if (state.gamePhase === "kitty") {
-        // In kitty phase, show kitty selection UI and hide the regular "Your Cards" section.
+        // During kitty phase, show kitty-selection UI and hide the regular "Your Cards" section.
         document.getElementById("your-hand").style.display = "none";
         document.getElementById("kitty-section").style.display = "block";
-        // Use the separate originalHand from the server.
         updateKittyHand(state.originalHand || [], state.kitty || []);
       } else {
         document.getElementById("kitty-section").style.display = "none";
