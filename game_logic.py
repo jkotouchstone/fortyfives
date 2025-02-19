@@ -320,7 +320,7 @@ class Game:
                 index = i
                 break
         if index is None:
-            return self.to_dict()  # Return current state if card not found.
+            return self.to_dict()  # Card not found; return current state.
         card = hand.pop(index)
         card.selected = True
         self.currentTrick.append({"player": player, "card": card})
@@ -337,6 +337,8 @@ class Game:
 
     def auto_play(self):
         while self.currentTurn != "player" and len(self.currentTrick) < len(self.player_order):
+            # Add a slight delay to simulate the computer taking its time.
+            time.sleep(0.3)
             available = self.players[self.currentTurn]["hand"]
             if not available:
                 break
