@@ -101,7 +101,7 @@ class Game:
         self.phase = "bidding"
         self.biddingMessage = "Place your bid (15, 20, 25, or 30). Dealer: " + self.dealer
         self.currentTrick = []
-        self.lastTrick = []  # Stores played cards for visual display
+        self.lastTrick = []  # For displaying played cards temporarily
         self.trickLog = []
         self.gameNotes = []
         self.handScores = []
@@ -219,7 +219,7 @@ class Game:
         if self.phase == "trump":
             self.trump_suit = suit
             self.biddingMessage = f"Trump is set to {suit}."
-            # If player wins the bid, proceed to kitty phase; if computer wins, proceed directly to draw.
+            # If the player wins the bid, proceed to kitty phase; otherwise, go directly to draw.
             if self.bidder == "player":
                 self.phase = "kitty"
             else:
@@ -227,9 +227,9 @@ class Game:
         return
 
     def confirm_kitty(self, keptIndices):
-        # This phase is only for player bids.
+        # This phase is for when the player wins the bid.
         if self.bidder == "player":
-            # Combine player's original hand and kitty.
+            # Combine player's original hand and kitty into one list.
             self.combinedHand = self.players["player"]["hand"] + self.kitty
             selected = []
             for i in keptIndices:
@@ -238,6 +238,7 @@ class Game:
                     card.selected = True
                     selected.append(card)
             if len(selected) < 1:
+                # Ensure at least one card from the original hand is kept.
                 selected = self.players["player"]["hand"][:1]
             self.players["player"]["hand"] = selected
             self.biddingMessage = "Kitty selection confirmed. Proceeding to draw phase."
@@ -278,7 +279,8 @@ class Game:
                 self.gameNotes.append(f"{timestamp} - {p} drew {drawn} card(s) in draw phase.")
         self.biddingMessage = "Draw complete. Proceeding to trick play."
         self.phase = "trick"
-        self.currentTurn = self.bidder  # Winning bidder leads the first trick.
+        # Set currentTurn to the winning bidder (they lead the first trick).
+        self.currentTurn = self.bidder
         if self.currentTurn != "player":
             self.auto_play()
         return self.to_dict()
@@ -309,7 +311,7 @@ class Game:
             return False, "Invalid move: You must follow suit or play a valid trump card."
         return True, ""
     
-    # Updated play_card uses the card's unique text identifier.
+    # play_card uses the card's unique text identifier.
     def play_card(self, player, cardText):
         hand = self.players[player]["hand"]
         index = None
@@ -364,7 +366,7 @@ class Game:
         trick_summary += f". Winner: {winner}."
         self.gameNotes.append(trick_summary)
         self.trickLog.append(trick_summary)
-        self.lastTrick = self.currentTrick.copy()  # For display in the Trick Area
+        self.lastTrick = self.currentTrick.copy()  # Display played cards
         self.players[winner]["tricks"].append(self.currentTrick.copy())
         for entry in self.currentTrick:
             if is_trump(entry["card"], self.trump_suit):
@@ -443,8 +445,7 @@ class Game:
     def to_dict(self):
         state = {
             "gamePhase": self.phase,
-            # During kitty phase, omit the regular playerHand so only the kitty display is shown.
-            "playerHand": [] if self.phase == "kitty" and self.bidder == "player" else [card.to_dict() for card in self.players["player"]["hand"]],
+            "playerHand": [card.to_dict() for card in self.players["player"]["hand"]],
             "computerHandCount": (len(self.players[self.player_order[1]]["hand"]) if self.mode == "2p" else None),
             "kitty": [card.to_dict() for card in self.kitty],
             "trumpSuit": self.trump_suit if self.phase not in ["bidding"] else None,
@@ -461,7 +462,9 @@ class Game:
             "mode": self.mode,
             "bidder": self.bidder
         }
+        # During kitty phase (when you win the bid), include both original hand and kitty.
         if self.phase == "kitty" and self.bidder == "player":
+            state["playerHand"] = [card.to_dict() for card in self.players["player"]["hand"]]
             state["kitty"] = [card.to_dict() for card in self.kitty]
         if self.phase == "draw":
             state["drawHand"] = [card.to_dict() for card in self.players["player"]["hand"]]
