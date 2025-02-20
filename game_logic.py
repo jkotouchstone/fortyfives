@@ -134,10 +134,12 @@ class Game:
         self.combinedHand = []
         self.computerDrawCounts = {}
         self.trick_count = 0  # Reset trick counter for each hand
-        if self.mode == "2p" and self.dealer == "player":
-            comp_id = self.player_order[1]
-            comp_bid, comp_trump = self.computer_bid(comp_id)
-            self.bidHistory[comp_id] = "Passed" if comp_bid == 0 else f"bid {comp_bid}"
+        if self.mode == "2p":
+            if self.dealer == "player":
+                comp_id = self.player_order[1]
+                comp_bid, comp_trump = self.computer_bid(comp_id)
+                self.bidHistory[comp_id] = "Passed" if comp_bid == 0 else f"bid {comp_bid}"
+        # For 3p mode, we assume minimal bidding logic; the player's hand always exists.
         self.currentTurn = "player"
 
     def computer_bid(self, comp_id):
@@ -151,7 +153,7 @@ class Game:
                 suit_top_counts[card.suit] = suit_top_counts.get(card.suit, 0) + 1
         best_suit = max(suit_counts, key=suit_counts.get)
         top_count = suit_top_counts.get(best_suit, 0)
-        # If player passes, computer only needs to bid 15.
+        # If the player passes (bid 0) then computer only needs to bid 15.
         if top_count >= 2:
             bid = 20
             if top_count >= 3 and random.random() < 0.3:
@@ -163,8 +165,8 @@ class Game:
         return bid, best_suit
 
     def process_bid(self, player_bid):
-        self.bidHistory["player"] = "Passed" if player_bid == 0 else f"bid {player_bid}"
         if self.mode == "2p":
+            self.bidHistory["player"] = "Passed" if player_bid == 0 else f"bid {player_bid}"
             comp_id = self.player_order[1]
             if comp_id in self.bidHistory:
                 comp_bid_str = self.bidHistory[comp_id]
@@ -187,7 +189,7 @@ class Game:
                         self.biddingMessage = f"{comp_id} wins the bid with 15 and selects {comp_trump} as trump."
                         self.phase = "draw"
                     else:
-                        if player_bid != 0 and player_bid != comp_bid + 5:
+                        if player_bid != comp_bid + 5:
                             self.biddingMessage = f"As dealer, you must pass or bid {comp_bid + 5}."
                             return self.to_dict()
                         self.bidder = "player"
@@ -225,6 +227,23 @@ class Game:
                         self.trump_suit = comp_trump
                         self.biddingMessage = f"{comp_id} wins the bid with {comp_bid} and selects trump {comp_trump}."
                         self.phase = "draw"
+            self.currentTurn = self.bidder
+        else:
+            # Minimal 3-way bidding: if player passes (0), first computer wins with 15; else player wins.
+            if player_bid == 0:
+                self.bidHistory["player"] = "Passed"
+                comp_id = self.player_order[1]
+                self.bidder = comp_id
+                self.bid = 15
+                self.trump_suit = self.computer_bid(comp_id)[1]
+                self.biddingMessage = f"{comp_id} wins the bid with 15 and selects trump {self.trump_suit}."
+                self.phase = "draw"
+            else:
+                self.bidHistory["player"] = f"bid {player_bid}"
+                self.bidder = "player"
+                self.bid = player_bid
+                self.biddingMessage = f"Player wins the bid with {player_bid}. Please select the trump suit."
+                self.phase = "trump"
             self.currentTurn = self.bidder
         return self.to_dict()
 
@@ -298,7 +317,6 @@ class Game:
         return self.to_dict()
 
     def validate_move(self, player, card):
-        # When a trump is led, if the player has any trump cards, they must play a trump.
         if not self.currentTrick:
             return True, ""
         lead_card = self.currentTrick[0]["card"]
@@ -312,7 +330,6 @@ class Game:
             else:
                 return True, ""
         else:
-            # For non-trump leads, follow suit if possible.
             if card.suit == lead_card.suit or is_trump(card, self.trump_suit):
                 return True, ""
             if any(c.suit == lead_card.suit for c in self.players[player]["hand"]):
@@ -327,7 +344,7 @@ class Game:
                 index = i
                 break
         if index is None:
-            return self.to_dict()  # Card not found; return current state.
+            return self.to_dict()
         card = hand.pop(index)
         card.selected = True
         self.currentTrick.append({"player": player, "card": card})
@@ -344,7 +361,7 @@ class Game:
 
     def auto_play(self):
         while self.currentTurn != "player" and len(self.currentTrick) < len(self.player_order):
-            time.sleep(0.3)  # Delay to simulate computer thinking.
+            time.sleep(0.3)
             available = self.players[self.currentTurn]["hand"]
             if not available:
                 break
@@ -353,7 +370,6 @@ class Game:
                 if is_trump(lead_card, self.trump_suit):
                     trump_moves = [card for card in available if is_trump(card, self.trump_suit)]
                     if trump_moves:
-                        # Choose the lowest winning trump card to preserve higher ones.
                         available = sorted(trump_moves, key=lambda c: get_trump_value(c, self.trump_suit))
                 else:
                     suit_moves = [card for card in available if card.suit == lead_card.suit]
@@ -372,14 +388,14 @@ class Game:
         return
 
     def finish_trick(self):
-        # Remove the server-side delay to let the client delay (1750ms) show the computer's card.
+        # No additional server-side delay; client will manage display timing.
         winner = self.evaluate_trick(self.currentTrick)
         timestamp = time.strftime("%H:%M:%S")
         trick_summary = f"{timestamp} - " + ", ".join(f"{entry['player']} played {entry['card']}" for entry in self.currentTrick)
         trick_summary += f". Winner: {winner}."
         self.gameNotes.append(trick_summary)
         self.trickLog.append(trick_summary)
-        self.lastTrick = self.currentTrick.copy()  # For display in the Trick Area
+        self.lastTrick = self.currentTrick.copy()
         self.players[winner]["tricks"].append(self.currentTrick.copy())
         for entry in self.currentTrick:
             if is_trump(entry["card"], self.trump_suit):
