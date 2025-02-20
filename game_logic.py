@@ -151,7 +151,7 @@ class Game:
                 suit_top_counts[card.suit] = suit_top_counts.get(card.suit, 0) + 1
         best_suit = max(suit_counts, key=suit_counts.get)
         top_count = suit_top_counts.get(best_suit, 0)
-        # If player passes (bids 0), computer only needs to bid the minimum (15).
+        # If player passes (bid 0), computer only needs to bid the minimum (15).
         if top_count >= 2:
             bid = 20
             if top_count >= 3 and random.random() < 0.3:
@@ -298,7 +298,8 @@ class Game:
         return self.to_dict()
 
     def validate_move(self, player, card):
-        # When a trump is led, if the player has any trump cards, they must play one.
+        # Revised trump rule: if a trump is led and the player has any trump cards,
+        # they must play a trump, but are allowed to choose which trump to play.
         if not self.currentTrick:
             return True, ""
         lead_card = self.currentTrick[0]["card"]
@@ -310,12 +311,6 @@ class Game:
                 else:
                     return True, ""
             else:
-                # If playing trump, enforce that the player plays their highest trump.
-                trump_in_hand = [c for c in self.players[player]["hand"] if is_trump(c, self.trump_suit)]
-                if trump_in_hand:
-                    highest_trump = max(trump_in_hand, key=lambda c: get_trump_value(c, self.trump_suit))
-                    if get_trump_value(card, self.trump_suit) < get_trump_value(highest_trump, self.trump_suit):
-                        return False, "Invalid move: You must play your highest trump card."
                 return True, ""
         else:
             # For non-trump leads, follow suit if possible.
@@ -350,19 +345,21 @@ class Game:
 
     def auto_play(self):
         while self.currentTurn != "player" and len(self.currentTrick) < len(self.player_order):
-            time.sleep(0.3)  # Slight delay to simulate computer thinking.
+            time.sleep(0.3)  # Delay to simulate computer thinking.
             available = self.players[self.currentTurn]["hand"]
             if not available:
                 break
-            # If there is a lead and it is trump, prefer selecting among trump cards.
             if self.currentTrick:
                 lead_card = self.currentTrick[0]["card"]
                 if is_trump(lead_card, self.trump_suit):
                     trump_moves = [card for card in available if is_trump(card, self.trump_suit)]
                     if trump_moves:
-                        # Instead of choosing randomly, choose the lowest trump card 
-                        # (i.e. the one with the smallest trump value) to preserve higher trumps.
+                        # Choose the lowest winning trump card to preserve higher ones.
                         available = sorted(trump_moves, key=lambda c: get_trump_value(c, self.trump_suit))
+                else:
+                    suit_moves = [card for card in available if card.suit == lead_card.suit]
+                    if suit_moves:
+                        available = suit_moves
             valid_moves = []
             for card in available:
                 valid, _ = self.validate_move(self.currentTurn, card)
@@ -376,9 +373,9 @@ class Game:
         return
 
     def finish_trick(self):
-        # If the last card played is by the computer, add a 0.5-second delay.
+        # Add a 1.5-second delay if the last card was played by the computer.
         if self.currentTrick and self.currentTrick[-1]["player"] != "player":
-            time.sleep(0.5)
+            time.sleep(1.5)
         winner = self.evaluate_trick(self.currentTrick)
         timestamp = time.strftime("%H:%M:%S")
         trick_summary = f"{timestamp} - " + ", ".join(f"{entry['player']} played {entry['card']}" for entry in self.currentTrick)
