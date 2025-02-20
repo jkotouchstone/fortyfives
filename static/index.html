@@ -96,6 +96,14 @@
       padding: 10px;
       display: none;
     }
+    /* Final Results Section */
+    #final-result {
+      display: none;
+      padding: 20px;
+      background: rgba(0, 0, 0, 0.8);
+      border-radius: 8px;
+      margin-top: 20px;
+    }
     /* Card styling */
     .card {
       display: inline-block;
@@ -262,6 +270,12 @@
       <div id="scoreboard"></div>
     </div>
     <div id="game-log"></div>
+    <!-- Final Results Section (hidden until game is finished) -->
+    <div id="final-result">
+      <h2>Game Over</h2>
+      <div id="final-scoreboard"></div>
+      <button id="play-again-btn">Play Again</button>
+    </div>
     <button id="reset-game-btn">Reset Game</button>
   </div>
 
@@ -391,10 +405,42 @@
       trumpDisplay.textContent = trumpSuit ? "Trump: " + trumpSuit : "";
     }
 
+    function updateFinalResult(state) {
+      // Construct final scoreboard text from the state.scoreboard object.
+      let finalScoreText = "<h3>Final Scores:</h3>";
+      for (const [player, score] of Object.entries(state.scoreboard)) {
+        finalScoreText += `<p><strong>${player}:</strong> ${score}</p>`;
+      }
+      document.getElementById("final-scoreboard").innerHTML = finalScoreText;
+    }
+
     function updateUI(state) {
       gameState = state;
       console.log("DEBUG: Game State", state);
       updateTrumpDisplay(state.trumpSuit);
+
+      // If game is finished, hide other sections and show final result.
+      if (state.gamePhase === "finished") {
+        document.getElementById("bidding-section").style.display = "none";
+        document.getElementById("trump-section").style.display = "none";
+        document.getElementById("kitty-section").style.display = "none";
+        document.getElementById("draw-section").style.display = "none";
+        document.getElementById("your-hand").style.display = "none";
+        document.getElementById("trick-area").style.display = "none";
+        document.getElementById("scoreboard-section").style.display = "none";
+        document.getElementById("game-log").style.display = "none";
+        document.getElementById("reset-game-btn").style.display = "none";
+        // Update and show final result section.
+        updateFinalResult(state);
+        document.getElementById("final-result").style.display = "block";
+        return;
+      } else {
+        // Show game elements if not finished.
+        document.getElementById("final-result").style.display = "none";
+        document.getElementById("scoreboard-section").style.display = "block";
+        document.getElementById("game-log").style.display = "block";
+        document.getElementById("reset-game-btn").style.display = "block";
+      }
 
       if (state.gamePhase === "bidding") {
         document.getElementById("bidding-section").style.display = "block";
@@ -466,19 +512,9 @@
       logDiv.innerHTML = "<strong>Game Log:</strong><br>" + state.gameNotes.slice().reverse().join("<br>");
 
       if (state.gamePhase === "trickComplete") {
-        // Adjusted delay to 1750ms.
         setTimeout(() => {
           callAPI("/clear_trick", "POST", {});
         }, 1750);
-      }
-
-      if (state.gamePhase === "finished" && !gameOverAlertShown) {
-        gameOverAlertShown = true;
-        let winner = Object.keys(state.scoreboard).reduce((a, b) => state.scoreboard[a] > state.scoreboard[b] ? a : b);
-        let playAgain = confirm(`Game Over! ${winner} wins. Would you like to play again?`);
-        if (playAgain) {
-          resetGame();
-        }
       }
     }
 
@@ -600,6 +636,7 @@
       });
       document.getElementById("confirm-kitty-btn").addEventListener("click", confirmKitty);
       document.getElementById("confirm-draw-btn").addEventListener("click", confirmDraw);
+      document.getElementById("play-again-btn").addEventListener("click", resetGame);
     });
   </script>
   <footer>© 2025 ♣ O'Donohue Software ♣</footer>
