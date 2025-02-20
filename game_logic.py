@@ -142,21 +142,22 @@ class Game:
 
     def computer_bid(self, comp_id):
         hand = self.players[comp_id]["hand"]
-        has5 = any(card.rank == "5" for card in hand)
-        topCount = sum(1 for card in hand if card.rank in ["J", "A", "K"])
-        # Compute a bid based on hand strength.
-        if has5 or topCount >= 2:
-            bid = 20
-        elif topCount == 1:
-            bid = 15
-        else:
-            bid = 0
-        if bid == 20 and random.random() < 0.3:
-            bid = 25
+        # Count top trump cards (5, J, A) for each suit.
+        suit_top_counts = {}
         suit_counts = {}
         for card in hand:
             suit_counts[card.suit] = suit_counts.get(card.suit, 0) + 1
+            if card.rank in ["5", "J", "A"]:
+                suit_top_counts[card.suit] = suit_top_counts.get(card.suit, 0) + 1
         best_suit = max(suit_counts, key=suit_counts.get)
+        top_count = suit_top_counts.get(best_suit, 0)
+        # If player passes (bids 0), computer only needs to bid the minimum (15).
+        if top_count >= 2:
+            bid = 20
+            if top_count >= 3 and random.random() < 0.3:
+                bid = 25
+        else:
+            bid = 15
         timestamp = time.strftime("%H:%M:%S")
         self.gameNotes.append(f"{timestamp} - {comp_id} " + ("Passed" if bid == 0 else f"bid {bid}"))
         return bid, best_suit
@@ -179,7 +180,6 @@ class Game:
                     self.phase = "trump"
                 else:
                     if player_bid == 0:
-                        # Player passed; force computer's bid to minimum 15.
                         self.bidder = comp_id
                         self.bid = 15
                         _, comp_trump = self.computer_bid(comp_id)
@@ -210,12 +210,21 @@ class Game:
                     self.biddingMessage = f"Player wins the bid with {player_bid}. Please select the trump suit."
                     self.phase = "trump"
                 else:
-                    self.bidder = comp_id
-                    self.bid = comp_bid
-                    _, comp_trump = self.computer_bid(comp_id)
-                    self.trump_suit = comp_trump
-                    self.biddingMessage = f"{comp_id} wins the bid with {comp_bid} and selects trump {comp_trump}."
-                    self.phase = "draw"
+                    if player_bid == 0:
+                        self.bidder = comp_id
+                        self.bid = 15
+                        self.bidHistory["player"] = "Passed"
+                        self.bidHistory[comp_id] = "Passed"
+                        self.trump_suit = self.computer_bid(comp_id)[1]
+                        self.biddingMessage = f"Both passed. {comp_id} wins the bid with 15 and selects trump {self.trump_suit}."
+                        self.phase = "draw"
+                    else:
+                        self.bidder = comp_id
+                        self.bid = comp_bid
+                        _, comp_trump = self.computer_bid(comp_id)
+                        self.trump_suit = comp_trump
+                        self.biddingMessage = f"{comp_id} wins the bid with {comp_bid} and selects trump {comp_trump}."
+                        self.phase = "draw"
             self.currentTurn = self.bidder
         return self.to_dict()
 
@@ -289,31 +298,33 @@ class Game:
         return self.to_dict()
 
     def validate_move(self, player, card):
+        # When a trump is led, if the player has any trump cards, they must play one.
         if not self.currentTrick:
             return True, ""
         lead_card = self.currentTrick[0]["card"]
-        lead_suit = lead_card.suit
         if is_trump(lead_card, self.trump_suit):
             if not is_trump(card, self.trump_suit):
                 trump_in_hand = [c for c in self.players[player]["hand"] if is_trump(c, self.trump_suit)]
                 if trump_in_hand:
-                    return False, "Invalid move: When a trump is led, you must play a trump card if you have one."
+                    return False, "Invalid move: You must play a trump card when a trump is led."
                 else:
                     return True, ""
             else:
+                # If playing trump, enforce that the player plays their highest trump.
                 trump_in_hand = [c for c in self.players[player]["hand"] if is_trump(c, self.trump_suit)]
                 if trump_in_hand:
-                    trump_in_hand.sort(key=lambda c: get_trump_value(c, self.trump_suit), reverse=True)
-                    top_three = trump_in_hand[:3]
-                    if not any(card.rank == tc.rank and card.suit == tc.suit for tc in top_three):
-                        return False, "Invalid move: You must play one of your top 3 trump cards."
+                    highest_trump = max(trump_in_hand, key=lambda c: get_trump_value(c, self.trump_suit))
+                    if get_trump_value(card, self.trump_suit) < get_trump_value(highest_trump, self.trump_suit):
+                        return False, "Invalid move: You must play your highest trump card."
                 return True, ""
-        if card.suit == lead_suit or is_trump(card, self.trump_suit):
+        else:
+            # For non-trump leads, follow suit if possible.
+            if card.suit == lead_card.suit or is_trump(card, self.trump_suit):
+                return True, ""
+            if any(c.suit == lead_card.suit for c in self.players[player]["hand"]):
+                return False, "Invalid move: You must follow suit or play a trump card."
             return True, ""
-        if any(c.suit == lead_suit for c in self.players[player]["hand"]):
-            return False, "Invalid move: You must follow suit or play a valid trump card."
-        return True, ""
-    
+
     def play_card(self, player, cardText):
         hand = self.players[player]["hand"]
         index = None
@@ -343,16 +354,15 @@ class Game:
             available = self.players[self.currentTurn]["hand"]
             if not available:
                 break
+            # If there is a lead and it is trump, prefer selecting among trump cards.
             if self.currentTrick:
                 lead_card = self.currentTrick[0]["card"]
                 if is_trump(lead_card, self.trump_suit):
-                    trump_cards = [card for card in available if is_trump(card, self.trump_suit)]
-                    if trump_cards:
-                        available = trump_cards
-                else:
-                    suit_cards = [card for card in available if card.suit == lead_card.suit]
-                    if suit_cards:
-                        available = suit_cards
+                    trump_moves = [card for card in available if is_trump(card, self.trump_suit)]
+                    if trump_moves:
+                        # Instead of choosing randomly, choose the lowest trump card 
+                        # (i.e. the one with the smallest trump value) to preserve higher trumps.
+                        available = sorted(trump_moves, key=lambda c: get_trump_value(c, self.trump_suit))
             valid_moves = []
             for card in available:
                 valid, _ = self.validate_move(self.currentTurn, card)
@@ -366,7 +376,7 @@ class Game:
         return
 
     def finish_trick(self):
-        # If the last card played is by the computer, delay to let the player see it.
+        # If the last card played is by the computer, add a 0.5-second delay.
         if self.currentTrick and self.currentTrick[-1]["player"] != "player":
             time.sleep(0.5)
         winner = self.evaluate_trick(self.currentTrick)
