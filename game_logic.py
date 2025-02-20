@@ -151,7 +151,7 @@ class Game:
                 suit_top_counts[card.suit] = suit_top_counts.get(card.suit, 0) + 1
         best_suit = max(suit_counts, key=suit_counts.get)
         top_count = suit_top_counts.get(best_suit, 0)
-        # If player passes (bid 0), computer only needs to bid the minimum (15).
+        # If player passes, computer only needs to bid 15.
         if top_count >= 2:
             bid = 20
             if top_count >= 3 and random.random() < 0.3:
@@ -298,8 +298,7 @@ class Game:
         return self.to_dict()
 
     def validate_move(self, player, card):
-        # Revised trump rule: if a trump is led and the player has any trump cards,
-        # they must play a trump, but are allowed to choose which trump to play.
+        # When a trump is led, if the player has any trump cards, they must play a trump.
         if not self.currentTrick:
             return True, ""
         lead_card = self.currentTrick[0]["card"]
@@ -373,9 +372,7 @@ class Game:
         return
 
     def finish_trick(self):
-        # Add a 1.5-second delay if the last card was played by the computer.
-        if self.currentTrick and self.currentTrick[-1]["player"] != "player":
-            time.sleep(1.5)
+        # Remove the server-side delay to let the client delay (1750ms) show the computer's card.
         winner = self.evaluate_trick(self.currentTrick)
         timestamp = time.strftime("%H:%M:%S")
         trick_summary = f"{timestamp} - " + ", ".join(f"{entry['player']} played {entry['card']}" for entry in self.currentTrick)
