@@ -102,6 +102,7 @@ class Game:
         self.biddingMessage = "Place your bid (15, 20, 25, or 30). Dealer: " + self.dealer
         self.currentTrick = []
         self.lastTrick = []  # For temporarily displaying played cards
+        self.lastTrickWinner = None
         self.trickLog = []
         self.gameNotes = []
         self.handScores = []
@@ -142,24 +143,55 @@ class Game:
         # For 3p mode, we assume minimal bidding logic; the player's hand always exists.
         self.currentTurn = "player"
 
+    def hand_strength(self, hand, suit):
+        """Score a hand assuming `suit` is trump. Weighs trump cards heavily,
+        gives partial credit for off-suit Aces/Kings, and rewards having
+        multiple cards in the same suit (more likely to be able to follow
+        trump or draw well)."""
+        score = 0.0
+        trump_count = 0
+        for card in hand:
+            if is_trump(card, suit):
+                trump_count += 1
+                # Top of the trump ranking is worth most.
+                score += get_trump_value(card, suit) * 1.5
+            elif card.rank == "A":
+                score += 4
+            elif card.rank == "K":
+                score += 2
+        # Holding many trump is disproportionately strong in 45s.
+        if trump_count >= 3:
+            score += 8
+        elif trump_count >= 2:
+            score += 3
+        return score
+
+    def best_suit_for_hand(self, hand):
+        suits = ["♥", "♦", "♣", "♠"]
+        scored = [(self.hand_strength(hand, s), s) for s in suits]
+        scored.sort(key=lambda x: x[0], reverse=True)
+        return scored[0][1], scored[0][0]
+
     def computer_bid(self, comp_id):
         hand = self.players[comp_id]["hand"]
-        # Count top trump cards (5, J, A) for each suit.
-        suit_top_counts = {}
-        suit_counts = {}
-        for card in hand:
-            suit_counts[card.suit] = suit_counts.get(card.suit, 0) + 1
-            if card.rank in ["5", "J", "A"]:
-                suit_top_counts[card.suit] = suit_top_counts.get(card.suit, 0) + 1
-        best_suit = max(suit_counts, key=suit_counts.get)
-        top_count = suit_top_counts.get(best_suit, 0)
-        # If the player passes (bid 0) then computer only needs to bid 15.
-        if top_count >= 2:
+        best_suit, strength = self.best_suit_for_hand(hand)
+        # Strength thresholds tuned against a 5-card hand (max realistic
+        # strength is well above 30, so these bands map roughly to how
+        # likely the hand is to make its bid).
+        if strength >= 28:
+            bid = 30
+        elif strength >= 22:
+            bid = 25
+        elif strength >= 16:
             bid = 20
-            if top_count >= 3 and random.random() < 0.3:
-                bid = 25
-        else:
+        elif strength >= 10:
             bid = 15
+        else:
+            bid = 0  # Pass
+        # Small chance of a slightly bolder or more conservative bid so the
+        # AI isn't perfectly predictable.
+        if bid != 0 and random.random() < 0.15:
+            bid = max(15, bid - 5)
         timestamp = time.strftime("%H:%M:%S")
         self.gameNotes.append(f"{timestamp} - {comp_id} " + ("Passed" if bid == 0 else f"bid {bid}"))
         return bid, best_suit
@@ -359,6 +391,59 @@ class Game:
             self.finish_trick()
         return self.to_dict()
 
+    def choose_ai_card(self, player, available, valid_moves):
+        """Pick a card for an AI player using simple but real trick strategy:
+        - If leading, lead with a strong trump if we hold the bid (push for
+          points) otherwise lead a safe off-suit card.
+        - If following, play the cheapest card that still wins the trick;
+          if we can't win, shed the lowest-value card to conserve strength.
+        """
+        moves = valid_moves if valid_moves else available
+        if not moves:
+            return None
+        if not self.currentTrick:
+            # Leading the trick.
+            trump_moves = [c for c in moves if is_trump(c, self.trump_suit)]
+            if self.bidder == player and trump_moves:
+                # Push the strongest trump to establish control of the hand.
+                return max(trump_moves, key=lambda c: get_trump_value(c, self.trump_suit))
+            non_trump = [c for c in moves if not is_trump(c, self.trump_suit)]
+            pool = non_trump if non_trump else moves
+            # Lead the lowest off-suit card to probe safely.
+            return min(pool, key=lambda c: get_offsuit_value(c) if not is_trump(c, self.trump_suit)
+                       else get_trump_value(c, self.trump_suit))
+        # Following: figure out what currently wins.
+        winner_entry = max(
+            self.currentTrick,
+            key=lambda e: get_trump_value(e["card"], self.trump_suit) + 1000
+            if is_trump(e["card"], self.trump_suit)
+            else (get_offsuit_value(e["card"]) if e["card"].suit == self.currentTrick[0]["card"].suit else -1)
+        )
+        winning_card = winner_entry["card"]
+        winning_is_trump = is_trump(winning_card, self.trump_suit)
+
+        def beats_current(c):
+            if is_trump(c, self.trump_suit):
+                if not winning_is_trump:
+                    return True
+                return get_trump_value(c, self.trump_suit) > get_trump_value(winning_card, self.trump_suit)
+            if winning_is_trump:
+                return False
+            if c.suit == self.currentTrick[0]["card"].suit:
+                return get_offsuit_value(c) > get_offsuit_value(winning_card)
+            return False
+
+        winning_options = [c for c in moves if beats_current(c)]
+        if winning_options:
+            # Win as cheaply as possible to conserve strong cards.
+            def cost(c):
+                return get_trump_value(c, self.trump_suit) if is_trump(c, self.trump_suit) else get_offsuit_value(c)
+            return min(winning_options, key=cost)
+        # Can't win — shed the weakest card.
+        def value(c):
+            return get_trump_value(c, self.trump_suit) if is_trump(c, self.trump_suit) else get_offsuit_value(c)
+        return min(moves, key=value)
+
     def auto_play(self):
         while self.currentTurn != "player" and len(self.currentTrick) < len(self.player_order):
             time.sleep(0.3)
@@ -380,10 +465,9 @@ class Game:
                 valid, _ = self.validate_move(self.currentTurn, card)
                 if valid:
                     valid_moves.append(card)
-            if valid_moves:
-                available = valid_moves
-            idx = random.randrange(len(available))
-            card_to_play = available[idx]
+            card_to_play = self.choose_ai_card(self.currentTurn, available, valid_moves)
+            if card_to_play is None:
+                break
             self.play_card(self.currentTurn, card_to_play.text)
         return
 
@@ -396,6 +480,7 @@ class Game:
         self.gameNotes.append(trick_summary)
         self.trickLog.append(trick_summary)
         self.lastTrick = self.currentTrick.copy()
+        self.lastTrickWinner = winner
         self.players[winner]["tricks"].append(self.currentTrick.copy())
         for entry in self.currentTrick:
             if is_trump(entry["card"], self.trump_suit):
@@ -486,6 +571,8 @@ class Game:
             "bidHistory": self.bidHistory,
             "currentTrick": [{"player": entry["player"], "card": entry["card"].to_dict()} for entry in self.currentTrick],
             "lastTrick": [{"player": entry["player"], "card": entry["card"].to_dict()} for entry in self.lastTrick],
+            "lastTrickWinner": self.lastTrickWinner,
+            "bid": self.bid,
             "trickLog": self.trickLog,
             "scoreboard": {("Player" if p == "player" else p): self.players[p]["score"] for p in self.players},
             "currentTurn": self.currentTurn if self.currentTurn is not None else "player",
